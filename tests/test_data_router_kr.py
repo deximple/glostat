@@ -107,3 +107,44 @@ def test_router_raises_for_unknown_kr_data_type() -> None:
     r = DataRouter()
     with pytest.raises(ConfigError):
         r.route("E_FUNDAMENTAL_KR", "no_such_data_type")
+
+
+# ── v1.3 M2 — ECOS routes for E_MACRO_KR ─────────────────────────────────
+
+
+class _StubEcos:
+    async def get_base_rate(self, *args, **kwargs):
+        return None
+
+    async def get_krw_usd(self, *args, **kwargs):
+        return None
+
+    async def get_cpi(self, *args, **kwargs):
+        return None
+
+    async def get_kospi_index(self, *args, **kwargs):
+        return None
+
+
+def test_router_routes_e_macro_kr_base_rate_to_ecos() -> None:
+    r = DataRouter()
+    ecos = _StubEcos()
+    r.register_client("ecos", ecos)
+    client, method = r.route("E_MACRO_KR", "base_rate")
+    assert client is ecos
+    assert method == "get_base_rate"
+
+
+def test_router_routes_e_macro_kr_krw_usd_to_ecos() -> None:
+    r = DataRouter()
+    ecos = _StubEcos()
+    r.register_client("ecos", ecos)
+    _client, method = r.route("E_MACRO_KR", "krw_usd")
+    assert method == "get_krw_usd"
+
+
+def test_router_raises_when_ecos_not_registered() -> None:
+    r = DataRouter()
+    with pytest.raises(ConfigError) as exc:
+        r.route("E_MACRO_KR", "base_rate")
+    assert "ecos" in str(exc.value)

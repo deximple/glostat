@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from glostat.experts import (
     EFundamentalKrExpert,
     EFundFlowExpert,
     EInsiderKrExpert,
+    EMacroKrExpert,
     ETimeExpert,
 )
 from glostat.predictor.calibration import (
@@ -137,6 +139,8 @@ async def _predict_live(
     )
     # v1.2 L2 — wire DART-backed insider expert if API key is configured.
     insider_kr = EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE)
+    # v1.3 M2 — wire ECOS-backed macro expert if ECOS key is configured.
+    macro_kr = EMacroKrExpert.from_env()
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
@@ -147,14 +151,16 @@ async def _predict_live(
             fundamental_kr_expert=fundamental_kr,
             foreign_reversal_expert=foreign_reversal,
             insider_kr_expert=insider_kr,
+            macro_kr_expert=macro_kr,
         )
     finally:
         await sec_client.aclose()
         if insider_kr is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await insider_kr._dart.aclose()  # type: ignore[union-attr]
-            except Exception:
-                pass
+        if macro_kr is not None:
+            with contextlib.suppress(Exception):
+                await macro_kr._ecos.aclose()  # type: ignore[union-attr]
     return predict(
         ticker=ticker, horizon=horizon, contributions=contribs,
         cal_table=cal_table, issued_at=ts, market=market,

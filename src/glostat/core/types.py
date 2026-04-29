@@ -17,6 +17,8 @@ ExpertName = Literal[
     "E_FUND_FLOW",
     "E_TIME",
     "E_FOREIGN_REVERSAL",
+    "E_INSIDER_KR",
+    "E_MACRO_KR",
 ]
 
 

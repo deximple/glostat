@@ -185,6 +185,16 @@ async def wrap_insider_kr(
     return await _wrap_expert_compute("E_INSIDER_KR", expert, ticker, ts, cal_table)
 
 
+async def wrap_macro_kr(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.3 M2 — KR macro expert (ECOS BoK OpenAPI). Universe-aware: any KR
+    # ticker (XKRX or XKOS), no KOSPI 200 sub-screen — macro applies broadly.
+    if not is_kr_ticker(ticker):
+        return _skip("E_MACRO_KR", "ticker not KR equity", cal_table)
+    return await _wrap_expert_compute("E_MACRO_KR", expert, ticker, ts, cal_table)
+
+
 async def wrap_fund_flow(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
@@ -342,6 +352,7 @@ async def collect_contributions(  # noqa: PLR0912 — orchestrator: 1 branch per
     fundamental_kr_expert: Any | None = None,    # v1.1 K1
     foreign_reversal_expert: Any | None = None,  # v1.1 K1
     insider_kr_expert: Any | None = None,        # v1.2 L2 (DART)
+    macro_kr_expert: Any | None = None,          # v1.3 M2 (ECOS)
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -392,6 +403,18 @@ async def collect_contributions(  # noqa: PLR0912 — orchestrator: 1 branch per
         ))
     else:
         out.append(_skip("E_INSIDER_KR", "ticker not KR equity", cal_table))
+    # v1.3 M2: KR macro expert (ECOS BoK OpenAPI). Universe = any KR ticker
+    # (no KOSPI 200 sub-screen — macro applies broadly).
+    if macro_kr_expert is not None:
+        out.append(await wrap_macro_kr(macro_kr_expert, ticker, ts, cal_table))
+    elif is_kr_ticker(ticker):
+        out.append(_skip(
+            "E_MACRO_KR",
+            "ECOS API not configured (set GLOSTAT_ECOS_API_KEY)",
+            cal_table,
+        ))
+    else:
+        out.append(_skip("E_MACRO_KR", "ticker not KR equity", cal_table))
     return tuple(out)
 
 
@@ -409,6 +432,7 @@ __all__ = [
     "wrap_fx_carry_static",
     "wrap_insider_cluster_static",
     "wrap_insider_kr",
+    "wrap_macro_kr",
     "wrap_pead_static",
     "wrap_sector_rotation_static",
     "wrap_time",

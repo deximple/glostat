@@ -1,8 +1,14 @@
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.2 — KR calibration (L1) + DART API (L2) landed.**
-> Previous: v1.1 (2026-04-29) — KR (KOSPI 200) production support; v1.0 (2026-04-29)
-> Prediction Tool reframe of v0.7.
+> **STATUS: ACTIVE v1.3 — M2 in progress (ECOS BoK macro overlay landing).**
+> Previous: v1.2 — KR calibration (L1) + DART API (L2); v1.1 (2026-04-29) —
+> KR (KOSPI 200) production support; v1.0 (2026-04-29) Prediction Tool reframe
+> of v0.7.
+> v1.3 delta (M2): new `ecos_client.EcosClient` (한국은행 OpenAPI; free 10k/day)
+> + new `EMacroKrExpert` aggregating BoK base rate Δ, KRW/USD trend, CPI
+> surprise, KOSPI momentum into a single KR macro signal; gracefully skipped
+> when `GLOSTAT_ECOS_API_KEY` is unset. New invariant `INV-GS-108` (ECOS
+> graceful skip + 10 req/sec rate limit + Snapshot Broker integration).
 > v1.2 delta: `glostat kr-hindcast` produces real Phase KR calibration
 > (replaces n=0 bootstraps for E_FUNDAMENTAL_KR / E_TIME_KR / E_FOREIGN_REVERSAL);
 > new `dart_client.DartClient` + `EInsiderKrExpert` (KR equivalent of SEC Form 4
@@ -88,6 +94,7 @@ advice.
 | **INV-GS-105** | **Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update** | **active v1.0** |
 | **INV-GS-106** | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix** | **active v1.1** |
 | **INV-GS-107** | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly** | **active v1.2** |
+| **INV-GS-108** | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory** | **active v1.3** |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

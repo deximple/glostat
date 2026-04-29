@@ -1,13 +1,26 @@
-# GLOSTAT v1.2 — KR (Korea Exchange) Support Guide
+# GLOSTAT v1.3 — KR (Korea Exchange) Support Guide
 
-> Status: ACTIVE 2026-04-30. v1.2 L1 (Phase KR calibration) + L2 (DART API).
-> Previous v1.1 K1 (2026-04-29) — KR support landed.
-> Production routing for XKRX (KOSPI) live; XKOS (KOSDAQ) covered by
+> Status: ACTIVE 2026-04-29. v1.3 M2 (ECOS BoK macro) + v1.2 L1 (Phase KR
+> calibration) + L2 (DART API). Previous v1.1 K1 (2026-04-29) — KR support
+> landed. Production routing for XKRX (KOSPI) live; XKOS (KOSDAQ) covered by
 > yfinance fundamentals only.
 >
 > Information tool. Not investment advice. Past calibration ≠ future performance.
 
 ---
+
+## What changed in v1.3
+
+v1.3 adds one new KR thesis on top of v1.2:
+
+1. **M2 — ECOS BoK macro overlay**: new `E_MACRO_KR` expert backed by the
+   ECOS (한국은행 경제통계시스템) OpenAPI. Aggregates 4 macro signals (BoK
+   base rate Δ, KRW/USD trend, CPI surprise, KOSPI momentum) into a single
+   net score for any KR ticker. Free + 10,000 calls/day per key. See
+   `docs/ECOS_API_SETUP.md`.
+
+KR predictions now have up to **5 active signal slots** (was 4):
+`E_FUNDAMENTAL_KR`, `E_TIME`, `E_FOREIGN_REVERSAL`, `E_INSIDER_KR`, **`E_MACRO_KR`**.
 
 ## What changed in v1.2
 
@@ -71,6 +84,7 @@ Universe loading is exposed in code at:
 | Fundamentals (PER/ROE/div) | yfinance `005930.KS` info | DART API (Phase 2.5 — XBRL grade) |
 | 외인/기관 net flows | Naver Finance scraper (`finance.naver.com/item/frgn.naver`) | KIS API quotes |
 | Earnings calendar | yfinance | KRX disclosure (DART filings) |
+| Macro (BoK rate, KRW/USD, CPI, KOSPI index) | ECOS BoK OpenAPI | KOSIS / IMF SDMX |
 
 Cost: **$0 / month**. Fully free-stack (INV-GS-036 still enforces no Bigdata
 MCP in MVP phase).
@@ -122,6 +136,28 @@ Differs from US `E_FUNDAMENTAL`:
 - Calibration: bootstrapped at AUC=0.50, n=0 (weight=0) until first hindcast run
 
 Source code: `src/glostat/experts/e_fundamental_kr.py`.
+
+---
+
+## E_MACRO_KR (v1.3 M2 — ECOS BoK macro overlay)
+
+KR macro context aggregated into a single net score. ECOS-backed; gracefully
+skipped when `GLOSTAT_ECOS_API_KEY` is unset.
+
+| Component | Source | Aggregation | Weight | Sign |
+|-----------|--------|-------------|-------:|------|
+| BoK base rate Δ3m | 722Y001 / 0101000 (M) | latest minus 3-mo prior | 1.00 | inverted (cuts → bull) |
+| KRW/USD trend 60d | 731Y001 / 0000001 (D) | (latest / 60d-ago) − 1 | 0.50 × export_exposure | positive (KRW weak → exporters bull) |
+| CPI surprise vs trailing 12m | 901Y009 / 0 (M) | (latest − mean12) / mean12 | 0.70 | inverted (above-trend → tightening fear) |
+| KOSPI 60d momentum | 802Y001 / 0001000 (D) | (latest / 60d-ago) − 1 | 0.80 | positive (continuation) |
+
+`net_score = clip([-3, +3], sum of weighted z-scores)`. Direction threshold ±0.6
+(KR macro shifts slowly). Universe: ANY KR ticker (no KOSPI 200 sub-screen
+since macro applies broadly). Calibration: bootstrapped at AUC=0.500, n=0
+(weight=0) until first hindcast that includes E_MACRO_KR runs.
+
+Source code: `src/glostat/experts/e_macro_kr.py`.
+Setup: `docs/ECOS_API_SETUP.md`.
 
 ---
 

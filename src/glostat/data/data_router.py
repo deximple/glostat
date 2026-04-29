@@ -91,6 +91,12 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ("E_FUNDAMENTAL_KR", "ohlcv"):        (RouteEntry("mvp", "yfinance",   "get_ohlcv"),),
     ("E_FUNDAMENTAL_KR", "fundamentals"): (RouteEntry("mvp", "yfinance",   "get_fundamentals"),),
     ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr",  "fetch_history"),),
+    # v1.3 M2 — KR macro (BoK ECOS OpenAPI). Free + 10000 calls/day per key.
+    ("E_MACRO_KR", "base_rate"):    (RouteEntry("mvp", "ecos", "get_base_rate"),),
+    ("E_MACRO_KR", "krw_usd"):      (RouteEntry("mvp", "ecos", "get_krw_usd"),),
+    ("E_MACRO_KR", "cpi"):          (RouteEntry("mvp", "ecos", "get_cpi"),),
+    ("E_MACRO_KR", "fx_reserves"):  (RouteEntry("mvp", "ecos", "get_fx_reserves"),),
+    ("E_MACRO_KR", "kospi_index"):  (RouteEntry("mvp", "ecos", "get_kospi_index"),),
 }
 
 

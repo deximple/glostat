@@ -111,11 +111,14 @@ def test_calibration_table_names() -> None:
 
 
 def test_synthetic_calibration_has_thirteen_theses() -> None:
-    # v1.2 L1: 11 v1.0 thesis + E_FUNDAMENTAL_KR (v1.1) + E_TIME_KR (v1.2).
+    # v1.3 M2: 11 v1.0 thesis + E_FUNDAMENTAL_KR (v1.1) + E_TIME_KR (v1.2 L1) +
+    # E_INSIDER_KR (v1.2 L2) + E_MACRO_KR (v1.3 M2) = 15 total.
     table = synthetic_calibration_for_mock()
-    assert len(table.entries) == 13
+    assert len(table.entries) == 15
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
+    assert "E_INSIDER_KR" in table.entries
+    assert "E_MACRO_KR" in table.entries
 
 
 def test_synthetic_includes_phase1b_theses() -> None:
@@ -152,14 +155,16 @@ def test_synthetic_pead_matches_archived_metrics() -> None:
 
 
 def test_load_calibration_empty_cache(tmp_path: Path) -> None:
-    # v1.2 L1: when no cached reports exist, load_calibration backfills from the
+    # v1.3 M2: when no cached reports exist, load_calibration backfills from the
     # synthetic baseline so the live predictor has at least the v0.6/v1.1 numbers
-    # to lean on. The 13 entries are the synthetic baseline (11 v1.0 + E_FUNDAMENTAL_KR
-    # + E_TIME_KR).
+    # to lean on. The 15 entries = 11 v1.0 + E_FUNDAMENTAL_KR (v1.1) + E_TIME_KR
+    # (v1.2 L1) + E_INSIDER_KR (v1.2 L2) + E_MACRO_KR (v1.3 M2).
     table = load_calibration(cache_dir=tmp_path)
-    assert len(table.entries) == 13
+    assert len(table.entries) == 15
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
+    assert "E_INSIDER_KR" in table.entries
+    assert "E_MACRO_KR" in table.entries
 
 
 def test_load_calibration_reads_phase1b_report(tmp_path: Path) -> None:
@@ -237,6 +242,7 @@ def test_calibration_table_writes_parquet_or_json(tmp_path: Path) -> None:
 def test_calibration_table_to_records_round_trip() -> None:
     table = synthetic_calibration_for_mock()
     records = table.to_records()
-    assert len(records) == 13   # v1.2 L1: 11 + E_FUNDAMENTAL_KR + E_TIME_KR
+    # v1.3 M2: 11 + E_FUNDAMENTAL_KR + E_TIME_KR + E_INSIDER_KR + E_MACRO_KR
+    assert len(records) == 15
     assert all("brier_score" in r for r in records)
     assert all("auc" in r for r in records)

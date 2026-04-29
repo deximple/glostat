@@ -1,10 +1,13 @@
 # GLOSTAT v1.2 Calibration Table — Empirical Predictive Strength of Thesis Modules
 
-> Generated: 2026-04-29 (v1.0 reframe day) + 2026-04-30 (v1.2 phase_kr update).
+> Generated: 2026-04-29 (v1.0 reframe day) + 2026-04-30 (v1.2 phase_kr smoke
+> + M1 full 2-year update).
 > Source: `cache/hindcast/phase1b/`, `cache/hindcast/phase1c_*`,
-> `cache/hindcast/phase1d/`, `cache/hindcast/phase_kr/` (v1.2 L1).
+> `cache/hindcast/phase1d/`, `cache/hindcast/phase_kr/` (v1.2 L1 + M1 full).
 > Originally produced as v0.6/v0.7 Sprint 4 gate evaluations; reframed in v1.0
-> as **calibration data**; v1.2 added Phase KR (KOSPI 200) measurements.
+> as **calibration data**; v1.2 added Phase KR (KOSPI 200) measurements;
+> M1 (2026-04-30) replaced the Phase KR 3-month smoke with the full 2-year
+> hindcast (n=189/210/7 → n=3510/3510/138).
 >
 > **Honest disclaimer:** Most signals tested were random or anti-predictive.
 > This is HONEST data, not failure. Anti-predictive signals get weight 0;
@@ -278,39 +281,76 @@ uv run glostat calibrate --thesis E_FUNDING_CARRY --universe crypto_perp_2 --hor
 
 ---
 
-## Phase KR (v1.2 L1) — KOSPI 200 measurements
+## Phase KR (v1.2 L1 + M1) — KOSPI 200 measurements
 
-The KR-active theses now have measured calibration from
-`glostat kr-hindcast --universe KR_KOSPI200_TOP30 --start 2024-01-02 --end 2026-03-29`:
+The KR-active theses are calibrated from a 2-year hindcast across the KOSPI 200
+Top 30 universe (`KR_KOSPI200_TOP30`, 2024-01-02 → 2026-03-29, stride=5
+sample days, 30d horizon for fundamental/time, 7d horizon for foreign
+reversal). M1 (2026-04-30) replaced the v1.2 L1 3-month smoke (n=189/210/7)
+with the full window.
 
-| Thesis | n_traded | AUC | Sharpe | OOS deg | Decision |
-|--------|---------:|----:|-------:|--------:|----------|
-| E_FUNDAMENTAL_KR | (see latest report) | – | – | – | populated by latest run |
-| E_TIME_KR | (see latest report) | – | – | – | populated by latest run |
-| E_FOREIGN_REVERSAL (KR) | (see latest report) | – | – | – | populated by latest run |
+### M1 measurements (current)
 
-The exact numbers regenerate every quarter via `glostat kr-hindcast` and land
-in `cache/hindcast/phase_kr/phase_kr_comparison.md`. The composite predictor
-ingests them through `predictor.calibration.load_calibration()` and stores
-them in `cache/calibration_table.parquet`.
+| Thesis | n_traded | AUC overall | AUC IS / OOS | Sharpe overall | Sharpe IS / OOS | OOS deg | Decision |
+|--------|---------:|------------:|-------------:|---------------:|----------------:|--------:|----------|
+| E_FUNDAMENTAL_KR | 3510 | 0.495 | 0.500 / 0.483 | +0.301 | +0.425 / +0.150 | 64.7% | NEAR_RANDOM |
+| E_TIME_KR | 3510 | 0.483 | 0.487 / 0.468 | +0.335 | +0.001 / +0.842 | 0.0% | NEAR_RANDOM |
+| E_FOREIGN_REVERSAL (KR) | 138 | 0.464 | 0.434 / 0.506 | +0.170 | -0.305 / +0.867 | 100.0% | AMBIGUOUS |
+
+Source: `cache/hindcast/phase_kr/phase_kr_comparison.md`. JSON reports under
+the same directory are loaded by `predictor.calibration.load_calibration()`
+into `cache/calibration_table.parquet`.
+
+### v1.2 L1 → M1 delta (smoke vs full window)
+
+| Thesis | n (smoke → full) | AUC (smoke → full) | Sharpe (smoke → full) |
+|--------|-----------------:|-------------------:|----------------------:|
+| E_FUNDAMENTAL_KR | 189 → 3510 (18.6×) | 0.506 → 0.495 | +1.108 → +0.301 |
+| E_TIME_KR | 210 → 3510 (16.7×) | 0.488 → 0.483 | +0.222 → +0.335 |
+| E_FOREIGN_REVERSAL | 7 → 138 (19.7×) | 0.333 → 0.464 | +0.523 → +0.170 |
+
+The smoke Sharpe was inflated by small-n variance; the full-window Sharpe
+is the honest, regularized number.
 
 **Honest read of the KR measurements:**
-- `E_FUNDAMENTAL_KR` typically lands AUC 0.50–0.52 with positive Sharpe on
-  cheap-PER + high-ROE clusters (the value tilt is real but modest).
-- `E_TIME_KR` (Ichimoku 257-day base) lands near random on KR — the daily-bar
-  base doesn't transfer as cleanly as on US large caps.
-- `E_FOREIGN_REVERSAL` measured on KOSPI 200 top-30 produces 4–8 actionable
-  events per ticker per 2-year window — small n means weight stays modest.
+- `E_FUNDAMENTAL_KR` (cheap-PER + high-ROE + dividend tilt) lands AUC 0.495 —
+  effectively chance. Sharpe +0.30 is positive but the IS/OOS gap (0.42 → 0.15)
+  warns of regime sensitivity. The signal contributes a small Brier-weighted
+  vote, not a confident directional call.
+- `E_TIME_KR` (Ichimoku 257-day base) lands AUC 0.483 — also chance on KR
+  daily bars. The OOS Sharpe (+0.84) actually outperformed IS (+0.00),
+  suggesting the IS window straddled a regime shift; the result is positive
+  but unstable in interpretation.
+- `E_FOREIGN_REVERSAL` measured on KOSPI 200 Top-30 found 138 actionable
+  REVERSAL_BUY patterns over 2 years — 96.07% skip rate (3275 NEUTRAL +
+  97 insufficient_history). Pattern is genuinely rare in mega-caps. OOS
+  Sharpe (+0.87) flipped from negative IS (-0.30); the override of the
+  Phase 1D legacy n=424 calibration is automatic in the loader (Phase KR
+  is the authoritative KR window).
 - `E_INSIDER_KR` (DART elestock) requires `GLOSTAT_DART_API_KEY`. Without it,
-  the slot reports skip; with it, the cluster signal mirrors US E_INSIDER_CLUSTER
-  semantics.
+  the slot reports skip; with it, the cluster signal mirrors US
+  E_INSIDER_CLUSTER semantics. Not yet measured by Phase KR hindcast.
+
+### Phase 1D legacy → Phase KR override
+
+The earlier Phase 1D (TITAN heritage) E_FOREIGN_REVERSAL calibration shipped
+n=424, AUC 0.467, Sharpe +0.583, OOS deg 0%. Phase KR M1 (n=138, Sharpe
++0.170, OOS deg 100%) replaces it: KR-specific, recent 2-year window, real
+TOP30 pattern frequency. The Brier-derived weight will drop from ≈0.14
+(Phase 1D) toward the M1 floor — this is honest data, not regression.
 
 Re-run:
 ```bash
-GLOSTAT_SEC_USER_AGENT="..." NETWORK_TESTS=1 \
+GLOSTAT_SEC_USER_AGENT="GLOSTAT (you@example.com)" NETWORK_TESTS=1 \
+  GLOSTAT_DART_API_KEY="<your-key>" \
   uv run glostat kr-hindcast --universe KR_KOSPI200_TOP30 \
-  --start 2024-01-02 --end 2026-03-29 --max-concurrent 5
+    --start 2024-01-02 --end 2026-03-29 \
+    --max-concurrent 5 --stride 5
 ```
+
+Expected wall-clock: ~45 min on a fresh machine; subsequent reruns are
+much faster as Snapshot Broker caches yfinance.history/info/calendar leaves
+(typically ~5 min when most data is cached).
 
 ---
 

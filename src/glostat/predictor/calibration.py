@@ -409,6 +409,22 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.2 L2 — KR insider cluster (DART elestock). n=0 placeholder until
+        # a KR insider hindcast measures AUC. Composite weight = 0 until then.
+        "E_INSIDER_KR": ThesisCalibration(
+            "E_INSIDER_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.3 M2 — KR macro (ECOS BoK). n=0 placeholder until a KR macro
+        # hindcast that includes E_MACRO_KR runs. Composite weight = 0 until
+        # then; the signal still surfaces in contributing_signals so the user
+        # sees the macro picture (raw_score, basis), just with weight=0.
+        "E_MACRO_KR": ThesisCalibration(
+            "E_MACRO_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 
