@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import subprocess
+import warnings
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Final, Literal
@@ -11,6 +12,28 @@ import structlog
 
 from glostat.core.types import Action, ComposedSignal, ExpertSignal, MarketMeta, Verdict
 from glostat.gating import GatingNetwork, compose
+
+# v1.0 DEPRECATION: verdict_builder is the legacy decision-engine path
+# (BUY/HOLD/SELL action). v1.0 reframes GLOSTAT as a prediction tool — see
+# `glostat.predictor.composite.predict()` for the supported `Prediction` API
+# (probability + evidence). This module remains importable for backward
+# compatibility and continues to power `glostat verdict` (deprecated CLI).
+# Deprecation surfaces at the CLI command boundary, not on import, to avoid
+# polluting the test suite with import-time warnings.
+_VERDICT_BUILDER_DEPRECATED: Final[str] = (
+    "glostat.verdict_builder is deprecated; use glostat.predictor.composite.predict "
+    "instead for the v1.0 Prediction surface."
+)
+
+
+_DEPRECATION_EMITTED: list[bool] = [False]
+
+
+def _emit_deprecation_once() -> None:
+    if _DEPRECATION_EMITTED[0]:
+        return
+    _DEPRECATION_EMITTED[0] = True
+    warnings.warn(_VERDICT_BUILDER_DEPRECATED, DeprecationWarning, stacklevel=3)
 
 # Verdict assembly from one or more ExpertSignals.
 # Sprint 1 PR #1: single-Expert passthrough.
@@ -63,6 +86,7 @@ def build_verdict(
     user_profile_id: str = _DEFAULT_USER_PROFILE,
     gating: GatingNetwork | None = None,
 ) -> Verdict:
+    _emit_deprecation_once()
     if not signals:
         raise ValueError("build_verdict requires at least one ExpertSignal")
     if market_meta.mic not in {"XNAS", "XNYS"}:

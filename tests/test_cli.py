@@ -36,22 +36,27 @@ def workdir(tmp_path: Path) -> Path:
 # ── predict --mock ─────────────────────────────────────────────────────────
 
 
+# v1.0 reframe: legacy `predict → Verdict` tests migrated to `verdict` subcommand.
+# `predict` now outputs Prediction (probability + evidence) — covered by
+# tests/test_cli_predict_v1.py.
+
+
 def test_predict_aapl_mock_exits_zero(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "AAPL" in r.stdout
     assert re.search(r"action\s*:\s*(BUY|HOLD|SELL)", r.stdout)
 
 
 def test_predict_disclaimer_printed(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0
     assert "personal use" in r.stdout.lower()
     assert "INV-GS-024" in r.stdout
 
 
 def test_predict_writes_snapshots(workdir: Path) -> None:
-    _run("predict", "AAPL", "--mock", cwd=workdir)
+    _run("verdict", "AAPL", "--mock", cwd=workdir)
     db = workdir / "cache" / "snapshots" / "index.sqlite"
     assert db.exists()
     shards_dir = workdir / "cache" / "snapshots" / "shards"
@@ -60,7 +65,7 @@ def test_predict_writes_snapshots(workdir: Path) -> None:
 
 
 def test_predict_json_emits_canonical(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", "--json", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--json", cwd=workdir)
     assert r.returncode == 0
     payload = json.loads(r.stdout.strip().splitlines()[-1])
     assert payload["ticker"] == "AAPL"
@@ -69,7 +74,7 @@ def test_predict_json_emits_canonical(workdir: Path) -> None:
 
 
 def test_predict_records_verdict_for_replay(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", "--json", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--json", cwd=workdir)
     assert r.returncode == 0
     payload = json.loads(r.stdout.strip().splitlines()[-1])
     replay = _run("replay", payload["evidence_hash"], cwd=workdir)
@@ -89,7 +94,7 @@ def test_replay_unknown_hash_returns_nonzero(workdir: Path) -> None:
 
 
 def test_audit_returns_merkle_root_string(workdir: Path) -> None:
-    _run("predict", "AAPL", "--mock", cwd=workdir)
+    _run("verdict", "AAPL", "--mock", cwd=workdir)
     r = _run("audit", "2026-04-28", cwd=workdir)
     assert r.returncode == 0
     output = r.stdout.strip()
@@ -103,7 +108,7 @@ def test_audit_returns_merkle_root_string(workdir: Path) -> None:
 def test_status_prints_version_and_phase(workdir: Path) -> None:
     r = _run("status", cwd=workdir)
     assert r.returncode == 0
-    assert "0.7.0" in r.stdout
+    assert "1.0.0" in r.stdout
     assert "phase" in r.stdout.lower()
     assert "snapshots" in r.stdout.lower()
 
@@ -124,22 +129,22 @@ def test_no_command_prints_help(workdir: Path) -> None:
 
 
 def test_unknown_ticker_in_mock_mode_errors(workdir: Path) -> None:
-    r = _run("predict", "NOTAREALSTOCK", "--mock", cwd=workdir)
+    r = _run("verdict", "NOTAREALSTOCK", "--mock", cwd=workdir)
     assert r.returncode != 0
 
 
-# ── Sprint 1 PR #2: --expert flag + multi-signal aggregation ───────────────
+# ── Sprint 1 PR #2: --expert flag + multi-signal aggregation (legacy verdict) ─
 
 
 def test_predict_expert_time_only(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", "--expert", "time", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--expert", "time", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "E_TIME" in r.stdout
     assert "E_FUNDAMENTAL" not in r.stdout
 
 
 def test_predict_expert_fundamental_only(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", "--expert", "fundamental", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--expert", "fundamental", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "E_FUNDAMENTAL" in r.stdout
     assert "E_TIME" not in r.stdout
@@ -147,14 +152,14 @@ def test_predict_expert_fundamental_only(workdir: Path) -> None:
 
 def test_predict_all_experts_default_two_signals(workdir: Path) -> None:
     # Default --expert all → both Experts contribute.
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "E_FUNDAMENTAL" in r.stdout
     assert "E_TIME" in r.stdout
 
 
 def test_predict_all_experts_records_more_snapshots(workdir: Path) -> None:
-    _run("predict", "AAPL", "--mock", cwd=workdir)
+    _run("verdict", "AAPL", "--mock", cwd=workdir)
     db = workdir / "cache" / "snapshots" / "index.sqlite"
     assert db.exists()
     conn = sqlite3.connect(db)
@@ -168,7 +173,7 @@ def test_predict_all_experts_records_more_snapshots(workdir: Path) -> None:
 
 
 def test_predict_inv_gs_008_metadata_visible_in_json(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", "--expert", "time", "--json", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--expert", "time", "--json", cwd=workdir)
     assert r.returncode == 0, r.stderr
     payload = json.loads(r.stdout.strip().splitlines()[-1])
     sigs = payload["contributing_signals"]
@@ -178,20 +183,20 @@ def test_predict_inv_gs_008_metadata_visible_in_json(workdir: Path) -> None:
     assert md["bonus_eligible_T"] == "True"  # fixture engineered for T=2.0
 
 
-# ── Sprint 1 PR #3: E_FUND_FLOW Expert ─────────────────────────────────────
+# ── Sprint 1 PR #3: E_FUND_FLOW Expert (legacy verdict) ───────────────────
 
 
 def test_predict_expert_fund_flow_only_skips_in_mock(workdir: Path) -> None:
     # Sprint 5 PR #1: E_FUND_FLOW alone in fresh-broker mock mode skips
     # (no prior snapshot) so build_verdict raises and the CLI exits non-zero.
-    r = _run("predict", "AAPL", "--mock", "--expert", "fund_flow", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--expert", "fund_flow", cwd=workdir)
     assert r.returncode != 0
 
 
 def test_predict_all_experts_includes_at_least_two(workdir: Path) -> None:
     # Sprint 5 PR #1: E_FUND_FLOW skips on fresh-broker mock; E_FUNDAMENTAL +
     # E_TIME still produce signals so the verdict prints at least two experts.
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "E_FUNDAMENTAL" in r.stdout
     assert "E_TIME" in r.stdout
@@ -199,9 +204,9 @@ def test_predict_all_experts_includes_at_least_two(workdir: Path) -> None:
 
 def test_predict_two_or_three_expert_signal_count(workdir: Path) -> None:
     # Sprint 5 PR #1: E_FUND_FLOW now needs a prior holders snapshot (cross-day
-    # delta), so single-shot mock predict skips that expert. E_FUNDAMENTAL and
+    # delta), so single-shot mock verdict skips that expert. E_FUNDAMENTAL and
     # E_TIME still emit, so a 2-signal verdict is the new mock baseline.
-    r = _run("predict", "AAPL", "--mock", "--json", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", "--json", cwd=workdir)
     assert r.returncode == 0, r.stderr
     payload = json.loads(r.stdout.strip().splitlines()[-1])
     assert len(payload["contributing_signals"]) >= 2
@@ -210,7 +215,7 @@ def test_predict_two_or_three_expert_signal_count(workdir: Path) -> None:
 
 
 def test_predict_records_snapshots(workdir: Path) -> None:
-    _run("predict", "AAPL", "--mock", cwd=workdir)
+    _run("verdict", "AAPL", "--mock", cwd=workdir)
     db = workdir / "cache" / "snapshots" / "index.sqlite"
     assert db.exists()
     conn = sqlite3.connect(db)
@@ -289,11 +294,11 @@ def test_screen_deferred_universe_errors(workdir: Path) -> None:
     assert "deferred" in (r.stderr + r.stdout).lower()
 
 
-# ── Sprint 1 PR #5: Gating breakdown printed in predict ────────────────────
+# ── Sprint 1 PR #5: Gating breakdown printed in legacy verdict ────────────
 
 
 def test_predict_displays_gating_breakdown(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "Gating:" in r.stdout
     assert "E_FUND" in r.stdout
@@ -303,7 +308,7 @@ def test_predict_displays_gating_breakdown(workdir: Path) -> None:
 
 
 def test_predict_gating_anti_herd_off_at_3_experts(workdir: Path) -> None:
-    r = _run("predict", "AAPL", "--mock", cwd=workdir)
+    r = _run("verdict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0, r.stderr
     # 3 experts in MVP — anti-herd doesn't trigger (threshold = 4).
     assert "anti_herd        : OFF" in r.stdout

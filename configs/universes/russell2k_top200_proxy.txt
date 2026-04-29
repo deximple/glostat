@@ -1,0 +1,77 @@
+# GLOSTAT Phase 1B — Russell 2000 liquidity proxy universe
+# 60 small/mid-cap US equities for E_INSIDER_CLUSTER hindcast.
+# Selection criteria (manual curation, 2026-04-29):
+#   - Market cap roughly $300M-$5B (small to mid)
+#   - NOT in S&P 500
+#   - Listed on XNAS or XNYS
+#   - Liquid enough for daily OHLCV (avg daily volume > 100K)
+# Refresh policy: quarterly (next refresh 2026-07-31).
+# This is a deliberate undersample of Russell 2000 (~2000 names) to keep
+# Form 4 fetch budget reasonable. Full Russell 2000 deferred to Phase 2.
+# One ticker per line. Lines starting with '#' or blank lines ignored.
+
+# ── Industrials / Materials ─────────────────────────────────────────
+ATKR
+AZZ
+BLBD
+BMI
+CCS
+CXT
+ENS
+FCN
+FUL
+GBX
+GEF
+GTLS
+HAYW
+HEES
+KAI
+LXFR
+MGRC
+MWA
+PRGS
+ROCK
+
+# ── Financials / REITs ──────────────────────────────────────────────
+ASB
+BANR
+CFR
+CUBI
+EFSC
+FBP
+FFIN
+HOMB
+HOPE
+IBOC
+LKFN
+NBHC
+PNFP
+PPBI
+SFNC
+SRCE
+TCBI
+UMBF
+WAFD
+WSFS
+
+# ── Consumer / Healthcare ───────────────────────────────────────────
+ABG
+ASO
+BJRI
+BOOT
+CAKE
+CHEF
+DENN
+ETD
+GIII
+HBI
+JBSS
+KTB
+LCII
+MCRI
+MSGE
+NWL
+RGR
+SCSC
+SHOO
+TUP

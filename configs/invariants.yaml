@@ -1,9 +1,11 @@
-# GLOSTAT v0.6 — INV-GS-001..040 (총 40개 불변식)
-# v0.1 (001-010) + v0.2 (011-016) + v0.3 (017-021) + v0.4 (022-035) + v0.6 (036-040)
-# 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.6.md
+# GLOSTAT v1.0 — INV-GS-001..105 (총 45개 불변식; 5 deprecated, 5 newly active in v1.0)
+# v0.1 (001-010) + v0.2 (011-016) + v0.3 (017-021) + v0.4 (022-035) + v0.6 (036-040) + v1.0 (101-105)
+# 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
-schema_version: 1
-total: 40
+schema_version: 2
+total: 45
+v1_0_active: 5
+v1_0_deprecated: 3
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -11,6 +13,9 @@ invariants:
     summary: "edge_bps ≥ 1.5 × all_in_bps 미충족 시 BUY/STRONG_BUY → HOLD 강등"
     enforcement: hard_gate
     source: MOET A4, PLAN_v0.1
+    deprecated: true
+    deprecated_in: v1.0
+    deprecated_note: "v0.6 decision-engine artifact. v1.0은 BUY 출력 자체가 없으므로 cost gate 의미 상실. 무력화 (계산 자체는 hindcast 손익 실현 시 cost mask로만 사용)."
   INV-GS-002:
     summary: "find_companies 결과는 영구 캐시; 재호출 금지"
     enforcement: cache_layer
@@ -27,6 +32,9 @@ invariants:
     summary: "4 Expert 이상 동방향 시 가중치 0.80× 할인 (anti-herd)"
     enforcement: gating_post
     source: MOET A2
+    deprecated: true
+    deprecated_in: v1.0
+    deprecated_note: "v0.6 decision-engine artifact. Brier-weighted ensemble (INV-GS-103)이 자동으로 dissent를 CI 폭으로 반영하므로 별도 anti-herd 할인 불필요."
   INV-GS-006:
     summary: "모든 verdict는 hash-chained NDJSON에 append; 누락 시 다음 verdict 거부"
     enforcement: evidence_chain
@@ -169,6 +177,9 @@ invariants:
     enforcement: kill_criteria
     source: E10 (Contrarian)
     sprint: 4
+    deprecated: true
+    deprecated_in: v1.0
+    deprecated_note: "v0.6 decision-engine artifact. v1.0은 per-thesis Sharpe FAIL 시 해당 thesis weight ↓ (potentially 0)로 처리할 뿐, 프로젝트 자체는 shutdown 대상 아님. v1.0 kill criteria는 docs/ssot/PLAN_v1.0.md §9.4 참조 (compliance breach + broker integrity + stale calibration만 남음)."
   INV-GS-034:
     summary: "Cascade Graph는 research/ 격리. production verdict 영향 0"
     enforcement: module_isolation
@@ -212,6 +223,47 @@ invariants:
     sprint: 0
     mvp_status: active
 
+  # ───────── v1.0: Prediction Tool Reframe (101-105) — 개선된 TITAN ─────────
+  INV-GS-101:
+    summary: "Output is probability distribution + confidence interval. BUY/SELL action output forbidden."
+    enforcement: type_gate
+    source: PLAN_v1.0 §3, §5.1
+    active_in: [v1.0]
+    enforce_at: [predictor.composite, cli.predict, glostat.core.types.Prediction]
+    note: "v1.0 reframe core. Prediction dataclass에는 action/target_price/stop_price/suggested_size_pct/directive 필드가 존재하지 않는다. AttributeError raise."
+
+  INV-GS-102:
+    summary: "Every prediction must cite source signals + calibration period + n_samples."
+    enforcement: provenance_required
+    source: PLAN_v1.0 §3, §5.1
+    active_in: [v1.0]
+    enforce_at: [glostat.core.types.Prediction.__post_init__]
+    note: "Prediction.contributing 비어있으면 ValueError. 각 ThesisContribution은 calibration_window + n_calibration_samples + auc 필수."
+
+  INV-GS-103:
+    summary: "Composite probability uses Brier-score-weighted ensemble (not simple mean)."
+    enforcement: weighting_algorithm
+    source: PLAN_v1.0 §4.2, §5.1
+    active_in: [v1.0]
+    enforce_at: [predictor.composite.composite_p_up, predictor.composite.thesis_weight]
+    note: "단순 평균 금지. weight = sigmoid(-20 × (Brier - 0.25)) × min(1, n/50). Sample-size guard 강제."
+
+  INV-GS-104:
+    summary: "Per-prediction disclaimer: personal use, not investment advice (extends INV-GS-024)."
+    enforcement: compliance_per_output
+    source: PLAN_v1.0 §6.1, §5.1
+    active_in: [v1.0]
+    enforce_at: [glostat.core.types.Prediction.__post_init__, glostat.risk.compliance_gate]
+    note: "INV-GS-024 (broadcast 영구 금지)를 강화. 매 Prediction은 non-empty disclaimer 필드를 가지며 construction time validation. 우회 시도는 PR auto-reject."
+
+  INV-GS-105:
+    summary: "Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update."
+    enforcement: scheduled_recalibration
+    source: PLAN_v1.0 §8, §5.1
+    active_in: [v1.0]
+    enforce_at: [cli.calibrate, predictor.calibration]
+    note: "Q1 (Jan 31) / Q2 (Apr 30) / Q3 (Jul 31) / Q4 (Oct 31). 2 분기 이상 미갱신 시 weight 자동 0.5× degrade + 사용자 경고."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -229,3 +281,17 @@ sprint_0_active:
   - INV-GS-038    # SEC EDGAR User-Agent (v0.6)
   - INV-GS-039    # Data router phase (v0.6)
   - INV-GS-040    # Bigdata consent (v0.6)
+
+# v1.0 active set (prediction-tool reframe):
+v1_0_active:
+  - INV-GS-101    # No action output
+  - INV-GS-102    # Provenance required (calibration window + n)
+  - INV-GS-103    # Brier-weighted ensemble (no simple mean)
+  - INV-GS-104    # Per-prediction disclaimer (extends INV-GS-024)
+  - INV-GS-105    # Quarterly recalibration
+
+# Deprecated in v1.0 (kept for lineage; do not enforce):
+v1_0_deprecated:
+  - INV-GS-001    # cost gate (decision-engine artifact)
+  - INV-GS-005    # anti-herd discount (decision-engine artifact)
+  - INV-GS-033    # Sprint 4 FAIL → shutdown (decision-engine artifact)

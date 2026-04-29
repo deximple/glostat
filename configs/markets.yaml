@@ -57,7 +57,47 @@ markets:
     bigdata_mcp_coverage: HIGH
     foreign_access: open
 
+# Phase 1D research-only entries (NOT active production routing).
+# Cost models used by phase1d hindcast modules; not registered for DataRouter
+# dispatch. KR/Crypto remain out of MVP scope (INV-GS-036).
+phase1d_research:
+  XKRX:
+    mic: XKRX
+    name: Korea Exchange (KOSPI)
+    country: KR
+    currency: KRW
+    tz: Asia/Seoul
+    settlement_days: 2
+    fee_bps: 1.5
+    tax_bps_buy: 0.0
+    tax_bps_sell: 20.0
+    foreign_access: registered_only
+    notes: "Hindcast-only. all_in_bps ≈ 22 round-trip (incl. spread)."
+  XKOS:
+    mic: XKOS
+    name: KOSDAQ
+    country: KR
+    currency: KRW
+    tz: Asia/Seoul
+    settlement_days: 2
+    fee_bps: 1.5
+    tax_bps_buy: 0.0
+    tax_bps_sell: 18.0
+    foreign_access: registered_only
+    notes: "Hindcast-only. all_in_bps ≈ 20 round-trip."
+  BINANCE_PERP:
+    mic: BINANCE_PERP
+    name: Binance USDM Perpetual Futures
+    country: KY
+    currency: USDT
+    tz: UTC
+    settlement_days: 0
+    fee_bps: 4.0
+    tax_bps_buy: 0.0
+    tax_bps_sell: 0.0
+    foreign_access: open
+    notes: "Hindcast-only. 8h funding accrual; all_in_bps ≈ 6 round-trip mostly-maker."
+
 # Phase 2 후보 (현재 비활성, 주석으로만 유지)
-# XKRX: KOSPI (Korea), XKOS: KOSDAQ (Korea)
 # XTAI: Taiwan SE, XJPX: Tokyo, XHKG: Hong Kong, XSHG/XSHE: Shanghai/Shenzhen
 # XLON: London, XAMS: Euronext Amsterdam, XPAR: Euronext Paris

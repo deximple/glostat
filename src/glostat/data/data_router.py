@@ -78,6 +78,12 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ("E_CASCADE", "transcripts"):    (
         RouteEntry("phase_3", "bigdata", "bigdata_search", requires_consent=True),
     ),
+
+    # Phase 1C — Macro and commodity research experts. Both run on free
+    # yfinance OHLCV; E_COMMODITY_TS additionally uses the public CFTC client.
+    ("E_FX_CARRY",     "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_COMMODITY_TS", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_COMMODITY_TS", "cot"):   (RouteEntry("mvp", "cftc",     "fetch_range"),),
 }
 
 

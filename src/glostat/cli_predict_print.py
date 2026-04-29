@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from glostat.cli_gating_print import print_gating_breakdown
 from glostat.core.types import Verdict
+from glostat.predictor.types import Prediction
 
-# Render a Verdict in human-readable form. Split out of cli.py to keep cli.py
-# under the 400-line house rule (PLAN_v0.6 §house rules).
+# Render a Verdict (legacy v0.7) or Prediction (v1.0) in human-readable form.
+# Split out of cli.py to keep cli.py under the 400-line house rule.
 
 
 def print_verdict(v: Verdict, *, disclaimer: str) -> None:
@@ -37,4 +38,52 @@ def print_verdict(v: Verdict, *, disclaimer: str) -> None:
     print(disclaimer)
 
 
-__all__ = ["print_verdict"]
+def print_prediction(p: Prediction) -> None:
+    print(f"=== GLOSTAT Prediction — {p.ticker} ({p.market}) ===")
+    print(f"  horizon       : {p.horizon}")
+    print(
+        f"  up / down / sideways: "
+        f"{p.up_probability * 100:.1f}% / "
+        f"{p.down_probability * 100:.1f}% / "
+        f"{p.sideways_probability * 100:.1f}%"
+    )
+    low, high = p.confidence_interval_bps
+    print(
+        f"  expected return: {p.expected_return_bps:+.0f}bps  "
+        f"(CI: {low:+.0f}bps .. {high:+.0f}bps)"
+    )
+    print(f"  base rate up  : {p.base_rate_up * 100:.1f}%")
+    print(f"  edge over baseline: {p.edge_over_baseline_pp:+.1f}pp")
+    print()
+    print(
+        f"Contributing signals (active {p.active_signal_count} / "
+        f"total {p.total_signal_count}):"
+    )
+    for s in p.contributing_signals:
+        if s.direction == "skip":
+            reason = s.skip_reason or "skipped"
+            short = reason if len(reason) <= 50 else reason[:47] + "..."
+            print(f"  {s.name:<22} . skip   ({short})")
+            continue
+        arrow = {"up": "^", "down": "v", "neutral": "-"}[s.direction]
+        val = f"{s.value:+.2f}" if s.value is not None else "n/a"
+        print(
+            f"  {s.name:<22} {arrow} {val:>7}  "
+            f"(AUC {s.calibration_auc:.3f}, n={s.n_samples})"
+        )
+    print()
+    print("Next triggers:")
+    for t in p.next_triggers:
+        print(f"  - {t}")
+    print()
+    cal_start, cal_end = p.calibration_period
+    print(p.disclaimer)
+    print(
+        f"Calibration period: {cal_start.isoformat()} → {cal_end.isoformat()}"
+    )
+    print(f"evidence_hash: sha256:{p.evidence_hash[:16]}...")
+    print(f"issued_at:     {p.issued_at.isoformat()}")
+    print(f"git_commit:    {p.git_commit[:12]}")
+
+
+__all__ = ["print_prediction", "print_verdict"]
