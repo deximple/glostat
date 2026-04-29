@@ -54,11 +54,11 @@ dev = [
 glostat = "glostat.cli:main"
 
 [project.urls]
-Homepage      = "https://github.com/glostat/glostat"
-Repository    = "https://github.com/glostat/glostat"
-Documentation = "https://github.com/glostat/glostat/tree/main/docs"
-Issues        = "https://github.com/glostat/glostat/issues"
-PostMortem    = "https://github.com/glostat/glostat/blob/main/docs/post_mortem/SPRINT5_FAIL_post_mortem.md"
+Homepage      = "https://github.com/deximple/glostat"
+Repository    = "https://github.com/deximple/glostat"
+Documentation = "https://github.com/deximple/glostat/tree/main/docs"
+Issues        = "https://github.com/deximple/glostat/issues"
+PostMortem    = "https://github.com/deximple/glostat/blob/main/docs/post_mortem/SPRINT5_FAIL_post_mortem.md"
 
 [build-system]
 requires = ["hatchling"]
