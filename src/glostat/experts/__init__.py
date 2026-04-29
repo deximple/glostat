@@ -17,6 +17,7 @@ from glostat.experts.e_fundamental_kr import (
 )
 from glostat.experts.e_fx_carry import EFxCarryExpert, FxCarrySnapshot
 from glostat.experts.e_insider_cluster import EInsiderClusterExpert
+from glostat.experts.e_insider_kr import EInsiderKrExpert, InsiderKrScore
 from glostat.experts.e_pead import EPeadExpert
 from glostat.experts.e_sector_rotation import ESectorRotationExpert
 from glostat.experts.e_time import ETimeExpert, TimeScore
@@ -31,6 +32,7 @@ __all__ = [
     "EFundamentalKrExpert",
     "EFxCarryExpert",
     "EInsiderClusterExpert",
+    "EInsiderKrExpert",
     "EPeadExpert",
     "ESectorRotationExpert",
     "ETimeExpert",
@@ -39,5 +41,6 @@ __all__ = [
     "FundamentalKrScore",
     "FundamentalScore",
     "FxCarrySnapshot",
+    "InsiderKrScore",
     "TimeScore",
 ]

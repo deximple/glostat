@@ -279,6 +279,19 @@ invariants:
       - predictor.kr_universe.kr_canonical
     note: "KR universe is canonical 6-digit (e.g. 005930 for Samsung). yfinance lookup transparently appends .KS for KOSPI / .KQ for KOSDAQ. Snapshot Broker UAID encodes XKRX/XKOS prefix (XKRX.005930). Universe membership tested via configs/universes/kospi200.txt (200 tickers, snapshot 2026-04-29)."
 
+  INV-GS-107:
+    summary: "DART API key required for KR insider/fundamentals enhancement; absence skips cleanly."
+    enforcement: graceful_degradation
+    source: docs/DART_API_SETUP.md (v1.2 L2 addendum)
+    active_in: [v1.2]
+    enforce_at:
+      - data.dart_client.DartApiKeyMissingError
+      - data.dart_client.is_dart_configured
+      - experts.e_insider_kr.EInsiderKrExpert.from_env
+      - experts.e_fundamental_kr.EFundamentalKrExpert._enrich_with_dart
+      - predictor.thesis_wrappers.collect_contributions
+    note: "DART OpenAPI is the canonical KR equivalent of SEC EDGAR. When GLOSTAT_DART_API_KEY is unset, E_INSIDER_KR reports a universe-aware skip and E_FUNDAMENTAL_KR falls back to yfinance-only fields. Setup guide: docs/DART_API_SETUP.md (free 10,000 calls/day)."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -308,6 +321,10 @@ v1_0_active:
 # v1.1 active set (KR market support — K1):
 v1_1_active:
   - INV-GS-106    # KR ticker normalization + yfinance .KS auto-suffix
+
+# v1.2 active set (KR calibration + DART):
+v1_2_active:
+  - INV-GS-107    # DART API key requirement + graceful skip
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

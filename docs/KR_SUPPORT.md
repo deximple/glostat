@@ -1,11 +1,25 @@
-# GLOSTAT v1.1 — KR (Korea Exchange) Support Guide
+# GLOSTAT v1.2 — KR (Korea Exchange) Support Guide
 
-> Status: ACTIVE 2026-04-29. K1 milestone (KR support landed). Production routing
-> for XKRX (KOSPI) live; XKOS (KOSDAQ) covered by yfinance fundamentals only.
+> Status: ACTIVE 2026-04-30. v1.2 L1 (Phase KR calibration) + L2 (DART API).
+> Previous v1.1 K1 (2026-04-29) — KR support landed.
+> Production routing for XKRX (KOSPI) live; XKOS (KOSDAQ) covered by
+> yfinance fundamentals only.
 >
 > Information tool. Not investment advice. Past calibration ≠ future performance.
 
 ---
+
+## What changed in v1.2
+
+v1.2 builds on the v1.1 K1 foundation with two additions:
+
+1. **L1 — Phase KR hindcast → real calibration**: replaces the bootstrapped
+   AUC=0.5/n=0 placeholders for `E_FUNDAMENTAL_KR` and `E_TIME_KR` with
+   measured numbers from a KOSPI 200 hindcast. Run via `glostat kr-hindcast`.
+2. **L2 — DART API integration**: optional canonical KR financial-statement
+   feed (replaces yfinance ROE/EPS gaps) and new `E_INSIDER_KR` expert
+   (DART `elestock.json`, the KR equivalent of SEC Form 4). Fully gated on
+   `GLOSTAT_DART_API_KEY` — see `docs/DART_API_SETUP.md`.
 
 ## What changed in v1.1
 
@@ -14,13 +28,14 @@ any other KOSPI 200 6-digit code now produces a Prediction with **at least three
 active signals** instead of falling back to base-rate. The change is additive:
 v1.0 US predictions (AAPL, MSFT, etc.) are unaffected.
 
-| Surface | v1.0 behavior | v1.1 behavior |
-|---------|---------------|---------------|
-| `glostat predict 096770` | baseline fallback (52% / +0bps, 0 active signals) | 3+ active signals, signal-driven edge |
-| `E_FOREIGN_REVERSAL` | static neutral=0 wrapper | live Naver-backed expert (TITAN B4 port) |
-| `E_FUNDAMENTAL_KR` | did not exist | new expert (yfinance .KS PER/ROE/dividend) |
-| `E_TIME` | US-only gate | universe-agnostic (Ichimoku — works for any equity OHLCV) |
-| Snapshot UAID | `XNAS.{ticker}` for all | `XKRX.{code}` for KR (proper market segregation) |
+| Surface | v1.0 behavior | v1.1 behavior | v1.2 delta |
+|---------|---------------|---------------|------------|
+| `glostat predict 096770` | baseline fallback (52% / +0bps, 0 active signals) | 3+ active signals, signal-driven edge | +1 slot (E_INSIDER_KR), real KR calibration |
+| `E_FOREIGN_REVERSAL` | static neutral=0 wrapper | live Naver-backed expert (TITAN B4 port) | calibration measured via Phase KR hindcast |
+| `E_FUNDAMENTAL_KR` | did not exist | new expert (yfinance .KS PER/ROE/dividend) | DART overlay when key configured |
+| `E_TIME` | US-only gate | universe-agnostic (Ichimoku — works for any equity OHLCV) | distinct E_TIME_KR calibration cell |
+| `E_INSIDER_KR` | did not exist | did not exist | DART elestock cluster (graceful skip if no key) |
+| Snapshot UAID | `XNAS.{ticker}` for all | `XKRX.{code}` for KR (proper market segregation) | unchanged |
 
 ---
 
@@ -150,11 +165,24 @@ GLOSTAT_SEC_USER_AGENT="Your Name your@email" NETWORK_TESTS=1 \
 
 # Pure-function tests (no network)
 uv run pytest -q tests/test_e_fundamental_kr.py tests/test_data_router_kr.py \
-  tests/test_e_foreign_reversal_universe.py
+  tests/test_e_foreign_reversal_universe.py tests/test_e_insider_kr.py \
+  tests/test_dart_client.py tests/test_phase_kr_hindcast.py
 
-# Live prediction
+# v1.2 L1 — refresh the KR calibration table from hindcast
+GLOSTAT_SEC_USER_AGENT="Your Name your@email" NETWORK_TESTS=1 \
+  uv run glostat kr-hindcast --universe KR_KOSPI200_TOP30 \
+  --start 2024-01-02 --end 2026-03-29 --max-concurrent 5
+
+# v1.2 L2 — predict with DART overlay (requires GLOSTAT_DART_API_KEY)
+GLOSTAT_DART_API_KEY="..." GLOSTAT_SEC_USER_AGENT="..." \
+  uv run glostat predict 096770
+
+# Live prediction (no DART)
 GLOSTAT_SEC_USER_AGENT="Your Name your@email" uv run glostat predict 096770
 GLOSTAT_SEC_USER_AGENT="Your Name your@email" uv run glostat predict 005930
+
+# Side-by-side comparison v1.1 vs v1.2
+GLOSTAT_SEC_USER_AGENT="..." uv run python scripts/compare_sk_innovation.py
 
 # Confirm AAPL still works after KR changes (regression)
 GLOSTAT_SEC_USER_AGENT="Your Name your@email" uv run glostat predict AAPL
@@ -177,12 +205,13 @@ GLOSTAT_SEC_USER_AGENT="Your Name your@email" uv run glostat predict AAPL
 4. **KOSDAQ (XKOS) E_FOREIGN_REVERSAL not wired.** Naver covers KOSDAQ flows
    but the universe file (kospi200.txt) is KOSPI-only. Add a `kosdaq150.txt`
    for KOSDAQ 150 expansion in a follow-up.
-5. **DART API integration deferred to Phase 2.5.** XBRL-grade financial-statement
-   trend (revenue / NI growth, balance-sheet quality) is the obvious next data
-   source. Out of scope for v1.1 K1.
-6. **E_FUNDAMENTAL_KR has no calibration data yet.** Bootstrapped at AUC=0.50,
-   n=0 → weight=0 in the composite. Run a 90-day hindcast + IS/OOS split
-   (INV-GS-026) to graduate it from "shows raw_score" to "carries weight".
+5. **DART API integration landed in v1.2 L2** — see `docs/DART_API_SETUP.md`.
+   Free 10,000 calls/day key required. Without it, `E_INSIDER_KR` skips
+   gracefully and `E_FUNDAMENTAL_KR` runs on yfinance only.
+6. **v1.1 had no E_FUNDAMENTAL_KR / E_TIME_KR calibration.** v1.2 L1
+   `glostat kr-hindcast` produces measured AUC / Sharpe / OOS_deg per thesis
+   from a configurable KR universe + window. Reports persist to
+   `cache/hindcast/phase_kr/*.json` and feed `load_calibration()` directly.
 
 ---
 

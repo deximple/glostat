@@ -20,6 +20,7 @@ from glostat.experts import (
     EFundamentalExpert,
     EFundamentalKrExpert,
     EFundFlowExpert,
+    EInsiderKrExpert,
     ETimeExpert,
 )
 from glostat.predictor.calibration import (
@@ -134,6 +135,8 @@ async def _predict_live(
     foreign_reversal = EForeignReversalExpert(
         router=router, kospi200=KOSPI200_UNIVERSE,
     )
+    # v1.2 L2 — wire DART-backed insider expert if API key is configured.
+    insider_kr = EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE)
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
@@ -143,9 +146,15 @@ async def _predict_live(
             fund_flow_expert=fund_flow,
             fundamental_kr_expert=fundamental_kr,
             foreign_reversal_expert=foreign_reversal,
+            insider_kr_expert=insider_kr,
         )
     finally:
         await sec_client.aclose()
+        if insider_kr is not None:
+            try:
+                await insider_kr._dart.aclose()  # type: ignore[union-attr]
+            except Exception:
+                pass
     return predict(
         ticker=ticker, horizon=horizon, contributions=contribs,
         cal_table=cal_table, issued_at=ts, market=market,

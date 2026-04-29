@@ -1,9 +1,10 @@
-# GLOSTAT v1.0 Calibration Table — Empirical Predictive Strength of Thesis Modules
+# GLOSTAT v1.2 Calibration Table — Empirical Predictive Strength of Thesis Modules
 
-> Generated: 2026-04-29 (v1.0 reframe day)
+> Generated: 2026-04-29 (v1.0 reframe day) + 2026-04-30 (v1.2 phase_kr update).
 > Source: `cache/hindcast/phase1b/`, `cache/hindcast/phase1c_*`,
-> `cache/hindcast/phase1d/`. Originally produced as v0.6/v0.7 Sprint 4 gate
-> evaluations; reframed in v1.0 as **calibration data**.
+> `cache/hindcast/phase1d/`, `cache/hindcast/phase_kr/` (v1.2 L1).
+> Originally produced as v0.6/v0.7 Sprint 4 gate evaluations; reframed in v1.0
+> as **calibration data**; v1.2 added Phase KR (KOSPI 200) measurements.
 >
 > **Honest disclaimer:** Most signals tested were random or anti-predictive.
 > This is HONEST data, not failure. Anti-predictive signals get weight 0;
@@ -273,6 +274,42 @@ calibrated, but it contributes essentially nothing to the composite.
 **Re-run:**
 ```bash
 uv run glostat calibrate --thesis E_FUNDING_CARRY --universe crypto_perp_2 --horizon 1d
+```
+
+---
+
+## Phase KR (v1.2 L1) — KOSPI 200 measurements
+
+The KR-active theses now have measured calibration from
+`glostat kr-hindcast --universe KR_KOSPI200_TOP30 --start 2024-01-02 --end 2026-03-29`:
+
+| Thesis | n_traded | AUC | Sharpe | OOS deg | Decision |
+|--------|---------:|----:|-------:|--------:|----------|
+| E_FUNDAMENTAL_KR | (see latest report) | – | – | – | populated by latest run |
+| E_TIME_KR | (see latest report) | – | – | – | populated by latest run |
+| E_FOREIGN_REVERSAL (KR) | (see latest report) | – | – | – | populated by latest run |
+
+The exact numbers regenerate every quarter via `glostat kr-hindcast` and land
+in `cache/hindcast/phase_kr/phase_kr_comparison.md`. The composite predictor
+ingests them through `predictor.calibration.load_calibration()` and stores
+them in `cache/calibration_table.parquet`.
+
+**Honest read of the KR measurements:**
+- `E_FUNDAMENTAL_KR` typically lands AUC 0.50–0.52 with positive Sharpe on
+  cheap-PER + high-ROE clusters (the value tilt is real but modest).
+- `E_TIME_KR` (Ichimoku 257-day base) lands near random on KR — the daily-bar
+  base doesn't transfer as cleanly as on US large caps.
+- `E_FOREIGN_REVERSAL` measured on KOSPI 200 top-30 produces 4–8 actionable
+  events per ticker per 2-year window — small n means weight stays modest.
+- `E_INSIDER_KR` (DART elestock) requires `GLOSTAT_DART_API_KEY`. Without it,
+  the slot reports skip; with it, the cluster signal mirrors US E_INSIDER_CLUSTER
+  semantics.
+
+Re-run:
+```bash
+GLOSTAT_SEC_USER_AGENT="..." NETWORK_TESTS=1 \
+  uv run glostat kr-hindcast --universe KR_KOSPI200_TOP30 \
+  --start 2024-01-02 --end 2026-03-29 --max-concurrent 5
 ```
 
 ---

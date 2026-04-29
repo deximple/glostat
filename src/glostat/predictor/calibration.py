@@ -266,6 +266,12 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
     ("E_INSIDER_CLUSTER", "phase1b/e_insider_cluster_report.json", "phase1b", {}),
     ("E_COMMODITY_TS",    "hindcast/phase1c_commodity_ts_report.json", "phase1c", {}),
     ("E_FX_CARRY",        "hindcast/phase1c_fx_carry_report.json",     "phase1c", {}),
+    # v1.2 L1 — KR-specific calibration. Distinguishes E_TIME (US) from E_TIME_KR.
+    # The phase_kr loader writes phase1b-shaped payload so the existing parser
+    # ingests these unmodified.
+    ("E_FUNDAMENTAL_KR",  "hindcast/phase_kr/e_fundamental_kr_report.json",  "phase1b", {}),
+    ("E_TIME_KR",         "hindcast/phase_kr/e_time_kr_report.json",         "phase1b", {}),
+    ("E_FOREIGN_REVERSAL_KR", "hindcast/phase_kr/e_foreign_reversal_report.json", "phase1b", {}),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.
@@ -297,6 +303,16 @@ def load_calibration(cache_dir: Path | None = None) -> CalibrationTable:
             table.entries["E_FUNDING_CARRY"] = e7
         if e9 is not None:
             table.entries["E_FOREIGN_REVERSAL"] = e9
+    # v1.2 L1 — Phase KR overrides phase1d when both exist. The KR-specific
+    # hindcast covers a wider universe + window and is the authoritative
+    # calibration for the live composite.
+    kr_rev = table.entries.get("E_FOREIGN_REVERSAL_KR")
+    if kr_rev is not None:
+        table.entries["E_FOREIGN_REVERSAL"] = ThesisCalibration(
+            name="E_FOREIGN_REVERSAL", auc=kr_rev.auc, sharpe=kr_rev.sharpe,
+            n_samples=kr_rev.n_samples, oos_degradation=kr_rev.oos_degradation,
+            period_start=kr_rev.period_start, period_end=kr_rev.period_end,
+        )
     # v1.1 K1: backfill thesis with no cached hindcast report from the synthetic
     # baseline so the live predictor has at least the v0.6 calibration to lean
     # on. This is documented in docs/CALIBRATION.md and re-derived during the
@@ -381,6 +397,15 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
         # AUC < 0.5 → directional_bias=-1; composite flips the score.
         "E_FOREIGN_REVERSAL": ThesisCalibration(
             "E_FOREIGN_REVERSAL", auc=0.4667, sharpe=0.5834, n_samples=424,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.2 L1 — KR-specific E_TIME calibration. Bootstrapped at AUC=0.5,
+        # n=0 so the composite weight=0 until a phase_kr hindcast lands.
+        # Distinct from US E_TIME (AUC=0.52) so the predictor can look up the
+        # right cell when scoring KR tickers.
+        "E_TIME_KR": ThesisCalibration(
+            "E_TIME_KR", auc=0.50, sharpe=0.0, n_samples=0,
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),

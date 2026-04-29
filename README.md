@@ -8,8 +8,8 @@
 
 ## Status
 
-> **v1.1 ACTIVE (2026-04-29) — KR support landed (K1).**
-> Previous: **v1.0 (2026-04-29) — Reframe of v0.7.**
+> **v1.2 ACTIVE (2026-04-30) — KR calibration (L1) + DART API (L2) landed.**
+> Previous: **v1.1 (2026-04-29) — KR support (K1).** | **v1.0 (2026-04-29) — Reframe of v0.7.**
 >
 > v0.6/v0.7 framed GLOSTAT as a **decision engine** (BUY/SELL action output)
 > and concluded "8 thesis FAIL" against a `Sharpe ≥ 0.8 / AUC ≥ 0.62 / OOS deg

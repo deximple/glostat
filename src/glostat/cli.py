@@ -16,6 +16,10 @@ from glostat.cli_hindcast import (
     cmd_gate_status,
     cmd_hindcast,
 )
+from glostat.cli_kr_hindcast import (
+    add_kr_hindcast_subparser,
+    cmd_kr_hindcast,
+)
 from glostat.cli_predictor import (
     add_calibrate_subparser,
     add_predict_subparser,
@@ -62,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         "universe":    cmd_universe,
         "screen":      cmd_screen,
         "hindcast":    cmd_hindcast,
+        "kr-hindcast": cmd_kr_hindcast,
         "gate-status": cmd_gate_status,
     }[args.command]
     try:
@@ -100,6 +105,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_universe_subparser(sub)
     add_screen_subparser(sub)
     add_hindcast_subparser(sub)
+    add_kr_hindcast_subparser(sub)
     add_gate_status_subparser(sub)
 
     return p

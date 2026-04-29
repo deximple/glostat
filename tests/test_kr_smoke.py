@@ -87,3 +87,12 @@ def test_predict_aapl_still_works_after_kr_changes() -> None:
     assert r.returncode == 0, f"stderr: {r.stderr}"
     assert "AAPL" in r.stdout
     assert "XNAS" in r.stdout
+
+
+def test_predict_sk_innovation_lists_insider_kr_slot() -> None:
+    # v1.2 L2: KR predictions must surface E_INSIDER_KR even when DART is
+    # unconfigured (skipped with a clear reason). This guarantees the slot is
+    # always visible to the user regardless of API key state.
+    r = _run_predict("096770")
+    assert r.returncode == 0, f"stderr: {r.stderr}"
+    assert "E_INSIDER_KR" in r.stdout

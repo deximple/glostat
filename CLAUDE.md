@@ -1,15 +1,19 @@
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.1 — KR (KOSPI 200) production support landed (K1).**
-> Previous: v1.0 (2026-04-29) — Prediction Tool reframe of v0.7.
-> v1.1 delta: KR market routing (XKRX), KOSPI 200 universe, Naver-backed
-> live `E_FOREIGN_REVERSAL`, new `E_FUNDAMENTAL_KR` expert, KR ticker
-> normalization (INV-GS-106), yfinance auto .KS suffixing.
+> **STATUS: ACTIVE v1.2 — KR calibration (L1) + DART API (L2) landed.**
+> Previous: v1.1 (2026-04-29) — KR (KOSPI 200) production support; v1.0 (2026-04-29)
+> Prediction Tool reframe of v0.7.
+> v1.2 delta: `glostat kr-hindcast` produces real Phase KR calibration
+> (replaces n=0 bootstraps for E_FUNDAMENTAL_KR / E_TIME_KR / E_FOREIGN_REVERSAL);
+> new `dart_client.DartClient` + `EInsiderKrExpert` (KR equivalent of SEC Form 4
+> insider cluster); E_FUNDAMENTAL_KR DART overlay when `GLOSTAT_DART_API_KEY`
+> is set. New invariant `INV-GS-107` (DART graceful skip).
 >
 > Honest reading order remains: post-mortem first.
 > See `docs/post_mortem/SPRINT5_FAIL_post_mortem.md` for the v0.6 diagnosis;
 > see `docs/ssot/PLAN_v1.0.md` for the canonical v1.0 spec;
-> see `docs/KR_SUPPORT.md` for the v1.1 KR support guide;
+> see `docs/KR_SUPPORT.md` for the v1.2 KR support guide;
+> see `docs/DART_API_SETUP.md` for the v1.2 L2 DART API setup guide;
 > see `docs/MIGRATION_v0.7_TO_v1.0.md` for the developer migration guide.
 >
 > **Authoritative spec:** `docs/ssot/PLAN_v1.0.md` (active for prediction
@@ -83,6 +87,7 @@ advice.
 | **INV-GS-104** | **Per-prediction disclaimer: personal use, not investment advice (extends INV-GS-024)** | **active v1.0** |
 | **INV-GS-105** | **Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update** | **active v1.0** |
 | **INV-GS-106** | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix** | **active v1.1** |
+| **INV-GS-107** | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly** | **active v1.2** |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

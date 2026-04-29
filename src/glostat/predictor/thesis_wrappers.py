@@ -170,6 +170,21 @@ async def wrap_foreign_reversal_live(
     return await _wrap_expert_compute("E_FOREIGN_REVERSAL", expert, ticker, ts, cal_table)
 
 
+async def wrap_insider_kr(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.2 L2 — KR insider cluster expert (DART elestock). Universe-aware skip.
+    if not is_kr_ticker(ticker):
+        return _skip("E_INSIDER_KR", "ticker not KR equity", cal_table)
+    if not is_kospi200(ticker):
+        return _skip(
+            "E_INSIDER_KR",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
+            cal_table,
+        )
+    return await _wrap_expert_compute("E_INSIDER_KR", expert, ticker, ts, cal_table)
+
+
 async def wrap_fund_flow(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
@@ -316,7 +331,7 @@ def wrap_foreign_reversal_static(
 WrapperFn = Callable[[Any, str, datetime, CalibrationTable], Awaitable[SignalContribution]]
 
 
-async def collect_contributions(
+async def collect_contributions(  # noqa: PLR0912 — orchestrator: 1 branch per thesis slot
     *,
     ticker: str,
     ts: datetime,
@@ -326,6 +341,7 @@ async def collect_contributions(
     fund_flow_expert: Any | None = None,
     fundamental_kr_expert: Any | None = None,    # v1.1 K1
     foreign_reversal_expert: Any | None = None,  # v1.1 K1
+    insider_kr_expert: Any | None = None,        # v1.2 L2 (DART)
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -364,6 +380,18 @@ async def collect_contributions(
         )
     else:
         out.append(wrap_foreign_reversal_static(ticker, cal_table))
+    # v1.2 L2: KR insider expert (DART elestock). Skip cleanly when DART is
+    # unavailable so US tickers + non-KOSPI 200 don't trigger an API call.
+    if insider_kr_expert is not None:
+        out.append(await wrap_insider_kr(insider_kr_expert, ticker, ts, cal_table))
+    elif is_kr_ticker(ticker):
+        out.append(_skip(
+            "E_INSIDER_KR",
+            "DART API not configured (set GLOSTAT_DART_API_KEY)",
+            cal_table,
+        ))
+    else:
+        out.append(_skip("E_INSIDER_KR", "ticker not KR equity", cal_table))
     return tuple(out)
 
 
@@ -380,6 +408,7 @@ __all__ = [
     "wrap_funding_carry_static",
     "wrap_fx_carry_static",
     "wrap_insider_cluster_static",
+    "wrap_insider_kr",
     "wrap_pead_static",
     "wrap_sector_rotation_static",
     "wrap_time",
