@@ -1,12 +1,13 @@
-# GLOSTAT v0.4 — markets.yaml (Sprint 0 / MVP scope)
-# 80개 시장 → 2개로 축소 (XNAS, XNYS) per E6 + E10 minority insights.
-# Phase 2에서 KR 시장 (XKRX, XKOS) 추가, Phase 3에서 글로벌 확장.
+# GLOSTAT v1.1 — markets.yaml
+# v1.0: XNAS, XNYS production-active. v1.1 (this PR): XKRX + XKOS promoted from
+# phase1d_research → production after K1 KR support landed (universe + Naver flow).
+# Phase 3+ remains global expansion (XJPX, XHKG, XLON, ...).
 
-schema_version: 1
+schema_version: 2
 mvp_scope:
-  rationale: "v0.4 Sprint 1-3는 US-only. UAID 전체 시스템은 Phase 2."
-  permitted_markets: [XNAS, XNYS]
-  bare_ticker_allowed: true   # MVP만, US 단일 시장이므로 모호성 없음
+  rationale: "v1.1 production set: US large-cap + KR KOSPI 200. UAID is bare-ticker tolerant for KR (6-digit code) and US."
+  permitted_markets: [XNAS, XNYS, XKRX, XKOS]
+  bare_ticker_allowed: true   # 6-digit KR codes + US tickers both unambiguous in MVP scope
 
 markets:
   XNAS:
@@ -57,34 +58,50 @@ markets:
     bigdata_mcp_coverage: HIGH
     foreign_access: open
 
-# Phase 1D research-only entries (NOT active production routing).
-# Cost models used by phase1d hindcast modules; not registered for DataRouter
-# dispatch. KR/Crypto remain out of MVP scope (INV-GS-036).
-phase1d_research:
   XKRX:
     mic: XKRX
     name: Korea Exchange (KOSPI)
     country: KR
     currency: KRW
     tz: Asia/Seoul
+    sessions:
+      - { name: regular, open_local: "09:00", close_local: "15:30",
+          open_utc: "00:00", close_utc: "06:30" }
+    settlement: T+2
     settlement_days: 2
-    fee_bps: 1.5
+    fee_bps: 1.5            # KRX broker commission proxy (0.015%)
     tax_bps_buy: 0.0
-    tax_bps_sell: 20.0
-    foreign_access: registered_only
-    notes: "Hindcast-only. all_in_bps ≈ 22 round-trip (incl. spread)."
+    tax_bps_sell: 20.0      # KR transaction tax 0.20% sell-side
+    daily_limit_pct: 30
+    holidays_calendar: kr_2026.yaml
+    bigdata_mcp_coverage: LOW
+    foreign_access: open
+    yfinance_suffix: ".KS"  # v1.1: KR 6-digit ticker → yfinance lookup needs .KS
+    notes: "v1.1 production. all_in_bps ≈ 22 round-trip (incl. spread)."
   XKOS:
     mic: XKOS
     name: KOSDAQ
     country: KR
     currency: KRW
     tz: Asia/Seoul
+    sessions:
+      - { name: regular, open_local: "09:00", close_local: "15:30",
+          open_utc: "00:00", close_utc: "06:30" }
+    settlement: T+2
     settlement_days: 2
     fee_bps: 1.5
     tax_bps_buy: 0.0
     tax_bps_sell: 18.0
-    foreign_access: registered_only
-    notes: "Hindcast-only. all_in_bps ≈ 20 round-trip."
+    daily_limit_pct: 30
+    holidays_calendar: kr_2026.yaml
+    bigdata_mcp_coverage: LOW
+    foreign_access: open
+    yfinance_suffix: ".KQ"
+    notes: "v1.1 production. all_in_bps ≈ 20 round-trip."
+
+# Phase 1D research-only entries (NOT active production routing).
+# Cost models used by phase1d hindcast modules; not registered for DataRouter dispatch.
+phase1d_research:
   BINANCE_PERP:
     mic: BINANCE_PERP
     name: Binance USDM Perpetual Futures

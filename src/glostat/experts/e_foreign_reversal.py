@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Final
 
+import structlog
+
+from glostat.core.errors import ExpertSkipError
+from glostat.core.types import ExpertSignal
+from glostat.data.data_router import DataRouter, normalize_kr_ticker
 from glostat.data.naver_kr_client import KrFlowBar
+
+log: Final = structlog.get_logger(__name__)
 
 # E_FOREIGN_REVERSAL (Phase 1D Thesis E9) — port of TITAN B4 REVERSAL_BUY pattern.
 # Universe: KOSPI 200 (top liquidity).
@@ -168,8 +176,111 @@ def realized_return(
     return (p1 - p0) / p0
 
 
+class EForeignReversalExpert:
+    """v1.1 K1 — live Naver-backed E_FOREIGN_REVERSAL expert.
+
+    Wraps the pure score_reversal_at() pattern so the predictor surface gets
+    a real ExpertSignal (instead of the static neutral=0 emitted by the
+    Phase 1D research wrapper). Universe: KOSPI 200 (loaded externally).
+    """
+
+    name = "E_FOREIGN_REVERSAL"
+
+    def __init__(
+        self,
+        *,
+        router: DataRouter,
+        kospi200: frozenset[str],
+        max_pages: int = 6,   # ~120 trading days; covers 4-day prior window safely
+    ) -> None:
+        self._router = router
+        self._kospi200 = kospi200
+        self._max_pages = max_pages
+
+    async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
+        code = normalize_kr_ticker(ticker)
+        if code not in self._kospi200:
+            raise ExpertSkipError(
+                f"E_FOREIGN_REVERSAL: {code} not in KOSPI 200 universe"
+            )
+        bars = await self._fetch_flows(code)
+        if len(bars) < 5:
+            raise ExpertSkipError(
+                f"E_FOREIGN_REVERSAL: insufficient Naver flows ({len(bars)} bars) for {code}"
+            )
+        snap_id = self._latest_snapshot(code)
+        latest_idx = len(bars) - 1
+        score = score_reversal_at(bars, current_idx=latest_idx)
+        return _signal_from_score(code=code, ts=ts, score=score, snap_id=snap_id)
+
+    async def _fetch_flows(self, code: str) -> list[KrFlowBar]:
+        try:
+            client, method = self._router.route(self.name, "naver_flows")
+        except Exception as exc:
+            raise ExpertSkipError(
+                f"E_FOREIGN_REVERSAL: router error for {code}: {exc}"
+            ) from exc
+        cached = client.load_cached(code) if hasattr(client, "load_cached") else []
+        if cached:
+            return cached
+        try:
+            bars: list[KrFlowBar] = await getattr(client, method)(
+                code, max_pages=self._max_pages,
+            )
+        except Exception as exc:
+            log.warning("e_foreign_reversal.fetch_failed", code=code, err=str(exc))
+            raise ExpertSkipError(
+                f"E_FOREIGN_REVERSAL: Naver fetch failed for {code}: {exc}"
+            ) from exc
+        if bars and hasattr(client, "save_cache"):
+            try:
+                client.save_cache(code, bars)
+            except Exception as exc:
+                log.warning("e_foreign_reversal.cache_save_failed", code=code, err=str(exc))
+        return bars
+
+    def _latest_snapshot(self, code: str) -> str:
+        return f"naver_kr.{code}"
+
+
+def _signal_from_score(
+    *, code: str, ts: datetime, score: ForeignReversalScore, snap_id: str
+) -> ExpertSignal:
+    direction = score.direction if score.direction in {"LONG", "SHORT", "NEUTRAL"} else "NEUTRAL"
+    basis = (
+        f"REVERSAL pattern={score.pattern}, "
+        f"prior_consec_sells={score.consec_sell_days}, "
+        f"organ_confirms={score.organ_confirms}"
+    )
+    metadata: tuple[tuple[str, str], ...] = tuple(
+        sorted(
+            {
+                "pattern": score.pattern,
+                "consec_sell_days": str(score.consec_sell_days),
+                "organ_confirms": str(score.organ_confirms),
+                "net_score": f"{score.net_score:.4f}",
+                "confidence": f"{score.confidence:.4f}",
+                "code": code,
+            }.items()
+        )
+    )
+    return ExpertSignal(
+        expert_name="E_FOREIGN_REVERSAL",  # type: ignore[arg-type]
+        ticker=code,
+        direction=direction,  # type: ignore[arg-type]
+        net_score=score.net_score,
+        confidence=score.confidence,
+        archetype="impulse",
+        basis=basis,
+        sources=(snap_id,),
+        expires_at=ts + timedelta(days=_HORIZON_DAYS),
+        metadata=metadata,
+    )
+
+
 __all__ = [
     "ALL_IN_BPS_KR",
+    "EForeignReversalExpert",
     "ForeignReversalScore",
     "ForeignReversalVerdict",
     "build_verdict",

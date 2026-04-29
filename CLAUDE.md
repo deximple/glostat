@@ -1,18 +1,22 @@
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.0 — Prediction Tool (Reframe of v0.7).**
-> Reframed 2026-04-29 from "decision engine (BUY/SELL action)" → "evidence-based
-> probability predictor". v0.6/v0.7 8-thesis FAIL data is now the first input to
-> the v1.0 calibration table, not a failure record.
+> **STATUS: ACTIVE v1.1 — KR (KOSPI 200) production support landed (K1).**
+> Previous: v1.0 (2026-04-29) — Prediction Tool reframe of v0.7.
+> v1.1 delta: KR market routing (XKRX), KOSPI 200 universe, Naver-backed
+> live `E_FOREIGN_REVERSAL`, new `E_FUNDAMENTAL_KR` expert, KR ticker
+> normalization (INV-GS-106), yfinance auto .KS suffixing.
 >
 > Honest reading order remains: post-mortem first.
 > See `docs/post_mortem/SPRINT5_FAIL_post_mortem.md` for the v0.6 diagnosis;
 > see `docs/ssot/PLAN_v1.0.md` for the canonical v1.0 spec;
+> see `docs/KR_SUPPORT.md` for the v1.1 KR support guide;
 > see `docs/MIGRATION_v0.7_TO_v1.0.md` for the developer migration guide.
 >
-> **Authoritative spec:** `docs/ssot/PLAN_v1.0.md` (active).
-> Plan history: v0.1..v0.7 + v0.3.1 alt all preserved in `docs/ssot/`.
-> If anything in this file disagrees with the SSOT, the SSOT wins.
+> **Authoritative spec:** `docs/ssot/PLAN_v1.0.md` (active for prediction
+> framework). v1.1 KR delta: `docs/KR_SUPPORT.md` is the operational guide;
+> SSOT plan v1.1 not yet authored (small additive change, no framework
+> reframe). Plan history: v0.1..v0.7 + v0.3.1 alt + v1.0 all preserved in
+> `docs/ssot/`. If anything in this file disagrees with the SSOT, the SSOT wins.
 
 ## What this is (v1.0 — one paragraph)
 
@@ -78,8 +82,9 @@ advice.
 | **INV-GS-103** | **Composite probability uses Brier-score-weighted ensemble (not simple mean)** | **active v1.0** |
 | **INV-GS-104** | **Per-prediction disclaimer: personal use, not investment advice (extends INV-GS-024)** | **active v1.0** |
 | **INV-GS-105** | **Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update** | **active v1.0** |
+| **INV-GS-106** | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix** | **active v1.1** |
 
-Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
+Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 
 ## Scope discipline — what v1.0 explicitly does NOT do
 

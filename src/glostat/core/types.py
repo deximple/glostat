@@ -11,7 +11,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # Verdict v1 (PLAN_v0.4 §3.4) — frozen dataclass for hot path; pydantic for boundaries.
 
 Action = Literal["BUY", "HOLD", "SELL"]
-ExpertName = Literal["E_FUNDAMENTAL", "E_FUND_FLOW", "E_TIME"]
+ExpertName = Literal[
+    "E_FUNDAMENTAL",
+    "E_FUNDAMENTAL_KR",
+    "E_FUND_FLOW",
+    "E_TIME",
+    "E_FOREIGN_REVERSAL",
+]
 
 
 @dataclass(frozen=True, slots=True)

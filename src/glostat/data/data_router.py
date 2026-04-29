@@ -84,7 +84,49 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ("E_FX_CARRY",     "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
     ("E_COMMODITY_TS", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
     ("E_COMMODITY_TS", "cot"):   (RouteEntry("mvp", "cftc",     "fetch_range"),),
+
+    # v1.1 K1 — KR (Korea Exchange) routes. yfinance covers KR OHLCV when the
+    # ticker carries .KS / .KQ suffix; Naver Finance scraper covers foreign /
+    # institutional flows that yfinance does not expose.
+    ("E_FUNDAMENTAL_KR", "ohlcv"):        (RouteEntry("mvp", "yfinance",   "get_ohlcv"),),
+    ("E_FUNDAMENTAL_KR", "fundamentals"): (RouteEntry("mvp", "yfinance",   "get_fundamentals"),),
+    ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr",  "fetch_history"),),
 }
+
+
+_KR_TICKER_RE: Final = "kr_six_digit"   # marker; actual regex inlined in helper
+_YFINANCE_KS_SUFFIX: Final[str] = ".KS"
+_YFINANCE_KQ_SUFFIX: Final[str] = ".KQ"
+
+
+def is_kr_ticker(ticker: str) -> bool:
+    # WHY: KR tickers are 6-digit numeric KRX codes; optional .KS / .KQ suffix
+    # appended for yfinance lookup. Used by the router and any caller that
+    # needs to branch on jurisdiction without parsing the universe file.
+    t = (ticker or "").strip().upper()
+    if not t:
+        return False
+    if t.endswith(_YFINANCE_KS_SUFFIX) or t.endswith(_YFINANCE_KQ_SUFFIX):
+        t = t[: -len(_YFINANCE_KS_SUFFIX)]
+    return len(t) == 6 and t.isdigit()
+
+
+def normalize_kr_ticker(ticker: str) -> str:
+    # Strip optional .KS / .KQ suffix → bare 6-digit code (canonical form).
+    t = (ticker or "").strip().upper()
+    if t.endswith(_YFINANCE_KS_SUFFIX) or t.endswith(_YFINANCE_KQ_SUFFIX):
+        return t[: -len(_YFINANCE_KS_SUFFIX)]
+    return t
+
+
+def to_yfinance_kr_ticker(ticker: str, *, default_suffix: str = _YFINANCE_KS_SUFFIX) -> str:
+    # Append .KS for KOSPI / .KQ for KOSDAQ if not already present (INV-GS-106).
+    t = (ticker or "").strip().upper()
+    if t.endswith(_YFINANCE_KS_SUFFIX) or t.endswith(_YFINANCE_KQ_SUFFIX):
+        return t
+    if len(t) == 6 and t.isdigit():
+        return t + default_suffix
+    return t
 
 
 _PHASE_ORDER: Final[Mapping[Phase, int]] = {"mvp": 0, "phase_2": 1, "phase_3": 2}
@@ -187,4 +229,11 @@ class DataRouter:
         )
 
 
-__all__ = ["DataRouter", "Phase", "RouteEntry"]
+__all__ = [
+    "DataRouter",
+    "Phase",
+    "RouteEntry",
+    "is_kr_ticker",
+    "normalize_kr_ticker",
+    "to_yfinance_kr_ticker",
+]

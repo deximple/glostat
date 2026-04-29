@@ -232,7 +232,8 @@ def test_foreign_reversal_neutral_for_kr_ticker() -> None:
 
 
 @pytest.mark.asyncio
-async def test_collect_contributions_returns_eleven_for_us_ticker() -> None:
+async def test_collect_contributions_returns_twelve_for_us_ticker() -> None:
+    # v1.1 K1: 12 contributions = 11 v1.0 thesis + E_FUNDAMENTAL_KR slot.
     cal = synthetic_calibration_for_mock()
     fund = _StubExpertOk(name="E_FUNDAMENTAL", score=2.0, direction="LONG")
     time_e = _StubExpertOk(name="E_TIME", score=1.0, direction="LONG")
@@ -241,9 +242,10 @@ async def test_collect_contributions_returns_eleven_for_us_ticker() -> None:
         ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
         fundamental_expert=fund, time_expert=time_e, fund_flow_expert=ff,
     )
-    assert len(contribs) == 11
+    assert len(contribs) == 12
     names = {c.name for c in contribs}
     assert "E_FUNDAMENTAL" in names
+    assert "E_FUNDAMENTAL_KR" in names
     assert "E_FOREIGN_REVERSAL" in names
 
 

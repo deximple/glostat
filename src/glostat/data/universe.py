@@ -20,7 +20,7 @@ log: Final = structlog.get_logger(__name__)
 _UNIVERSES_YAML: Final = Path(__file__).resolve().parents[3] / "configs" / "universes.yaml"
 _REPO_ROOT: Final = Path(__file__).resolve().parents[3]
 
-_ALLOWED_MARKETS: Final[frozenset[str]] = frozenset({"XNAS", "XNYS"})
+_ALLOWED_MARKETS: Final[frozenset[str]] = frozenset({"XNAS", "XNYS", "XKRX", "XKOS"})
 
 
 @dataclass(frozen=True, slots=True)

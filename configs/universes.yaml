@@ -20,6 +20,22 @@ universes:
     refresh_cadence: quarterly
     snapshot_date: 2026-04-28
 
+  KR_KOSPI200:
+    name: "KOSPI 200 (April 2026 snapshot)"
+    markets: [XKRX]
+    source_file: configs/universes/kospi200.txt
+    size: 200
+    refresh_cadence: quarterly
+    snapshot_date: 2026-04-29
+
+  KR_KOSPI200_TOP30:
+    name: "KOSPI 200 Top 30 (mega-cap)"
+    markets: [XKRX]
+    source_file: configs/universes/kospi200_top30.txt
+    size: 30
+    refresh_cadence: quarterly
+    snapshot_date: 2026-04-29
+
   # Phase 2 extensions — block load() with ConfigError until graduated.
   US_LARGE_500:
     name: "S&P 500 Full (Phase 2)"

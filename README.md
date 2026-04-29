@@ -8,7 +8,8 @@
 
 ## Status
 
-> **v1.0 ACTIVE (2026-04-29) — Reframe of v0.7.**
+> **v1.1 ACTIVE (2026-04-29) — KR support landed (K1).**
+> Previous: **v1.0 (2026-04-29) — Reframe of v0.7.**
 >
 > v0.6/v0.7 framed GLOSTAT as a **decision engine** (BUY/SELL action output)
 > and concluded "8 thesis FAIL" against a `Sharpe ≥ 0.8 / AUC ≥ 0.62 / OOS deg
@@ -85,6 +86,30 @@
 GLOSTAT v1.0 inherits TITAN's engine-ensemble pattern and hindcast-first
 discipline, then layers on global coverage, calibrated probability output,
 formal reproducibility, and a hard compliance gate.
+
+---
+
+## Supported markets (v1.1)
+
+| Market | MIC | Status | Universe | Data sources |
+|--------|-----|--------|----------|--------------|
+| US large-cap | XNAS, XNYS | ACTIVE (v1.0) | S&P 500 Top 50 (`sp500_top50.txt`) | yfinance + SEC EDGAR |
+| KR (KOSPI) | XKRX | ACTIVE (v1.1 K1) | KOSPI 200 (`kospi200.txt`) | yfinance (.KS) + Naver Finance |
+| KOSDAQ | XKOS | partial (yfinance .KQ only; Naver pending) | — | yfinance (.KQ) |
+| Crypto perp | BINANCE_PERP | research-only (Phase 1D) | BTC/ETH | CCXT |
+| FX/Commodity ETFs | NYSE/CBOE | partial | (per-thesis) | yfinance + CFTC |
+
+KR predictions use **E_FUNDAMENTAL_KR** (yfinance .KS PER/ROE/dividend yield)
++ **E_FOREIGN_REVERSAL** (Naver Finance 외인/기관 4-day reversal pattern,
+TITAN B4 port) + **E_TIME** (Ichimoku — universe-agnostic). See
+[`docs/KR_SUPPORT.md`](docs/KR_SUPPORT.md) for the full guide.
+
+```bash
+# v1.1 K1: live KR prediction (no Bigdata MCP, $0 cost)
+GLOSTAT_SEC_USER_AGENT="Your Name your@email" \
+  glostat predict 096770   # SK Innovation
+glostat predict 005930   # 삼성전자
+```
 
 ---
 

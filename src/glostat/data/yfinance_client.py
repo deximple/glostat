@@ -47,6 +47,30 @@ _RATE_LIMIT_PER_SEC: Final[int] = 8
 _MIN_INTERVAL_S: Final[float] = 1.0 / _RATE_LIMIT_PER_SEC
 
 
+def _yf_ticker(ticker: str) -> str:
+    # v1.1 K1 — KR 6-digit codes need .KS suffix for yfinance (INV-GS-106).
+    # Bare US tickers and pre-suffixed KR/EU/JP names pass through unchanged.
+    t = (ticker or "").strip().upper()
+    if not t:
+        return t
+    if t.endswith(".KS") or t.endswith(".KQ"):
+        return t
+    if len(t) == 6 and t.isdigit():
+        return t + ".KS"
+    return t
+
+
+def _uaid_for(yf_ticker: str) -> str:
+    # WHY: snapshot UAID encodes the originating market so dedup keys stay
+    # collision-free between (XKRX, 005930) and a hypothetical US ticker. KR
+    # uses bare 6-digit code (no suffix) inside UAID for canonical form.
+    if yf_ticker.endswith(".KS"):
+        return f"XKRX.{yf_ticker[:-3]}"
+    if yf_ticker.endswith(".KQ"):
+        return f"XKOS.{yf_ticker[:-3]}"
+    return f"XNAS.{yf_ticker}"
+
+
 class YFinanceUnavailableError(NotImplementedError):
     """Raised when yfinance package isn't installed or refuses to load."""
 
@@ -125,11 +149,13 @@ class YFinanceClient:
         end: date,
         interval: str = "1d",
     ) -> OhlcvSeries:
+        yf_ticker = _yf_ticker(ticker)
+
         async def _fetch() -> list[OhlcvBar]:
             await self._throttle.acquire()
             try:
                 yf = _import_yfinance()
-                return await asyncio.to_thread(parse_ohlcv, yf, ticker, start, end, interval)
+                return await asyncio.to_thread(parse_ohlcv, yf, yf_ticker, start, end, interval)
             finally:
                 self._throttle.release()
 
@@ -137,20 +163,20 @@ class YFinanceClient:
             _fetch,
             stats=self._retry_stats,
             is_empty=lambda b: not b,
-            operation=f"yfinance.history:{ticker.upper()}",
+            operation=f"yfinance.history:{yf_ticker}",
         )
         if not bars:
             raise YFinanceDataError(
-                f"yfinance returned empty OHLCV for {ticker} {start}..{end}"
+                f"yfinance returned empty OHLCV for {yf_ticker} {start}..{end}"
             )
-        series = OhlcvSeries(ticker=ticker.upper(), bars=tuple(bars), interval=interval)
+        series = OhlcvSeries(ticker=yf_ticker, bars=tuple(bars), interval=interval)
         self._record_snapshot(
             tool="yfinance.history",
-            uaid=f"XNAS.{ticker.upper()}",
+            uaid=_uaid_for(yf_ticker),
             edge_type="ohlcv",
             ts=bars[-1].ts if bars[-1].ts.tzinfo else bars[-1].ts.replace(tzinfo=UTC),
             params={
-                "ticker": ticker.upper(),
+                "ticker": yf_ticker,
                 "start": start.isoformat(),
                 "end": end.isoformat(),
                 "interval": interval,
@@ -160,75 +186,81 @@ class YFinanceClient:
         return series
 
     async def get_fundamentals(self, ticker: str) -> Fundamentals:
+        yf_ticker = _yf_ticker(ticker)
+
         async def _fetch() -> Fundamentals:
             await self._throttle.acquire()
             try:
                 yf = _import_yfinance()
-                return await asyncio.to_thread(parse_fundamentals, yf, ticker)
+                return await asyncio.to_thread(parse_fundamentals, yf, yf_ticker)
             finally:
                 self._throttle.release()
 
         f = await with_retry(
             _fetch,
             stats=self._retry_stats,
-            operation=f"yfinance.info:{ticker.upper()}",
+            operation=f"yfinance.info:{yf_ticker}",
         )
         self._record_snapshot(
             tool="yfinance.info",
-            uaid=f"XNAS.{ticker.upper()}",
+            uaid=_uaid_for(yf_ticker),
             edge_type="fundamentals",
             ts=datetime.now(tz=UTC),
-            params={"ticker": ticker.upper()},
+            params={"ticker": yf_ticker},
             payload=fundamentals_to_payload(f),
         )
         return f
 
     async def get_dividends(self, ticker: str) -> DividendHistory:
+        yf_ticker = _yf_ticker(ticker)
+
         async def _fetch() -> list[DividendEvent]:
             await self._throttle.acquire()
             try:
                 yf = _import_yfinance()
-                return await asyncio.to_thread(parse_dividends, yf, ticker)
+                return await asyncio.to_thread(parse_dividends, yf, yf_ticker)
             finally:
                 self._throttle.release()
 
         events = await with_retry(
             _fetch,
             stats=self._retry_stats,
-            operation=f"yfinance.dividends:{ticker.upper()}",
+            operation=f"yfinance.dividends:{yf_ticker}",
         )
-        history = DividendHistory(ticker=ticker.upper(), events=tuple(events))
+        history = DividendHistory(ticker=yf_ticker, events=tuple(events))
         self._record_snapshot(
             tool="yfinance.dividends",
-            uaid=f"XNAS.{ticker.upper()}",
+            uaid=_uaid_for(yf_ticker),
             edge_type="dividends",
             ts=datetime.now(tz=UTC),
-            params={"ticker": ticker.upper()},
+            params={"ticker": yf_ticker},
             payload=dividends_to_payload(history),
         )
         return history
 
     async def get_earnings_calendar(self, ticker: str) -> EarningsCalendar:
+        yf_ticker = _yf_ticker(ticker)
+
         async def _fetch() -> list[EarningsEvent]:
             await self._throttle.acquire()
             try:
                 yf = _import_yfinance()
-                return await asyncio.to_thread(parse_earnings_calendar, yf, ticker)
+                return await asyncio.to_thread(parse_earnings_calendar, yf, yf_ticker)
             finally:
                 self._throttle.release()
 
         events = await with_retry(
             _fetch,
             stats=self._retry_stats,
-            operation=f"yfinance.calendar:{ticker.upper()}",
+            operation=f"yfinance.calendar:{yf_ticker}",
         )
-        calendar = EarningsCalendar(ticker=ticker.upper(), upcoming=tuple(events))
+        calendar = EarningsCalendar(ticker=yf_ticker, upcoming=tuple(events))
         self._record_snapshot(
             tool="yfinance.calendar",
-            uaid=f"XNAS.{ticker.upper()}",
+            uaid=_uaid_for(yf_ticker),
             edge_type="earnings_calendar",
             ts=datetime.now(tz=UTC),
-            params={"ticker": ticker.upper()},
+            params={"ticker": yf_ticker},
             payload=earnings_to_payload(calendar),
         )
         return calendar

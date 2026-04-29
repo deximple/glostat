@@ -10,17 +10,25 @@ from typing import Any, Final
 
 from glostat.cli_mocks import MockSecEdgarClient, MockYFinanceClient
 from glostat.cli_predict_print import print_prediction
-from glostat.data.data_router import DataRouter
+from glostat.data.data_router import DataRouter, is_kr_ticker
+from glostat.data.naver_kr_client import NaverKrClient
 from glostat.data.sec_edgar_client import SecEdgarClient
 from glostat.data.snapshot_broker import SnapshotBroker
 from glostat.data.yfinance_client import YFinanceClient
-from glostat.experts import EFundamentalExpert, EFundFlowExpert, ETimeExpert
+from glostat.experts import (
+    EForeignReversalExpert,
+    EFundamentalExpert,
+    EFundamentalKrExpert,
+    EFundFlowExpert,
+    ETimeExpert,
+)
 from glostat.predictor.calibration import (
     CalibrationTable,
     load_calibration,
     synthetic_calibration_for_mock,
 )
 from glostat.predictor.composite import predict
+from glostat.predictor.kr_universe import KOSPI200_UNIVERSE
 from glostat.predictor.thesis_wrappers import collect_contributions
 from glostat.predictor.types import (
     Horizon,
@@ -114,21 +122,33 @@ async def _predict_live(
     router = DataRouter(budget_yaml=_BUDGET_YAML)
     router.register_client("yfinance", yf_client)
     router.register_client("sec_edgar", sec_client)
+    # v1.1 K1: KR-aware experts wired for every prediction. Their wrappers gate
+    # on universe membership so US tickers cleanly skip the KR thesis without
+    # a network call.
+    naver_client = NaverKrClient()
+    router.register_client("naver_kr", naver_client)
     fundamental = EFundamentalExpert(router=router)
     time_expert = ETimeExpert(router=router)
     fund_flow = EFundFlowExpert(router=router)
+    fundamental_kr = EFundamentalKrExpert(router=router)
+    foreign_reversal = EForeignReversalExpert(
+        router=router, kospi200=KOSPI200_UNIVERSE,
+    )
+    market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
             ticker=ticker, ts=ts, cal_table=cal_table,
             fundamental_expert=fundamental,
             time_expert=time_expert,
             fund_flow_expert=fund_flow,
+            fundamental_kr_expert=fundamental_kr,
+            foreign_reversal_expert=foreign_reversal,
         )
     finally:
         await sec_client.aclose()
     return predict(
         ticker=ticker, horizon=horizon, contributions=contribs,
-        cal_table=cal_table, issued_at=ts,
+        cal_table=cal_table, issued_at=ts, market=market,
     )
 
 

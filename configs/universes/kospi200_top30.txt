@@ -1,0 +1,34 @@
+# GLOSTAT — KOSPI 200 Top 30 (mega-cap subset, 2026-04-29)
+# Source: subset of configs/universes/kospi200.txt — top 30 by free-float market cap.
+# WHY: smaller universe for fast iteration / sector-stat bootstrap during dev.
+# Refresh policy: quarterly (next refresh 2026-07-31).
+005930
+000660
+005380
+000270
+035420
+005490
+207940
+068270
+035720
+105560
+055550
+028260
+003670
+012330
+015760
+017670
+030200
+032830
+096770
+010130
+086790
+066570
+003550
+034730
+009150
+011200
+010950
+006400
+051910
+066970

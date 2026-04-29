@@ -2,10 +2,11 @@
 # v0.1 (001-010) + v0.2 (011-016) + v0.3 (017-021) + v0.4 (022-035) + v0.6 (036-040) + v1.0 (101-105)
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
-schema_version: 2
-total: 45
+schema_version: 3
+total: 46
 v1_0_active: 5
 v1_0_deprecated: 3
+v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -264,6 +265,20 @@ invariants:
     enforce_at: [cli.calibrate, predictor.calibration]
     note: "Q1 (Jan 31) / Q2 (Apr 30) / Q3 (Jul 31) / Q4 (Oct 31). 2 분기 이상 미갱신 시 weight 자동 0.5× degrade + 사용자 경고."
 
+  # ───────── v1.1: KR (Korea Exchange) production support — K1 ─────────
+  INV-GS-106:
+    summary: "KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix."
+    enforcement: ticker_normalization
+    source: docs/KR_SUPPORT.md (v1.1 K1 addendum)
+    active_in: [v1.1]
+    enforce_at:
+      - data.data_router.is_kr_ticker
+      - data.data_router.normalize_kr_ticker
+      - data.data_router.to_yfinance_kr_ticker
+      - data.yfinance_client._yf_ticker
+      - predictor.kr_universe.kr_canonical
+    note: "KR universe is canonical 6-digit (e.g. 005930 for Samsung). yfinance lookup transparently appends .KS for KOSPI / .KQ for KOSDAQ. Snapshot Broker UAID encodes XKRX/XKOS prefix (XKRX.005930). Universe membership tested via configs/universes/kospi200.txt (200 tickers, snapshot 2026-04-29)."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -289,6 +304,10 @@ v1_0_active:
   - INV-GS-103    # Brier-weighted ensemble (no simple mean)
   - INV-GS-104    # Per-prediction disclaimer (extends INV-GS-024)
   - INV-GS-105    # Quarterly recalibration
+
+# v1.1 active set (KR market support — K1):
+v1_1_active:
+  - INV-GS-106    # KR ticker normalization + yfinance .KS auto-suffix
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

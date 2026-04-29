@@ -10,24 +10,18 @@ import structlog
 from glostat.core.errors import ExpertSkipError
 from glostat.core.types import ExpertSignal
 from glostat.predictor.calibration import CalibrationTable
+from glostat.predictor.kr_universe import (
+    KOSPI200_UNIVERSE,
+    is_kospi200,
+    is_kr_ticker,
+    kr_canonical,
+)
 from glostat.predictor.types import Direction, SignalContribution
 
-# Thesis wrappers — adapt each existing expert to the unified predictor surface.
-# Goal: take any expert (live or mock) and return a SignalContribution with
-# value, direction, and the calibration metadata the composite needs.
-#
-# Universe gates per thesis (returned as SignalContribution.skip_reason when
-# the ticker is outside applicability — e.g. AAPL → E_FOREIGN_REVERSAL skips
-# with "ticker not in KOSPI200"):
-#   - E_FUNDAMENTAL / E_TIME / E_FUND_FLOW : US equities only
-#   - E_SECTOR_ROTATION                   : 11 SPDR sector ETFs
-#   - E_PEAD                               : S&P 500 (top 50)
-#   - E_FOMC_DRIFT                         : SPY + sector ETFs
-#   - E_INSIDER_CLUSTER                    : Russell 2000 with Form 4 activity
-#   - E_COMMODITY_TS                       : commodity ETFs (USO, UNG, GLD, ...)
-#   - E_FX_CARRY                           : XLU/XLV/XLF/XLE/SPY (cross-asset)
-#   - E_FUNDING_CARRY                      : crypto perp (BTC/ETH)
-#   - E_FOREIGN_REVERSAL                   : KOSPI 200 (KR equities)
+# Thesis wrappers — adapt each expert to a unified SignalContribution surface
+# (value, direction, calibration metadata). Skip reasons are universe-aware so
+# the user sees what was considered, not just what fired. v1.1 K1 adds KR
+# routing (E_FUNDAMENTAL_KR, live E_FOREIGN_REVERSAL via Naver).
 
 log: Final = structlog.get_logger(__name__)
 
@@ -41,8 +35,8 @@ _FX_CARRY_TARGETS: Final[frozenset[str]] = frozenset(
     {"XLU", "XLV", "XLF", "XLE", "SPY"}
 )
 _FOMC_UNIVERSE: Final[frozenset[str]] = frozenset({"SPY", *_SECTOR_ETFS})
-_KR_TICKER_PREFIX_LEN: Final[int] = 6  # KR Korean tickers are 6-digit codes
 _CRYPTO_SUFFIXES: Final[tuple[str, ...]] = (":USDT", "/USDT", "USDT")
+_KOSPI200_UNIVERSE: Final[frozenset[str]] = KOSPI200_UNIVERSE
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,13 +82,6 @@ def _skip(name: str, reason: str, cal_table: CalibrationTable) -> SignalContribu
     )
 
 
-def _is_kr_ticker(ticker: str) -> bool:
-    t = ticker.strip()
-    if len(t) != _KR_TICKER_PREFIX_LEN:
-        return False
-    return t.isdigit()
-
-
 def _is_crypto_ticker(ticker: str) -> bool:
     t = ticker.upper()
     return any(s in t for s in _CRYPTO_SUFFIXES) or t in {"BTC", "ETH", "BTCUSDT", "ETHUSDT"}
@@ -130,7 +117,7 @@ async def _wrap_expert_compute(
 async def wrap_fundamental(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
-    if _is_kr_ticker(ticker) or _is_crypto_ticker(ticker):
+    if is_kr_ticker(ticker) or _is_crypto_ticker(ticker):
         return _skip("E_FUNDAMENTAL", "ticker not US equity", cal_table)
     return await _wrap_expert_compute("E_FUNDAMENTAL", expert, ticker, ts, cal_table)
 
@@ -138,15 +125,55 @@ async def wrap_fundamental(
 async def wrap_time(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
-    if _is_kr_ticker(ticker) or _is_crypto_ticker(ticker):
-        return _skip("E_TIME", "ticker not US equity", cal_table)
+    # WHY (v1.1 K1): E_TIME requires only OHLCV (Ichimoku 257-day base);
+    # universe-agnostic across US + KR. Crypto perpetuals still skip — they
+    # are 24/7 + funding-driven, the daily-bar Ichimoku scaffolding doesn't
+    # transfer cleanly. Caller's expert must accept the ticker form (US bare
+    # ticker or KR 6-digit / .KS / .KQ).
+    if _is_crypto_ticker(ticker):
+        return _skip("E_TIME", "ticker not equity (crypto perpetual)", cal_table)
     return await _wrap_expert_compute("E_TIME", expert, ticker, ts, cal_table)
+
+
+async def wrap_fundamental_kr(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.1 K1 — KR-specific E_FUNDAMENTAL (yfinance .KS/.KQ only, no SEC EDGAR).
+    if not is_kr_ticker(ticker):
+        return _skip("E_FUNDAMENTAL_KR", "ticker not KR equity", cal_table)
+    if not is_kospi200(ticker):
+        return _skip(
+            "E_FUNDAMENTAL_KR",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
+            cal_table,
+        )
+    return await _wrap_expert_compute("E_FUNDAMENTAL_KR", expert, ticker, ts, cal_table)
+
+
+async def wrap_foreign_reversal_live(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.1 K1 — live Naver-backed E_FOREIGN_REVERSAL. Replaces the static
+    # `wrap_foreign_reversal_static` when an expert instance is wired.
+    if not is_kr_ticker(ticker):
+        return _skip(
+            "E_FOREIGN_REVERSAL",
+            f"ticker {ticker.upper()} not KR equity / KOSPI (6-digit code expected)",
+            cal_table,
+        )
+    if not is_kospi200(ticker):
+        return _skip(
+            "E_FOREIGN_REVERSAL",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
+            cal_table,
+        )
+    return await _wrap_expert_compute("E_FOREIGN_REVERSAL", expert, ticker, ts, cal_table)
 
 
 async def wrap_fund_flow(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
-    if _is_kr_ticker(ticker) or _is_crypto_ticker(ticker):
+    if is_kr_ticker(ticker) or _is_crypto_ticker(ticker):
         return _skip("E_FUND_FLOW", "ticker not US equity", cal_table)
     return await _wrap_expert_compute("E_FUND_FLOW", expert, ticker, ts, cal_table)
 
@@ -262,10 +289,19 @@ def wrap_funding_carry_static(
 def wrap_foreign_reversal_static(
     ticker: str, cal_table: CalibrationTable
 ) -> SignalContribution:
-    if not _is_kr_ticker(ticker):
+    # WHY: kept for back-compat + tests. The orchestrator (`collect_contributions`)
+    # now prefers the live wrapper `wrap_foreign_reversal_live` when an expert
+    # is injected. Static path emits neutral=0 for any KR universe member.
+    if not is_kr_ticker(ticker):
         return _skip(
             "E_FOREIGN_REVERSAL",
-            f"ticker {ticker.upper()} not in KOSPI 200 (KR 6-digit code expected)",
+            f"ticker {ticker.upper()} not KR equity / KOSPI (6-digit code expected)",
+            cal_table,
+        )
+    if _KOSPI200_UNIVERSE and not is_kospi200(ticker):
+        return _skip(
+            "E_FOREIGN_REVERSAL",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
             cal_table,
         )
     return _make_contribution(
@@ -288,6 +324,8 @@ async def collect_contributions(
     fundamental_expert: Any | None = None,
     time_expert: Any | None = None,
     fund_flow_expert: Any | None = None,
+    fundamental_kr_expert: Any | None = None,    # v1.1 K1
+    foreign_reversal_expert: Any | None = None,  # v1.1 K1
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -312,7 +350,20 @@ async def collect_contributions(
     out.append(wrap_commodity_ts_static(ticker, cal_table))
     out.append(wrap_fx_carry_static(ticker, cal_table))
     out.append(wrap_funding_carry_static(ticker, cal_table))
-    out.append(wrap_foreign_reversal_static(ticker, cal_table))
+    # v1.1 K1: live KR-aware wrappers with fallback to static behaviour.
+    if fundamental_kr_expert is not None:
+        out.append(await wrap_fundamental_kr(fundamental_kr_expert, ticker, ts, cal_table))
+    # Skip with universe-aware reason so the user knows the slot exists.
+    elif is_kr_ticker(ticker):
+        out.append(_skip("E_FUNDAMENTAL_KR", "expert not wired", cal_table))
+    else:
+        out.append(_skip("E_FUNDAMENTAL_KR", "ticker not KR equity", cal_table))
+    if foreign_reversal_expert is not None:
+        out.append(
+            await wrap_foreign_reversal_live(foreign_reversal_expert, ticker, ts, cal_table)
+        )
+    else:
+        out.append(wrap_foreign_reversal_static(ticker, cal_table))
     return tuple(out)
 
 
@@ -321,9 +372,11 @@ __all__ = [
     "collect_contributions",
     "wrap_commodity_ts_static",
     "wrap_fomc_drift_static",
+    "wrap_foreign_reversal_live",
     "wrap_foreign_reversal_static",
     "wrap_fund_flow",
     "wrap_fundamental",
+    "wrap_fundamental_kr",
     "wrap_funding_carry_static",
     "wrap_fx_carry_static",
     "wrap_insider_cluster_static",

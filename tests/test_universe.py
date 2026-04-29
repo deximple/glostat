@@ -100,25 +100,27 @@ def test_universe_size_mismatch_raises(tmp_path: Path) -> None:
 
 
 def test_universe_invalid_market_raises(tmp_path: Path) -> None:
+    # v1.1 K1: XKRX + XKOS are now allowed. XJPX (Tokyo) is still Phase 3+
+    # and should be rejected by the loader's _ALLOWED_MARKETS check.
     yaml_path = tmp_path / "universes.yaml"
     ticker_file = tmp_path / "tiny.txt"
-    ticker_file.write_text("AAPL\nMSFT\nNVDA\n")
+    ticker_file.write_text("7203\n6758\n9984\n")
     yaml_path.write_text(
         "schema_version: 1\n"
         "universes:\n"
-        "  KR_TEST:\n"
-        "    name: 'KR'\n"
-        "    markets: [XKRX]\n"
+        "  JP_TEST:\n"
+        "    name: 'JP'\n"
+        "    markets: [XJPX]\n"
         f"    source_file: {ticker_file.relative_to(tmp_path)}\n"
         "    size: 3\n"
     )
     spec_file_path = _REPO_ROOT / ticker_file.relative_to(tmp_path)
     spec_file_path.parent.mkdir(parents=True, exist_ok=True)
-    spec_file_path.write_text("AAPL\nMSFT\nNVDA\n")
+    spec_file_path.write_text("7203\n6758\n9984\n")
     try:
         with pytest.raises(ConfigError) as exc_info:
-            load_universe("KR_TEST", yaml_path=yaml_path)
-        assert "XKRX" in str(exc_info.value)
+            load_universe("JP_TEST", yaml_path=yaml_path)
+        assert "XJPX" in str(exc_info.value)
     finally:
         spec_file_path.unlink(missing_ok=True)
 

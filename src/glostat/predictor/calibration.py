@@ -8,10 +8,8 @@ from typing import Any, Final
 
 import structlog
 
-# Calibration table — derives per-thesis (auc, sharpe, n_samples, oos_degradation)
-# from cached Phase 1B/1C/1D hindcast reports. The composite predictor weights
-# each thesis's contribution by these calibration metrics: a thesis with AUC=0.59
-# and n=300 carries more weight than AUC=0.50 with n=11.
+# Calibration table: per-thesis (auc, sharpe, n_samples, oos_degradation)
+# from cached Phase 1B/1C/1D hindcast reports. Composite weights = sigmoid(Brier).
 
 log: Final = structlog.get_logger(__name__)
 
@@ -21,15 +19,9 @@ _DEFAULT_CALIBRATION_PARQUET: Final[Path] = _CACHE_DIR / "calibration_table.parq
 _DEFAULT_PERIOD_START: Final[date] = date(2024, 1, 1)
 _DEFAULT_PERIOD_END: Final[date] = date(2026, 3, 31)
 
-# Activation threshold — a thesis is "active" when AUC is meaningfully above
-# random AND sample size is sufficient. WHY: with n=11 even 0.78 Sharpe is
-# noise (E_INSIDER_CLUSTER); we still record it but down-weight via Brier.
-_DEFAULT_AUC_DELTA: Final[float] = 0.02   # |auc - 0.5| > 0.02
+# Activation thresholds: |auc-0.5| > 0.02 AND n_samples >= 50 → "active".
+_DEFAULT_AUC_DELTA: Final[float] = 0.02
 _DEFAULT_MIN_SAMPLES: Final[int] = 50
-
-# Empirical defaults for theses that haven't run a cached hindcast yet — set
-# to AUC=0.50 (random), n=0 → effectively skipped by `is_active`. Avoids
-# silent crashes when wrappers reference theses not present in cache.
 _RANDOM_AUC: Final[float] = 0.50
 
 
@@ -45,20 +37,16 @@ class ThesisCalibration:
 
     @property
     def brier_score(self) -> float:
-        # WHY: derive Brier-like score from AUC. AUC=0.5 → Brier=0.25 (max
-        # uncertainty), AUC>0.5 → Brier shrinks toward 0. Calibration sample
-        # size penalizes small-n theses (n=10 still gets full credit otherwise).
-        # Mapping: brier ≈ 0.25 * (1 - 2*|auc-0.5|) * sample_penalty
+        # WHY: brier ≈ 0.25 * (1 - 2*|auc-0.5|) * sample_penalty.
+        # Tiny n lifts Brier toward 0.25 (random) so weight collapses.
         edge = abs(self.auc - 0.5)
         sample_penalty = min(1.0, self.n_samples / 100.0)
-        # When sample is tiny we lift Brier toward the maximum so the weight collapses.
         raw = 0.25 * (1.0 - 2.0 * edge)
         return min(0.25, raw + 0.25 * (1.0 - sample_penalty) * 0.5)
 
     @property
     def directional_bias(self) -> int:
-        # WHY: a thesis with AUC > 0.5 is informative; with AUC < 0.5 the
-        # signal is anti-informative (flip the direction). Composite uses this.
+        # AUC > 0.5 informative; AUC < 0.5 anti-informative (flip in composite).
         if self.auc > 0.5 + 1e-9:
             return +1
         if self.auc < 0.5 - 1e-9:
@@ -192,36 +180,67 @@ def _compute_oos_degradation(is_sharpe: float, oos_sharpe: float) -> float:
 # Phase 1D markdown reports — parse the small comparison table into calibration.
 # WHY: phase1d emits markdown only; rather than re-running the costly hindcast,
 # extract numbers from the comparison report. Fragile but bounded.
+_PHASE1D_LABEL_RULES: Final[tuple[tuple[str, str, str], ...]] = (
+    # (rule_kind, needle, key) — rule_kind ∈ {contains, eq, startswith}.
+    ("contains",   "sharpe (overall)", "sharpe"),
+    ("eq",         "sharpe is",        "sharpe_is"),
+    ("eq",         "sharpe oos",       "sharpe_oos"),
+    ("contains",   "auc (overall)",    "auc"),
+    ("startswith", "traded",           "traded"),
+    ("startswith", "actionable",       "actionable"),
+)
+
+
+def _classify_phase1d_label(label: str) -> str | None:
+    # Map a row label (lower-case, asterisk-stripped) to its metric key. Bare
+    # exact matches avoid e.g. "actionable" capturing "hit_rate_actionable".
+    bare = label.strip()
+    for kind, needle, key in _PHASE1D_LABEL_RULES:
+        if kind == "contains" and needle in bare:
+            return key
+        if kind == "eq" and bare == needle:
+            return key
+        if kind == "startswith" and bare.startswith(needle):
+            return key
+    return None
+
+
+def _parse_phase1d_md_row(line: str, column: int) -> tuple[str, float] | None:
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return None
+    cells = [c.strip() for c in stripped.strip("|").split("|")]
+    if len(cells) < column + 1:
+        return None
+    label = cells[0].lower().strip("*")
+    try:
+        value = float(cells[column].replace("%", "").replace("+", "").replace(",", ""))
+    except ValueError:
+        return None
+    key = _classify_phase1d_label(label)
+    return None if key is None else (key, value)
+
+
 def _calibration_from_phase1d_md(
     md_text: str, thesis_name: str, column: int
 ) -> ThesisCalibration | None:
-    auc: float | None = None
-    sharpe: float | None = None
-    n: int | None = None
-    is_sharpe: float | None = None
-    oos_sharpe: float | None = None
+    fields: dict[str, float] = {}
     for line in md_text.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        cells = [c.strip() for c in stripped.strip("|").split("|")]
-        if len(cells) < column + 1:
-            continue
-        label = cells[0].lower()
-        try:
-            value = float(cells[column].replace("%", "").replace("+", ""))
-        except ValueError:
-            continue
-        if "sharpe (overall)" in label:
-            sharpe = value
-        elif label == "sharpe is":
-            is_sharpe = value
-        elif label == "sharpe oos":
-            oos_sharpe = value
-        elif "auc (overall)" in label:
-            auc = value
-        elif label.startswith("traded"):
-            n = int(value)
+        parsed = _parse_phase1d_md_row(line, column)
+        if parsed is not None:
+            label, value = parsed
+            fields[label] = value
+    auc = fields.get("auc")
+    sharpe = fields.get("sharpe")
+    n_actionable = fields.get("actionable")
+    n_traded = fields.get("traded")
+    is_sharpe = fields.get("sharpe_is")
+    oos_sharpe = fields.get("sharpe_oos")
+    # Prefer actionable count (signal events generated, pre-cost) — closer to
+    # the v1.0 framing where cost gate is downstream of the calibration.
+    n = int(n_actionable) if n_actionable is not None else (
+        int(n_traded) if n_traded is not None else None
+    )
     if auc is None or sharpe is None or n is None:
         return None
     if is_sharpe is None or oos_sharpe is None:
@@ -278,7 +297,21 @@ def load_calibration(cache_dir: Path | None = None) -> CalibrationTable:
             table.entries["E_FUNDING_CARRY"] = e7
         if e9 is not None:
             table.entries["E_FOREIGN_REVERSAL"] = e9
+    # v1.1 K1: backfill thesis with no cached hindcast report from the synthetic
+    # baseline so the live predictor has at least the v0.6 calibration to lean
+    # on. This is documented in docs/CALIBRATION.md and re-derived during the
+    # quarterly recalibration (INV-GS-105). Without this backfill an E_TIME or
+    # E_FUNDAMENTAL prediction would carry weight=0 and the composite would
+    # collapse to the base rate prior — see also K1 brief.
+    _backfill_from_synthetic(table)
     return table
+
+
+def _backfill_from_synthetic(table: CalibrationTable) -> None:
+    synthetic = synthetic_calibration_for_mock()
+    for name, cal in synthetic.entries.items():
+        if name not in table.entries:
+            table.entries[name] = cal
 
 
 def synthetic_calibration_for_mock() -> CalibrationTable:
@@ -290,6 +323,13 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
         "E_FUNDAMENTAL": ThesisCalibration(
             "E_FUNDAMENTAL", auc=0.55, sharpe=0.40, n_samples=120,
             oos_degradation=0.20,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.1 K1 — KR fundamentals bootstrapped at AUC=0.5, n=0 (no hindcast yet).
+        # Composite weight = 0 until calibration table is rebuilt.
+        "E_FUNDAMENTAL_KR": ThesisCalibration(
+            "E_FUNDAMENTAL_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
         "E_TIME": ThesisCalibration(
@@ -337,8 +377,10 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=4.5741,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.1 K1 — Phase 1D live hindcast (n=424, AUC=0.4667, Sharpe=0.5834).
+        # AUC < 0.5 → directional_bias=-1; composite flips the score.
         "E_FOREIGN_REVERSAL": ThesisCalibration(
-            "E_FOREIGN_REVERSAL", auc=0.4667, sharpe=0.5834, n_samples=418,
+            "E_FOREIGN_REVERSAL", auc=0.4667, sharpe=0.5834, n_samples=424,
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
