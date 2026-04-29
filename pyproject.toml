@@ -1,17 +1,33 @@
 [project]
 name = "glostat"
-version = "0.4.0"
-description = "GLOSTAT — Global Cascade Intelligence Engine (Validation-First MVP)"
+version = "0.7.0"
+description = "GLOSTAT — Validation framework for swing-horizon equity alpha theses (deterministic hindcast, snapshot broker, kill criteria, free-stack data)."
 readme = "README.md"
 requires-python = ">=3.14"
-license = { text = "Proprietary — Personal Use Only" }
-authors = [{ name = "GLOSTAT" }]
-keywords = ["finance", "cascade", "expert", "moe", "validation", "bigdata-mcp"]
+license = { text = "MIT" }
+authors = [{ name = "GLOSTAT contributors" }]
+keywords = [
+    "alpha",
+    "hindcast",
+    "validation",
+    "equity",
+    "free-stack",
+    "snapshot-broker",
+    "kill-criteria",
+    "yfinance",
+    "sec-edgar",
+    "compliance-gate",
+]
 classifiers = [
-    "Programming Language :: Python :: 3.14",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Financial :: Investment",
-    "Private :: Do Not Upload",
+    "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 
 dependencies = [
@@ -36,6 +52,13 @@ dev = [
 
 [project.scripts]
 glostat = "glostat.cli:main"
+
+[project.urls]
+Homepage      = "https://github.com/glostat/glostat"
+Repository    = "https://github.com/glostat/glostat"
+Documentation = "https://github.com/glostat/glostat/tree/main/docs"
+Issues        = "https://github.com/glostat/glostat/issues"
+PostMortem    = "https://github.com/glostat/glostat/blob/main/docs/post_mortem/SPRINT5_FAIL_post_mortem.md"
 
 [build-system]
 requires = ["hatchling"]
