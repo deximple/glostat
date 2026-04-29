@@ -1,0 +1,47 @@
+# GLOSTAT Sprint 4 Kill Criteria Thresholds (PLAN_v0.5 §3 D2 + research/kill_criteria_design.md)
+# Source: docs/research/kill_criteria_design.md §3 + §8 (Phase-differentiated thresholds)
+#
+# WHY profile selection: Cautious (T1=0.8/T2=30%/T3=0.62) chosen for Sprint 4 gate per PLAN_v0.5
+# §3 D2; balanced/aggressive present for post-PASS Phase 2 tuning experiments only.
+#
+# Active profile is read by:
+#   - src/glostat/replay/kill_criteria.py        (KillCriteriaMonitor.evaluate)
+#   - src/glostat/replay/sprint4_gate.py         (Sprint4Gate.evaluate)
+# Override at runtime via CLI flag --profile {cautious,balanced,aggressive}.
+
+schema_version: 1
+active_profile: cautious
+
+profiles:
+  cautious:
+    sharpe_min: 0.8                 # T1 — annualized, 4.5% RF baseline (US 3M T-bill MVP default)
+    oos_degradation_max: 0.30       # T2 — max(0, 1 - OOS_Sharpe/IS_Sharpe)
+    auc_min: 0.62                   # T3 — D2 raised from 0.60 to 0.62 per E1 minority
+    cost_passed_band: [0.40, 0.60]  # T4 — too-low: cost gate too pessimistic; too-high: too generous
+    maxdd_max: 0.15                 # T5 — peak-to-trough on cumulative pnl
+    grace_period_consecutive_days: 5
+
+  balanced:
+    sharpe_min: 0.6
+    oos_degradation_max: 0.35
+    auc_min: 0.60
+    cost_passed_band: [0.30, 0.70]
+    maxdd_max: 0.18
+    grace_period_consecutive_days: 5
+
+  aggressive:
+    sharpe_min: 1.0
+    oos_degradation_max: 0.25
+    auc_min: 0.65
+    cost_passed_band: [0.45, 0.65]
+    maxdd_max: 0.12
+    grace_period_consecutive_days: 3
+
+# v0.3.1 Strong-PASS pivot eligibility (PLAN_v0.5 §4 — separate evaluation from Sprint 4 gate).
+# Pivot ENABLED only if all 5 met AND no compliance issue in 90d AND user explicit consent.
+v031_pivot:
+  sharpe_min: 1.2
+  oos_degradation_max: 0.15
+  auc_min: 0.65
+  cost_passed_band: [0.50, 0.65]
+  compliance_clean_days_required: 90

@@ -1,0 +1,231 @@
+# GLOSTAT v0.6 — INV-GS-001..040 (총 40개 불변식)
+# v0.1 (001-010) + v0.2 (011-016) + v0.3 (017-021) + v0.4 (022-035) + v0.6 (036-040)
+# 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.6.md
+
+schema_version: 1
+total: 40
+
+invariants:
+  # ───────── v0.1: 핵심 (001-010) ─────────
+  INV-GS-001:
+    summary: "edge_bps ≥ 1.5 × all_in_bps 미충족 시 BUY/STRONG_BUY → HOLD 강등"
+    enforcement: hard_gate
+    source: MOET A4, PLAN_v0.1
+  INV-GS-002:
+    summary: "find_companies 결과는 영구 캐시; 재호출 금지"
+    enforcement: cache_layer
+    source: PLAN_v0.1
+  INV-GS-003:
+    summary: "E_NARRATIVE 가중치 ≤ 15% (LLM 폭주 방지)"
+    enforcement: gating_cap
+    source: PLAN_v0.1
+  INV-GS-004:
+    summary: "regime ∈ {CRASH} 시 모든 신규 LONG verdict 강등"
+    enforcement: regime_gate
+    source: PLAN_v0.1
+  INV-GS-005:
+    summary: "4 Expert 이상 동방향 시 가중치 0.80× 할인 (anti-herd)"
+    enforcement: gating_post
+    source: MOET A2
+  INV-GS-006:
+    summary: "모든 verdict는 hash-chained NDJSON에 append; 누락 시 다음 verdict 거부"
+    enforcement: evidence_chain
+    source: MOET A5
+  INV-GS-007:
+    summary: "DEFCON STOP 시 STRONG_BUY/BUY 차단 (sticky)"
+    enforcement: defcon_gate
+    source: MOET A6
+  INV-GS-008:
+    summary: "T값 ≥ 1.5 + V값 ≥ 1.0 → conviction_w 1.2× 보너스"
+    enforcement: time_bonus
+    source: TITAN B2
+  INV-GS-009:
+    summary: "bigdata_search 결과는 14일 내 + sentiment 양극단만 채택"
+    enforcement: data_filter
+    source: PLAN_v0.1
+  INV-GS-010:
+    summary: "동일 (ticker, date, seed) → 동일 verdict (결정론)"
+    enforcement: rng_replay
+    source: MOET A7
+
+  # ───────── v0.2: Cascade (011-016) — Phase 3로 이연 ─────────
+  INV-GS-011:
+    summary: "Cascade Graph 엣지는 sources[] 비어있지 않아야 함"
+    enforcement: graph_integrity
+    source: PLAN_v0.2
+    deferred_to: phase_3
+  INV-GS-012:
+    summary: "Propagation Engine MAX_HOP=4, THRESHOLD=10bps"
+    enforcement: cascade_param
+    source: PLAN_v0.2
+    deferred_to: phase_3
+  INV-GS-013:
+    summary: "E_CASCADE 가중치 ≤ 20%"
+    enforcement: gating_cap
+    source: PLAN_v0.2
+    deferred_to: phase_3
+  INV-GS-014:
+    summary: "CascadeVerdict.triggering_event.sources[] 누락 시 emission 거부"
+    enforcement: evidence_required
+    source: PLAN_v0.2
+    deferred_to: phase_3
+  INV-GS-015:
+    summary: "TZ delay는 markets.yaml 정적 캘린더로만 계산"
+    enforcement: cascade_tz
+    source: PLAN_v0.2
+    deferred_to: phase_3
+  INV-GS-016:
+    summary: "Multi-path aggregation은 signed sum, 절대값 sum 금지"
+    enforcement: cascade_aggregation
+    source: PLAN_v0.2
+    deferred_to: phase_3
+
+  # ───────── v0.3: Market Boundary (017-021) — Phase 2로 이연 ─────────
+  INV-GS-017:
+    summary: "모든 ticker 입력은 UAID 형식 (MIC.LOCAL or RP:entity_id)"
+    enforcement: input_validation
+    source: PLAN_v0.3
+    deferred_to: phase_2
+    mvp_relaxation: "MVP는 bare ticker 허용 (US 단일 시장)"
+  INV-GS-018:
+    summary: "Verdict는 target_uaid + target_market_meta 포함"
+    enforcement: verdict_schema
+    source: PLAN_v0.3
+    deferred_to: phase_2
+  INV-GS-019:
+    summary: "Cross-market hop은 tz_delay, execution_feasibility, currency_conversion 명시"
+    enforcement: cascade_metadata
+    source: PLAN_v0.3
+    deferred_to: phase_3
+  INV-GS-020:
+    summary: "Cost-Gate all_in_bps는 target_market markets.yaml에서 조회"
+    enforcement: cost_lookup
+    source: PLAN_v0.3
+    mvp_status: active   # XNAS/XNYS만 MVP에서 적용
+  INV-GS-021:
+    summary: "foreign_access ≠ open 시장은 verdict.executable_for_user 명시"
+    enforcement: access_check
+    source: PLAN_v0.3
+    deferred_to: phase_2
+
+  # ───────── v0.4: Validation-First (022-035) — Sprint 0/1 핵심 ─────────
+  INV-GS-022:
+    summary: "모든 Bigdata MCP 호출은 Snapshot Broker에 기록; replay는 snapshot 우선"
+    enforcement: snapshot_broker
+    source: E5 (MLOps)
+    sprint: 0
+  INV-GS-023:
+    summary: "모든 LLM 호출은 prompt_versions[expert]: sha256 명시. 누락 verdict 거부"
+    enforcement: prompt_registry
+    source: E8 (LLM)
+    sprint: 0
+  INV-GS-024:
+    summary: "Telegram broadcast 영구 금지. Personal-use disclaimer 매 verdict"
+    enforcement: compliance_gate
+    source: E9 (Compliance)
+    sprint: 0
+  INV-GS-025:
+    summary: "Portfolio CVaR_95 ≤ 3.5%, Herfindahl ≤ 0.12, single_position ≤ 8%"
+    enforcement: portfolio_gate
+    source: E4 (Risk Manager)
+    sprint: 1.5
+  INV-GS-026:
+    summary: "새 Expert 출시 전 90d hindcast + IS/OOS split + AUC ≥ 0.60"
+    enforcement: validation_gate
+    source: E1, E6
+    sprint: 0
+  INV-GS-027:
+    summary: "Regime TRANSITION state + 21일 confirmation. 5→6 state"
+    enforcement: regime_extension
+    source: E2 (Macro Strategist)
+    sprint: phase_2
+  INV-GS-028:
+    summary: "Verdict.expected_pnl_bps = cascade_upside − current_loss"
+    enforcement: pnl_definition
+    source: E4 (Risk Manager)
+    sprint: 1
+  INV-GS-029:
+    summary: "Verdict.disagreement_weight 필수, < 0.5 시 UX 경고"
+    enforcement: dissent_surface
+    source: E7 (UX)
+    sprint: 3
+  INV-GS-030:
+    summary: "E_NARRATIVE lookback 60d + crystallization multiplier + contrarian sub-expert"
+    enforcement: narrative_extension
+    source: E3 (Behavioral)
+    sprint: phase_2
+  INV-GS-031:
+    summary: "BETASTRIKE 상속 calibration 가중치 ≤ 10% (OOS retraining 전까지)"
+    enforcement: weight_cap
+    source: E1
+    sprint: 1
+  INV-GS-032:
+    summary: "Edge multiplier 검증 테이블 필수. never tested 엣지는 weight=0"
+    enforcement: validation_required
+    source: E6 (Red Team)
+    sprint: phase_3   # cascade가 활성화된 후에 적용
+  INV-GS-033:
+    summary: "Sprint 4 게이트 FAIL 시 자동 shutdown. 우회 금지"
+    enforcement: kill_criteria
+    source: E10 (Contrarian)
+    sprint: 4
+  INV-GS-034:
+    summary: "Cascade Graph는 research/ 격리. production verdict 영향 0"
+    enforcement: module_isolation
+    source: E10, E6
+    sprint: phase_3
+  INV-GS-035:
+    summary: "RavenPack ToS 검증 완료 + 매월 재확인"
+    enforcement: compliance_review
+    source: E9
+    sprint: 0
+
+  # ───────── v0.6: Free-Stack Data Plane (036-040) — Sprint 0 보강 ─────────
+  INV-GS-036:
+    summary: "MVP phase에서 bigdata_client 호출 차단 (assert_phase_2_or_later 가드, ConfigError raise)"
+    enforcement: phase_gate
+    source: PLAN_v0.6 §1.2, §3
+    sprint: 0
+    mvp_status: active
+  INV-GS-037:
+    summary: "yfinance_client는 8 req/sec 자체 throttle + exponential backoff retry (Sprint 4 PR #3 — PR #2 93% throttle ratio 완화)"
+    enforcement: rate_limit
+    source: PLAN_v0.6 §1.3 (Sprint 4 PR #3 update)
+    sprint: 0
+    mvp_status: active
+  INV-GS-038:
+    summary: "sec_edgar_client는 User-Agent 헤더 필수 (SEC 정책 준수), 10 req/sec 제한; 'example.com' 기본값 거부"
+    enforcement: header_required
+    source: PLAN_v0.6 §1.3
+    sprint: 0
+    mvp_status: active
+  INV-GS-039:
+    summary: "data_router는 Phase에 따라 source 활성화 — MVP={free}, Phase 2={free + optional bigdata}, Phase 3={free + bigdata cascade}"
+    enforcement: phase_routing
+    source: PLAN_v0.6 §1.2
+    sprint: 0
+    mvp_status: active
+  INV-GS-040:
+    summary: "Phase 2/3 Bigdata 활성화 시 configs/budget.yaml + 사용자 명시 consent 필요"
+    enforcement: consent_required
+    source: PLAN_v0.6 §3, §7
+    sprint: 0
+    mvp_status: active
+
+# Sprint 0 in-scope subset (MVP):
+sprint_0_active:
+  - INV-GS-001    # Cost gate
+  - INV-GS-002    # find_companies cache
+  - INV-GS-006    # Hash-chained evidence (Merkle 변형)
+  - INV-GS-010    # Determinism / replay
+  - INV-GS-020    # Per-market cost lookup (XNAS/XNYS)
+  - INV-GS-022    # Snapshot broker
+  - INV-GS-023    # Prompt versioning
+  - INV-GS-024    # Compliance gate (broadcast prohibition)
+  - INV-GS-026    # Validation harness
+  - INV-GS-035    # ToS attestation
+  - INV-GS-036    # Bigdata phase gate (v0.6)
+  - INV-GS-037    # yfinance throttle (v0.6)
+  - INV-GS-038    # SEC EDGAR User-Agent (v0.6)
+  - INV-GS-039    # Data router phase (v0.6)
+  - INV-GS-040    # Bigdata consent (v0.6)

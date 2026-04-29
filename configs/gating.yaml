@@ -1,0 +1,49 @@
+# GLOSTAT v0.6 — Gating Network configuration
+# MOET A1 (IC-softmax) + A2 (anti-herd) + A3 (minority premium + Meta-adjudicator).
+# Source: docs/ssot/PLAN_v0.1.md §1, PLAN_v0.4.md §0.3, PLAN_v0.6.md §1.1.
+#
+# Sprint 1 PR #5 (FINAL) — 3 active experts; phase_2 entries are placeholders
+# that derive_weights() will skip while still validating against caps.
+
+schema_version: 1
+
+initial_ic:
+  E_FUNDAMENTAL: 0.40
+  E_FUND_FLOW: 0.35
+  E_TIME: 0.25
+  # ── Phase 2 (deferred — not in MVP). ─────────────────────────────────────
+  E_NARRATIVE:
+    value: 0.15
+    deferred_to: phase_2
+  E_MACRO:
+    value: 0.10
+    deferred_to: phase_2
+
+weight_caps:
+  E_FUNDAMENTAL: 0.40
+  E_FUND_FLOW: 0.35
+  E_TIME: 0.25
+  E_NARRATIVE:
+    value: 0.15      # INV-GS-003 — LLM blowout guard
+    deferred_to: phase_2
+  E_MACRO:
+    value: 0.10
+    deferred_to: phase_2
+
+softmax:
+  temperature: 1.0      # T = 1 → standard softmax
+  entropy_lambda: 0.10  # MOET A1 — KL-from-uniform regularizer to prevent collapse
+
+anti_herd:
+  trigger_threshold: 4    # ≥ N experts agreeing → discount fires (INV-GS-005)
+  discount_factor: 0.80   # multiplier on per-signal weight when triggered
+
+minority_premium:
+  enabled: true
+  boost_factor: 1.15                       # MOET A3
+  meta_adjudicator: deferred_to_phase_2_llm
+  default_approval: true                   # MVP: auto-approve (no LLM cost)
+
+regime_overrides:
+  CRASH_demotes_long: true   # INV-GS-004 — flag (E_MACRO not yet emitting; placeholder)
+  deferred_to: phase_2

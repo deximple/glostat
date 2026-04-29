@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# uv
+.venv/
+uv.lock.tmp
+
+# Environments / secrets
+.env
+.env.*
+!.env.example
+.envrc
+secrets/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# GLOSTAT runtime artefacts (Sprint 0)
+cache/
+snapshots/
+hindcast_db/
+audit_logs/
+*.parquet
+!tests/fixtures/*.parquet
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Generated docs
+site/
+
+# Generated caches (Sprint 4/5 hindcast artifacts — too large for git)
+cache/
+snapshots/
+*.parquet

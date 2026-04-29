@@ -1,0 +1,56 @@
+# GLOSTAT — S&P 500 Top 50 by market cap snapshot (2026-04-28)
+# Source: representative megacap snapshot used for MVP universe bootstrap (Sprint 1 PR #4).
+# WHY: full S&P 500 deferred to Phase 2. 50 tickers = enough sector breadth for E_FUNDAMENTAL
+# sector-aware z-score without paying for an index data subscription in MVP.
+# Refresh policy: quarterly (next refresh 2026-07-31).
+# One ticker per line. Lines starting with '#' or blank lines ignored.
+AAPL
+MSFT
+NVDA
+GOOGL
+META
+AMZN
+BRK.B
+LLY
+AVGO
+JPM
+TSLA
+V
+WMT
+XOM
+MA
+PG
+UNH
+JNJ
+COST
+HD
+ORCL
+NFLX
+BAC
+ABBV
+CRM
+KO
+MRK
+CVX
+AMD
+PEP
+ADBE
+TMO
+LIN
+CSCO
+MCD
+ACN
+WFC
+ABT
+IBM
+NOW
+GE
+DIS
+AXP
+ISRG
+MS
+GS
+CAT
+INTU
+T
+RTX

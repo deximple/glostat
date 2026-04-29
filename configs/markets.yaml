@@ -1,0 +1,63 @@
+# GLOSTAT v0.4 — markets.yaml (Sprint 0 / MVP scope)
+# 80개 시장 → 2개로 축소 (XNAS, XNYS) per E6 + E10 minority insights.
+# Phase 2에서 KR 시장 (XKRX, XKOS) 추가, Phase 3에서 글로벌 확장.
+
+schema_version: 1
+mvp_scope:
+  rationale: "v0.4 Sprint 1-3는 US-only. UAID 전체 시스템은 Phase 2."
+  permitted_markets: [XNAS, XNYS]
+  bare_ticker_allowed: true   # MVP만, US 단일 시장이므로 모호성 없음
+
+markets:
+  XNAS:
+    mic: XNAS
+    name: NASDAQ
+    country: US
+    currency: USD
+    tz: America/New_York
+    sessions:
+      - { name: pre_market,    open_local: "04:00", close_local: "09:30",
+          open_utc: "09:00",  close_utc: "14:30" }
+      - { name: regular,       open_local: "09:30", close_local: "16:00",
+          open_utc: "14:30", close_utc: "21:00" }
+      - { name: after_market,  open_local: "16:00", close_local: "20:00",
+          open_utc: "21:00", close_utc: "01:00+1d" }
+    settlement: T+1   # SEC rule effective 2024-05-28
+    settlement_days: 1
+    fee_bps: 0.6          # broker commission proxy (Sprint 1 PR #1 cost-gate)
+    tax_bps_buy: 0.0
+    tax_bps_sell: 0.24    # SEC fee + FINRA TAF blended
+    daily_limit_pct: null
+    tick_size: 1c
+    holidays_calendar: us_2026.yaml
+    bigdata_mcp_coverage: HIGH
+    foreign_access: open
+
+  XNYS:
+    mic: XNYS
+    name: New York Stock Exchange
+    country: US
+    currency: USD
+    tz: America/New_York
+    sessions:
+      - { name: pre_market,    open_local: "04:00", close_local: "09:30",
+          open_utc: "09:00",  close_utc: "14:30" }
+      - { name: regular,       open_local: "09:30", close_local: "16:00",
+          open_utc: "14:30", close_utc: "21:00" }
+      - { name: after_market,  open_local: "16:00", close_local: "20:00",
+          open_utc: "21:00", close_utc: "01:00+1d" }
+    settlement: T+1
+    settlement_days: 1
+    fee_bps: 0.6          # broker commission proxy (Sprint 1 PR #1 cost-gate)
+    tax_bps_buy: 0.0
+    tax_bps_sell: 0.24
+    daily_limit_pct: null
+    tick_size: 1c
+    holidays_calendar: us_2026.yaml
+    bigdata_mcp_coverage: HIGH
+    foreign_access: open
+
+# Phase 2 후보 (현재 비활성, 주석으로만 유지)
+# XKRX: KOSPI (Korea), XKOS: KOSDAQ (Korea)
+# XTAI: Taiwan SE, XJPX: Tokyo, XHKG: Hong Kong, XSHG/XSHE: Shanghai/Shenzhen
+# XLON: London, XAMS: Euronext Amsterdam, XPAR: Euronext Paris

@@ -1,0 +1,38 @@
+# GLOSTAT v0.6 — universes.yaml (Sprint 1 PR #4)
+# Defines the named ticker universes that `glostat universe build` and
+# `glostat screen` operate on. MVP scope is US-only (XNAS + XNYS).
+#
+# Rationale for top-50 over full S&P 500:
+#   - 50 tickers cover all 11 GICS sectors with ≥3 names per sector → enough
+#     samples to derive a stable median PER/ROE per sector for E_FUNDAMENTAL.
+#   - 50 tickers stay well under any free-tier API rate limit (yfinance 5/sec,
+#     SEC EDGAR 10/sec) when run with concurrency=10 → ≈10s per refresh.
+#   - Full S&P 500 deferred to Phase 2 (post Sprint-4 gate PASS).
+
+schema_version: 1
+
+universes:
+  US_LARGE_SAMPLE:
+    name: "S&P 500 Top 50 (April 2026 snapshot)"
+    markets: [XNAS, XNYS]
+    source_file: configs/universes/sp500_top50.txt
+    size: 50
+    refresh_cadence: quarterly
+    snapshot_date: 2026-04-28
+
+  # Phase 2 extensions — block load() with ConfigError until graduated.
+  US_LARGE_500:
+    name: "S&P 500 Full (Phase 2)"
+    markets: [XNAS, XNYS]
+    source_file: configs/universes/sp500_full.txt
+    size: 500
+    deferred_to: phase_2
+    notes: "Activate after Sprint 4 gate PASS + 80%+ AUC across 3 Experts."
+
+  US_RUSSELL_3000:
+    name: "Russell 3000 (Phase 3)"
+    markets: [XNAS, XNYS]
+    source_file: configs/universes/russell_3000.txt
+    size: 3000
+    deferred_to: phase_3
+    notes: "Cascade Graph research mode universe."

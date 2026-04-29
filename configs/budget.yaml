@@ -1,0 +1,40 @@
+# GLOSTAT v0.6 — Phase-gated data source budget
+# Source: docs/ssot/PLAN_v0.6.md §3
+#
+# Active phase is read by:
+#   - src/glostat/data/bigdata_client.py  (assert_phase_2_or_later, INV-GS-036)
+#   - src/glostat/data/data_router.py     (route gating, INV-GS-039)
+#
+# Override at runtime via env var GLOSTAT_PHASE (takes precedence over `phase` here).
+
+schema_version: 1
+phase: mvp                      # one of: mvp | phase_2 | phase_3
+
+# Hard ceiling no phase may ever exceed. Enforced by budget reservation logic.
+hard_cap_max_usd: 500
+
+budget:
+  # Sprint 0 .. Sprint 4 — free stack only (yfinance + SEC EDGAR).
+  mvp_phase:
+    cap_usd_per_month: 0
+    bigdata_enabled: false
+    sources_active: [yfinance, sec_edgar]
+    activation: none_required
+
+  # Post Sprint-4 gate PASS, optional Bigdata enrichment.
+  phase_2_optional:
+    cap_usd_per_month: 50
+    bigdata_enabled: false       # flips true only when consent below set
+    sources_active: [yfinance, sec_edgar, fred]
+    sources_added: [bigdata_search_smart, bigdata_company_tearsheet_esg, fred]
+    activation: required_user_consent
+    consent_flag_path: state/consent/phase_2.flag
+
+  # Cascade research mode — Phase 2 PASS + strong Sprint 4 signal.
+  phase_3_cascade:
+    cap_usd_per_month: 200
+    bigdata_enabled: false       # flips true only when consent below set
+    sources_active: [yfinance, sec_edgar, fred]
+    sources_added: [bigdata_search_filings, bigdata_search_transcripts]
+    activation: required_user_consent_plus_strong_pass
+    consent_flag_path: state/consent/phase_3.flag
