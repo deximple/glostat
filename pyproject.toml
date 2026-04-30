@@ -1,9 +1,9 @@
 [project]
 name = "glostat"
-version = "1.3.0"
+version = "1.3.1"
 description = "GLOSTAT — Evidence-based probability predictor for global equities (개선된 TITAN의 open-source 진화형). Brier-calibrated multi-thesis ensemble. Information tool, not investment advice."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "GLOSTAT contributors" }]
 keywords = [
@@ -69,7 +69,7 @@ packages = ["src/glostat"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
