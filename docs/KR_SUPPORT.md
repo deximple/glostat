@@ -1,13 +1,41 @@
-# GLOSTAT v1.3 — KR (Korea Exchange) Support Guide
+# GLOSTAT v1.4 — KR (Korea Exchange) Support Guide
 
-> Status: ACTIVE 2026-04-29. v1.3 M2 (ECOS BoK macro) + v1.2 L1 (Phase KR
-> calibration) + L2 (DART API). Previous v1.1 K1 (2026-04-29) — KR support
-> landed. Production routing for XKRX (KOSPI) live; XKOS (KOSDAQ) covered by
-> yfinance fundamentals only.
+> Status: ACTIVE 2026-04-29. v1.4 N1 (KR 3-source investor flows: KIS/Toss/Naver)
+> + v1.4 N2 (KR 공매도 + intraday flow experts) on top of v1.3 M2 (ECOS BoK
+> macro), v1.2 L1 (Phase KR calibration) + L2 (DART API), and v1.1 K1 (KR
+> production support). Production routing for XKRX (KOSPI) live; XKOS (KOSDAQ)
+> covered by yfinance fundamentals only.
 >
 > Information tool. Not investment advice. Past calibration ≠ future performance.
 
 ---
+
+## What changed in v1.4
+
+v1.4 absorbs TITAN's deep KR practitioner capabilities while keeping the
+prediction-tool framing (INV-GS-101 — no BUY/SELL output):
+
+1. **N1 — KR 3-source investor flows**: new `KisClient` (real-time intraday,
+   read-only KIS Open API), new `TossClient` (local-parquet cache reader,
+   TITAN pattern), and a `fuse_three_source_flows()` helper in
+   `naver_kr_client` that median-merges Naver + Toss + KIS daily summaries
+   per date. When ≥ 2 sources disagree by > 50%, a warning is logged and
+   the median takes over so a single bad scrape can't poison
+   `E_FOREIGN_REVERSAL`. Source priority: KIS (real-time) > Toss (cache) >
+   Naver (scrape, always available).
+2. **N2 — KR 공매도 + intraday flow experts**: new `KrxShortClient` (free
+   public KRX AJAX endpoint), new `EShortSellingKrExpert` (TITAN E5++
+   inspired — short balance change + squeeze candidate detection), new
+   `EIntradayFlowKrExpert` (TITAN E5+ inspired — Naver baseline + KIS
+   overlay, foreign-flow acceleration). Both are bootstrapped at AUC=0.50
+   / n=0 in the calibration table; weight=0 until a dedicated KR hindcast
+   measures predictive strength.
+
+KR predictions now have up to **7 active signal slots** (was 5):
+`E_FUNDAMENTAL_KR`, `E_TIME`, `E_FOREIGN_REVERSAL` (3-source-aware),
+`E_INSIDER_KR`, `E_MACRO_KR`, **`E_SHORT_SELLING_KR`**, **`E_INTRADAY_FLOW_KR`**.
+
+Total contribution slots: 16 (was 14 in v1.3).
 
 ## What changed in v1.3
 
@@ -82,7 +110,10 @@ Universe loading is exposed in code at:
 |--------|-------------|------------------|
 | OHLCV (KR) | yfinance `005930.KS` | KIS / KRX direct (Phase 2.5) |
 | Fundamentals (PER/ROE/div) | yfinance `005930.KS` info | DART API (Phase 2.5 — XBRL grade) |
-| 외인/기관 net flows | Naver Finance scraper (`finance.naver.com/item/frgn.naver`) | KIS API quotes |
+| 외인/기관 net flows (daily, share count) | Naver Finance scraper (`finance.naver.com/item/frgn.naver`) | — |
+| 외인/기관 net flows (daily, KRW) — v1.4 N1 | Toss local parquet cache (`cache/toss/{code}.parquet`) | KIS Open API daily summary |
+| 외인/기관 net flows (intraday, real-time) — v1.4 N1 | — | **KIS Open API** (read-only paths only) |
+| 공매도 잔고 + 거래량 — v1.4 N2 | KRX 정보데이터시스템 public AJAX | — |
 | Earnings calendar | yfinance | KRX disclosure (DART filings) |
 | Macro (BoK rate, KRW/USD, CPI, KOSPI index) | ECOS BoK OpenAPI | KOSIS / IMF SDMX |
 
@@ -161,7 +192,98 @@ Setup: `docs/ECOS_API_SETUP.md`.
 
 ---
 
-## E_FOREIGN_REVERSAL (live Naver wiring)
+## v1.4 N1 — KR 3-source investor flows
+
+### KIS Open API (real-time intraday, optional)
+
+`src/glostat/data/kis_client.py` wraps two read-only KIS endpoints:
+
+- `get_intraday_flows(ticker)` → 외국인/기관/개인/프로그램 net buy in shares
+  (`FHKST01010900` — 종목별 투자자별 매매동향)
+- `get_daily_summary(ticker)` → end-of-day net buy in 원화 (`FHKST01010800`
+  — 종목별 일별 매매동향)
+
+20 req/sec self-throttle, OAuth token cached + auto-refreshed (10-minute
+margin before 1-day expiry), Snapshot Broker integration. Requires
+`GLOSTAT_KIS_APP_KEY` + `GLOSTAT_KIS_APP_SECRET`. **Order-execution
+endpoints intentionally NOT wrapped** — INV-GS-101 forbids action output.
+
+Setup: `docs/KIS_API_SETUP.md` (free portal registration).
+
+### Toss local cache (TITAN pattern, optional)
+
+`src/glostat/data/toss_client.py` reads pre-exported Toss app data from
+`cache/toss/{code}.parquet`. Schema: `(bar_date, ticker, foreign_net_won,
+institutional_net_won, retail_net_won, source="toss")`. No live API —
+operators populate the cache manually (mirrors TITAN's pattern). Skip
+silently when files are absent.
+
+### 3-source fusion
+
+`fuse_three_source_flows()` in `naver_kr_client.py` merges all three
+sources by date, picks shares-units when Naver is present (KIS/Toss cross-
+check) or KRW-units otherwise, and uses the median when ≥ 2 sources agree
+on units. Disagreement > 50% logs a warning but still emits the median —
+keeps a single bad scrape from poisoning downstream signals.
+
+`E_FOREIGN_REVERSAL` consumes the fused output: pattern detection still
+runs on Naver share counts (so the existing calibration is preserved),
+but the metadata records which sources were available so downstream
+predictions show 3-source verification.
+
+---
+
+## v1.4 N2 — KR 공매도 + intraday flow experts
+
+### E_SHORT_SELLING_KR (KRX-backed, free, public)
+
+`src/glostat/data/krx_short_client.py` scrapes the KRX public AJAX
+endpoint (https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd) for:
+
+- `MDCSTAT30501` → daily short balance per ticker (잔고 수량 / 금액 / 비율)
+- `MDCSTAT30401` → daily short volume per ticker (거래량 / 거래대금 / 비중)
+
+5 req/sec self-throttle (no published rate limit, but KRX is regulator-
+run; keep load low). Snapshot Broker integration. **Free, no API key.**
+
+`src/glostat/experts/e_short_selling_kr.py` (TITAN E5++ inspired):
+
+| Component | Threshold | Score | Direction |
+|-----------|-----------|------:|-----------|
+| balance decrease (3-day) | any | +0.6 × strength | bull (SHORT_COVER) |
+| balance decrease + price up | any | +0.6 | bull (SHORT_SQUEEZE_RISK) |
+| balance increase above 80th-pctile | rolling | -0.6 | bear (SHORT_PRESSURE) |
+| short ratio ≥ 10% + price up | volume | +0.3 | bull (squeeze risk) |
+| short ratio ≥ 10% + price down | volume | -0.3 | bear (pressure) |
+
+Universe: KOSPI 200 only (liquidity needed for short-balance changes to
+be meaningful). Calibration: bootstrapped at AUC=0.500, n=0 (weight=0)
+until a dedicated KR short-selling hindcast runs.
+
+### E_INTRADAY_FLOW_KR (Naver baseline + KIS overlay)
+
+`src/glostat/experts/e_intraday_flow_kr.py` (TITAN E5+ inspired):
+
+- Compute trailing 5-day foreign-flow average from Naver bars
+- Compute foreign-flow acceleration (recent half vs earlier half)
+- When KIS is wired: promote today's intraday running total into the
+  acceleration window
+- Foreign flow leading institutional flow (≥ 50% of organ_avg in same
+  direction) → confirmation boost
+
+| Component | Threshold | Score | Signal |
+|-----------|-----------|------:|--------|
+| foreign_recent_avg > 0 | any | +0.5 | FLOW_IMPROVING |
+| foreign_recent_avg < 0 | any | -0.5 | FLOW_DETERIORATING |
+| acceleration > 30% (signed) | rate | ±0.5 | momentum confirm |
+| foreign leads organ | ratio ≥ 50% | ±0.5 | strength confirm |
+
+Universe: KOSPI 200 only (intraday acceleration needs liquidity).
+Calibration: bootstrapped at AUC=0.500, n=0 (weight=0).
+
+---
+
+## E_FOREIGN_REVERSAL (live Naver wiring + 3-source aware in v1.4 N1)
 
 Direct port of TITAN B4 REVERSAL_BUY pattern:
 

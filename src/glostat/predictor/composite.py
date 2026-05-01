@@ -5,6 +5,7 @@ import hashlib
 import math
 import subprocess
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Final
 
@@ -16,6 +17,11 @@ from glostat.predictor.calibration import (
     is_active,
     load_calibration,
 )
+from glostat.predictor.confidence_v2 import (
+    ConfidenceV2,
+    confidence_v2_from_calibration,
+)
+from glostat.predictor.dca_sizing import build_sizing_recommendation
 from glostat.predictor.types import (
     Direction,
     Horizon,
@@ -27,40 +33,14 @@ from glostat.predictor.types import (
 
 # Composite predictor — fuses per-thesis SignalContributions into a single
 # probability + expected return + confidence interval.
-#
-# Math (kept transparent for the user; see report for review):
-#
-#   1. For each contribution s with calibration c:
-#        weight_raw(s) = max(0, 1 - 4 * brier(c))
-#        # WHY: brier ∈ [0, 0.25]; multiplying by 4 maps it to [0, 1].
-#        # Active threshold (`is_active`) sets the contribution weight to 0
-#        # when AUC is essentially random or sample size too small.
-#      directional sign:
-#        bias = c.directional_bias  (+1 if AUC>0.5; -1 if AUC<0.5; 0 if exactly 0.5)
-#        # WHY: an under-random thesis still carries information when *flipped*.
-#
-#   2. Per-direction probability mass:
-#        For each non-skipped contribution:
-#          effective_dir = (s.direction with sign flipped if bias=-1, else direction)
-#          mass_up   += weight * I(effective_dir == "up")
-#          mass_down += weight * I(effective_dir == "down")
-#          mass_neut += weight * I(effective_dir == "neutral")
-#        Normalize so up + down + neutral = 1.0.
-#
-#   3. Probability blending against base rate:
-#        Final probability = base_rate · (1 - α) + mass · α
-#        where α = total_active_weight / (total_active_weight + 1)  (sigmoid-ish smooth)
-#
-#   4. expected_return_bps:
-#        For each active contribution: signed_value = s.value × bias × c.sharpe scaling
-#        return_contribution_bps = signed_value × _SCORE_TO_BPS × weight
-#        expected = sum(return_contribution_bps) / sum(weights) × _DOWN_SCALE
-#        (down-scaled so a single high-confidence thesis can't promise huge returns)
-#
-#   5. confidence_interval_bps:
-#        sigma_bps = stdev of return_contribution_bps × sqrt(active_count)
-#        (low, high) = (expected - sigma, expected + sigma)
-#
+# Math summary (full derivation in docs/CALIBRATION.md):
+#   1. weight_raw(s) = max(0, 1 - 4 * brier(c))   # brier∈[0,0.25] → weight∈[0,1]
+#      v1.4 (INV-GS-112): weight = weight_raw × confidence_v2.composite (geo mean)
+#   2. directional bias: +1 if AUC>0.5, -1 if AUC<0.5 (flip), 0 at exactly 0.5
+#   3. p_up = base_rate · (1 - α) + mass · α, α = total_w / (total_w + 1)
+#   4. expected_return_bps from signed value × _SCORE_TO_BPS × weight
+#   5. sigma_bps = stdev × sqrt(active_count)
+#   6. v1.4 (INV-GS-111): SizingRecommendation attached as INFORMATION-only.
 
 log: Final = structlog.get_logger(__name__)
 
@@ -99,6 +79,16 @@ def _weight_for(cal: ThesisCalibration) -> float:
     return _brier_to_weight(cal.brier_score)
 
 
+def _weight_for_v2(cal: ThesisCalibration, conf: ConfidenceV2) -> float:
+    # v1.4 N4 (INV-GS-112): final weight = brier_weight × confidence_v2 composite.
+    # Geometric mean confidence acts as a damping multiplier — high-n stable
+    # thesis keeps near-full weight; n=0 / stale / unstable thesis collapses to 0.
+    base = _weight_for(cal)
+    if base <= 0.0:
+        return 0.0
+    return base * conf.composite_confidence
+
+
 def _flip_direction(d: Direction) -> Direction:
     if d == "up":
         return "down"
@@ -122,6 +112,7 @@ def _compute_masses(
     cal_table: CalibrationTable,
 ) -> tuple[float, float, float, float, list[tuple[SignalContribution, float, int]]]:
     # Returns (mass_up, mass_down, mass_neutral, total_weight, [(s, weight, bias), ...])
+    # v1.4 N4 (INV-GS-112): weight = brier_weight × confidence_v2.composite_confidence.
     mass_up = 0.0
     mass_down = 0.0
     mass_neutral = 0.0
@@ -132,7 +123,8 @@ def _compute_masses(
             rows.append((s, 0.0, 0))
             continue
         cal = cal_table.get(s.name)
-        weight = _weight_for(cal)
+        conf = confidence_v2_from_calibration(cal)
+        weight = _weight_for_v2(cal, conf)
         bias = cal.directional_bias
         eff = _effective_direction(s, bias)
         if eff == "up":
@@ -144,6 +136,30 @@ def _compute_masses(
         total += weight
         rows.append((s, weight, bias))
     return (mass_up, mass_down, mass_neutral, total, rows)
+
+
+def _attach_confidence_v2(
+    contributions: Iterable[SignalContribution],
+    cal_table: CalibrationTable,
+) -> tuple[SignalContribution, ...]:
+    # WHY: SignalContribution is frozen — rebuild each entry with confidence_v2
+    # populated so downstream consumers (CLI, JSON, audit) can see the breakdown.
+    out: list[SignalContribution] = []
+    for s in contributions:
+        cal = cal_table.get(s.name)
+        conf = confidence_v2_from_calibration(cal)
+        out.append(SignalContribution(
+            name=s.name,
+            value=s.value,
+            direction=s.direction,
+            calibration_auc=s.calibration_auc,
+            calibration_sharpe=s.calibration_sharpe,
+            n_samples=s.n_samples,
+            skip_reason=s.skip_reason,
+            source_snapshot_ids=s.source_snapshot_ids,
+            confidence_v2=conf,
+        ))
+    return tuple(out)
 
 
 def _blend_with_baseline(
@@ -311,7 +327,9 @@ def predict(
     p_up, p_down, p_neutral = _ensure_neutral_floor(p_up, p_down, p_neutral)
     expected_bps, sigma_bps = _expected_return_and_sigma(rows, table)
     edge_pp = (p_up - base) * 100.0
-    return Prediction(
+    # v1.4 N4: enrich contributions with per-thesis confidence_v2 breakdown.
+    enriched = _attach_confidence_v2(contributions, table)
+    pred = Prediction(
         ticker=ticker.upper(),
         horizon=horizon,
         issued_at=ts,
@@ -322,7 +340,7 @@ def predict(
         confidence_interval_bps=(expected_bps - sigma_bps, expected_bps + sigma_bps),
         base_rate_up=base,
         edge_over_baseline_pp=edge_pp,
-        contributing_signals=contributions,
+        contributing_signals=enriched,
         next_triggers=_next_triggers(contributions, horizon),
         evidence_hash=_evidence_hash(contributions),
         prompt_versions=_prompt_versions(contributions),
@@ -331,6 +349,8 @@ def predict(
         git_commit=_git_commit(),
         market=market,
     )
+    # v1.4 N3 (INV-GS-111): attach DCA sizing as INFORMATION-only metadata.
+    return replace(pred, dca_sizing=build_sizing_recommendation(pred))
 
 
 def _calibration_period_from_table(table: CalibrationTable) -> tuple[date, date]:

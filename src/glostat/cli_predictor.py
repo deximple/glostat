@@ -12,9 +12,12 @@ from typing import Any, Final
 from glostat.cli_mocks import MockSecEdgarClient, MockYFinanceClient
 from glostat.cli_predict_print import print_prediction
 from glostat.data.data_router import DataRouter, is_kr_ticker
+from glostat.data.kis_client import KisClient, is_kis_configured
+from glostat.data.krx_short_client import KrxShortClient
 from glostat.data.naver_kr_client import NaverKrClient
 from glostat.data.sec_edgar_client import SecEdgarClient
 from glostat.data.snapshot_broker import SnapshotBroker
+from glostat.data.toss_client import TossClient
 from glostat.data.yfinance_client import YFinanceClient
 from glostat.experts import (
     EForeignReversalExpert,
@@ -22,7 +25,9 @@ from glostat.experts import (
     EFundamentalKrExpert,
     EFundFlowExpert,
     EInsiderKrExpert,
+    EIntradayFlowKrExpert,
     EMacroKrExpert,
+    EShortSellingKrExpert,
     ETimeExpert,
 )
 from glostat.predictor.calibration import (
@@ -130,17 +135,39 @@ async def _predict_live(
     # a network call.
     naver_client = NaverKrClient()
     router.register_client("naver_kr", naver_client)
+    # v1.4 N1 — wire optional KIS + Toss clients (graceful absence).
+    toss_client = TossClient()
+    router.register_client("toss_kr", toss_client)
+    kis_client: KisClient | None = None
+    if is_kis_configured():
+        try:
+            kis_client = KisClient(snapshot_broker=broker)
+            router.register_client("kis", kis_client)
+        except Exception:
+            kis_client = None
+    # v1.4 N2 — KRX public scraper (always available).
+    krx_short_client = KrxShortClient(snapshot_broker=broker)
+    router.register_client("krx_short", krx_short_client)
     fundamental = EFundamentalExpert(router=router)
     time_expert = ETimeExpert(router=router)
     fund_flow = EFundFlowExpert(router=router)
     fundamental_kr = EFundamentalKrExpert(router=router)
     foreign_reversal = EForeignReversalExpert(
         router=router, kospi200=KOSPI200_UNIVERSE,
+        toss_client=toss_client, kis_client=kis_client,
     )
     # v1.2 L2 — wire DART-backed insider expert if API key is configured.
     insider_kr = EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE)
     # v1.3 M2 — wire ECOS-backed macro expert if ECOS key is configured.
     macro_kr = EMacroKrExpert.from_env()
+    # v1.4 N2 — wire short-selling + intraday-flow KR experts.
+    short_selling_kr = EShortSellingKrExpert(
+        krx_client=krx_short_client, kospi200=KOSPI200_UNIVERSE,
+    )
+    intraday_flow_kr = EIntradayFlowKrExpert(
+        naver_client=naver_client, kis_client=kis_client,
+        kospi200=KOSPI200_UNIVERSE,
+    )
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
@@ -152,6 +179,8 @@ async def _predict_live(
             foreign_reversal_expert=foreign_reversal,
             insider_kr_expert=insider_kr,
             macro_kr_expert=macro_kr,
+            short_selling_kr_expert=short_selling_kr,
+            intraday_flow_kr_expert=intraday_flow_kr,
         )
     finally:
         await sec_client.aclose()
@@ -161,6 +190,11 @@ async def _predict_live(
         if macro_kr is not None:
             with contextlib.suppress(Exception):
                 await macro_kr._ecos.aclose()  # type: ignore[union-attr]
+        if kis_client is not None:
+            with contextlib.suppress(Exception):
+                await kis_client.aclose()
+        with contextlib.suppress(Exception):
+            await krx_short_client.aclose()
     return predict(
         ticker=ticker, horizon=horizon, contributions=contribs,
         cal_table=cal_table, issued_at=ts, market=market,

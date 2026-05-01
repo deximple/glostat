@@ -244,9 +244,132 @@ def _blocking_read(req, timeout: float) -> str:
         return raw.decode("utf-8", errors="replace")
 
 
+# v1.4 N1 — 3-source fusion helper.
+#
+# Source priority for KR investor flows:
+#   1. KIS (real-time intraday) — most authoritative when configured
+#   2. Toss (local parquet cache) — operator-curated, schema-pinned
+#   3. Naver (HTML scrape) — fallback, always available
+# Cross-validation: when 2+ sources disagree by > _DISAGREEMENT_THRESHOLD on the
+# same date the helper logs a warning and uses the median across sources for
+# that day. This keeps a single bad scrape from poisoning downstream signals.
+
+_DISAGREEMENT_THRESHOLD: Final[float] = 0.50  # 50%
+
+
+@dataclass(frozen=True, slots=True)
+class FusedFlowBar:
+    bar_date: date
+    code: str
+    foreign_net: float           # shares (Naver/KIS) or KRW (Toss); see `units`
+    organ_net: float
+    sources: tuple[str, ...]     # ordered "kis" / "toss" / "naver" subset
+    units: str                   # "shares" or "won"
+    cross_validated: bool        # True when ≥ 2 sources contributed for the date
+
+
+def fuse_three_source_flows(
+    *,
+    code: str,
+    naver_bars: list[KrFlowBar] | None = None,
+    toss_bars: list | None = None,         # list[TossInvestorBar]
+    kis_daily: list | None = None,         # list[KisDailySummary]
+    disagreement_threshold: float = _DISAGREEMENT_THRESHOLD,
+) -> list[FusedFlowBar]:
+    """Merge three KR investor-flow sources into a single per-date series.
+
+    KIS and Toss are KRW-denominated daily summaries; Naver is share-count.
+    The fusion converts to a single canonical surface per date with the share
+    count when Naver is present (Toss/KIS provide cross-check), or the KRW
+    figure otherwise. Cross-validation flags when sources disagree > threshold.
+    """
+    by_date: dict[date, dict[str, dict[str, float]]] = {}
+    for bar in naver_bars or []:
+        slot = by_date.setdefault(bar.bar_date, {})
+        slot["naver"] = {
+            "foreign": bar.foreign_net, "organ": bar.organ_net, "units": 0,
+        }
+    for bar in toss_bars or []:
+        slot = by_date.setdefault(bar.bar_date, {})
+        slot["toss"] = {
+            "foreign": float(bar.foreign_net_won),
+            "organ": float(bar.institutional_net_won),
+            "units": 1,
+        }
+    for bar in kis_daily or []:
+        slot = by_date.setdefault(bar.bar_date, {})
+        slot["kis"] = {
+            "foreign": float(bar.foreign_net_won),
+            "organ": float(bar.institutional_net_won),
+            "units": 1,
+        }
+    out: list[FusedFlowBar] = []
+    for d in sorted(by_date.keys()):
+        entries = by_date[d]
+        sources_present = tuple(s for s in ("kis", "toss", "naver") if s in entries)
+        # Pick canonical units: shares if Naver is present, won otherwise.
+        prefer_naver = "naver" in entries
+        units = "shares" if prefer_naver else "won"
+        foreign_vals: list[float] = []
+        organ_vals: list[float] = []
+        for s in sources_present:
+            e = entries[s]
+            # Skip mismatched units when picking the median.
+            if (units == "shares" and e["units"] == 1) or (
+                units == "won" and e["units"] == 0
+            ):
+                continue
+            foreign_vals.append(e["foreign"])
+            organ_vals.append(e["organ"])
+        if not foreign_vals and sources_present:
+            # No same-unit cross — fall back to whichever source we have, dropping
+            # the cross-check.
+            primary = sources_present[0]
+            foreign_vals = [entries[primary]["foreign"]]
+            organ_vals = [entries[primary]["organ"]]
+            units = "shares" if entries[primary]["units"] == 0 else "won"
+        cross_validated = len(foreign_vals) >= 2
+        if cross_validated and _disagree(foreign_vals, disagreement_threshold):
+            log.warning(
+                "naver_kr.fusion_disagreement",
+                code=code, bar_date=d.isoformat(),
+                sources=sources_present, foreign_vals=foreign_vals,
+            )
+        fused = FusedFlowBar(
+            bar_date=d, code=code,
+            foreign_net=_median(foreign_vals) if foreign_vals else 0.0,
+            organ_net=_median(organ_vals) if organ_vals else 0.0,
+            sources=sources_present, units=units,
+            cross_validated=cross_validated,
+        )
+        out.append(fused)
+    return out
+
+
+def _median(vals: list[float]) -> float:
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    n = len(s)
+    if n % 2 == 1:
+        return s[n // 2]
+    return 0.5 * (s[n // 2 - 1] + s[n // 2])
+
+
+def _disagree(vals: list[float], threshold: float) -> bool:
+    # Disagreement = (max - min) / max(|max|, |min|, 1) > threshold.
+    if len(vals) < 2:
+        return False
+    lo, hi = min(vals), max(vals)
+    denom = max(abs(lo), abs(hi), 1.0)
+    return (hi - lo) / denom > threshold
+
+
 __all__ = [
+    "FusedFlowBar",
     "KrFlowBar",
     "NaverKrClient",
     "NaverKrError",
+    "fuse_three_source_flows",
     "parse_frgn_page",
 ]

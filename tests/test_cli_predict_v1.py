@@ -169,10 +169,11 @@ def test_calibrate_mock_runs(workdir: Path) -> None:
 
 
 def test_calibrate_mock_lists_thirteen_theses(workdir: Path) -> None:
-    # v1.3 M2: 11 v1.0 + E_FUNDAMENTAL_KR + E_TIME_KR + E_INSIDER_KR + E_MACRO_KR.
+    # v1.4 N2: 11 v1.0 + E_FUNDAMENTAL_KR + E_TIME_KR + E_INSIDER_KR + E_MACRO_KR +
+    # E_SHORT_SELLING_KR + E_INTRADAY_FLOW_KR = 17.
     r = _run("calibrate", "--mock", cwd=workdir)
     assert r.returncode == 0
-    assert "theses found : 15" in r.stdout
+    assert "theses found : 17" in r.stdout
 
 
 def test_calibrate_mock_writes_output(workdir: Path) -> None:

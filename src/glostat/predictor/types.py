@@ -8,11 +8,18 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from glostat.predictor.confidence_v2 import ConfidenceV2
+from glostat.predictor.dca_sizing import SizingRecommendation
+
 # Prediction v1.0 — the predictor reframe artifact.
 # Replaces Verdict (action: BUY/HOLD/SELL) with Prediction (probability + evidence).
 # Compliance posture: information tool, NOT investment advice.
 # Calibration data lives on each SignalContribution so the user can see WHY a signal
 # pushed the probability one way (its measured AUC, Sharpe, sample size).
+# v1.4: Prediction.dca_sizing carries SizingRecommendation as INFORMATION
+# (calibration-derived). It is NOT advice to enter or to size positions
+# (INV-GS-101 + INV-GS-104 + INV-GS-111). Per-thesis confidence_v2 modulates
+# Brier weight in the composite (INV-GS-112).
 
 Horizon = Literal["intraday", "swing_5d", "swing_30d", "long_3y"]
 Direction = Literal["up", "down", "neutral", "skip"]
@@ -36,6 +43,7 @@ class SignalContribution:
     n_samples: int                               # hindcast sample size
     skip_reason: str | None = None               # e.g. "ticker not in KOSPI200"
     source_snapshot_ids: tuple[str, ...] = field(default_factory=tuple)
+    confidence_v2: ConfidenceV2 | None = None    # v1.4: 5-component confidence (INV-GS-112)
 
     def __post_init__(self) -> None:
         if self.direction == "skip" and self.value is not None:
@@ -76,6 +84,10 @@ class Prediction:
     calibration_period: tuple[date, date]
     git_commit: str
     market: str = "XNAS"
+    # v1.4 N3: SizingRecommendation is INFORMATION ONLY (calibration-derived
+    # sizing tier % of user-allocated capital). Sizing != action.
+    # Defaults to None to preserve backward compat for existing call sites.
+    dca_sizing: SizingRecommendation | None = None
 
     def __post_init__(self) -> None:
         for prob_name in ("up_probability", "down_probability", "sideways_probability"):
@@ -219,12 +231,14 @@ def default_disclaimer() -> str:
 
 
 __all__ = [
+    "ConfidenceV2",
     "Direction",
     "Horizon",
     "Prediction",
     "PredictionIn",
     "SignalContribution",
     "SignalContributionIn",
+    "SizingRecommendation",
     "default_disclaimer",
     "prediction_sha256",
     "prediction_to_canonical_json",

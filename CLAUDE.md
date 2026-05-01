@@ -1,9 +1,89 @@
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+1. Think Before Coding
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+Before implementing:
+
+State your assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them - don't pick silently.
+If a simpler approach exists, say so. Push back when warranted.
+If something is unclear, stop. Name what's confusing. Ask.
+2. Simplicity First
+Minimum code that solves the problem. Nothing speculative.
+
+No features beyond what was asked.
+No abstractions for single-use code.
+No "flexibility" or "configurability" that wasn't requested.
+No error handling for impossible scenarios.
+If you write 200 lines and it could be 50, rewrite it.
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+3. Surgical Changes
+Touch only what you must. Clean up only your own mess.
+
+When editing existing code:
+
+Don't "improve" adjacent code, comments, or formatting.
+Don't refactor things that aren't broken.
+Match existing style, even if you'd do it differently.
+If you notice unrelated dead code, mention it - don't delete it.
+When your changes create orphans:
+
+Remove imports/variables/functions that YOUR changes made unused.
+Don't remove pre-existing dead code unless asked.
+The test: Every changed line should trace directly to the user's request.
+
+4. Goal-Driven Execution
+Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+
+"Add validation" → "Write tests for invalid inputs, then make them pass"
+"Fix the bug" → "Write a test that reproduces it, then make it pass"
+"Refactor X" → "Ensure tests pass before and after"
+For multi-step tasks, state a brief plan:
+
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.3 — M2 in progress (ECOS BoK macro overlay landing).**
-> Previous: v1.2 — KR calibration (L1) + DART API (L2); v1.1 (2026-04-29) —
-> KR (KOSPI 200) production support; v1.0 (2026-04-29) Prediction Tool reframe
-> of v0.7.
+> **STATUS: ACTIVE v1.4 — N1 + N2 + N3 + N4 landing (KR multi-source + experts + sizing + confidence).**
+> Previous: v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
+> + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200) production support;
+> v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.4 delta:
+> - **N1 — KR 3-source investor flows.** New `kis_client.KisClient` (KIS Open
+>   API read-only paths, 20 req/sec, OAuth token managed; order-execution
+>   endpoints intentionally NOT wrapped per INV-GS-101). New
+>   `toss_client.TossClient` (TITAN local-parquet pattern, no live API). New
+>   `fuse_three_source_flows()` helper (KIS + Toss + Naver merged by date,
+>   median when ≥ 2 sources agree, warn on > 50% disagreement).
+>   `EForeignReversalExpert` consumes 3-source provenance.
+> - **N2 — KR 공매도 + intraday flow experts.** New `krx_short_client.KrxShortClient`
+>   (free public KRX AJAX endpoint, 5 req/sec). New `EShortSellingKrExpert`
+>   (TITAN E5++ port — short-balance change + squeeze candidate detection).
+>   New `EIntradayFlowKrExpert` (TITAN E5+ port — Naver baseline + KIS
+>   overlay, foreign-flow acceleration). Both bootstrapped at AUC=0.50, n=0;
+>   weight=0 until a dedicated KR hindcast measures predictive strength.
+> - **N3 + N4** — TITAN-derived sizing & confidence: new `predictor.dca_sizing`
+>   module porting TITAN L4 W = 0.30·R + 0.25·T + 0.25·V + 0.20·S to GLOSTAT
+>   prediction-tool framing as INFORMATION ONLY; new `predictor.confidence_v2`
+>   module implementing TITAN chart_pattern.py 5-component confidence (sample_
+>   quality, effective_size_factor, score_stability, return_consistency,
+>   recency_quality), used as a Brier-weight modulator in
+>   `predictor.composite._compute_masses`.
+> - New invariants `INV-GS-109` (3-source fusion + disagreement guard),
+>   `INV-GS-110` (short-selling expert universe + scrape-fail skip),
+>   `INV-GS-111` (dca_sizing INFORMATION ONLY), `INV-GS-112` (confidence_v2
+>   weight modulation).
 > v1.3 delta (M2): new `ecos_client.EcosClient` (한국은행 OpenAPI; free 10k/day)
 > + new `EMacroKrExpert` aggregating BoK base rate Δ, KRW/USD trend, CPI
 > surprise, KOSPI momentum into a single KR macro signal; gracefully skipped
@@ -53,48 +133,50 @@ advice.
 
 ## Invariants — INV-GS-001..105 (compact)
 
-| ID | Summary | Status |
-|----|---------|--------|
-| INV-GS-001 | edge_bps ≥ 1.5 × all_in_bps; else BUY → HOLD | **DEPRECATED v1.0** (decision-engine artifact) |
-| INV-GS-002 | find_companies result is permanent cache; no re-call | active |
-| INV-GS-003 | E_NARRATIVE weight ≤ 15% (LLM blowout guard) | deferred phase 2 |
-| INV-GS-004 | regime ∈ {CRASH} demotes all new LONG | deferred (decision-engine artifact) |
-| INV-GS-005 | ≥ 4 experts agreeing → 0.80× anti-herd discount | **DEPRECATED v1.0** (decision-engine artifact) |
-| INV-GS-006 | All verdicts/predictions append to hash-chained NDJSON | active |
-| INV-GS-007 | DEFCON STOP blocks STRONG_BUY/BUY (sticky) | deferred (decision-engine artifact) |
-| INV-GS-008 | T ≥ 1.5 + V ≥ 1.0 → conviction × 1.2 | deferred |
-| INV-GS-009 | bigdata_search results: ≤ 14d freshness, polar sentiment only | deferred phase 2 |
-| INV-GS-010 | (ticker, date, seed) → identical prediction (deterministic) | active |
-| INV-GS-011..016 | Cascade Graph invariants | deferred phase 3 |
-| INV-GS-017..021 | UAID + market boundary | deferred phase 2 |
-| INV-GS-020 | Cost gate per-market all_in_bps lookup | active for hindcast (calibration cost mask) |
-| INV-GS-022 | All MCP / API responses persisted to Snapshot Broker | active |
-| INV-GS-023 | LLM calls record prompt_versions[expert] = sha256 | active |
-| INV-GS-024 | Telegram broadcast permanently forbidden; personal-use disclaimer per prediction | active (reinforced by INV-GS-104) |
-| INV-GS-025 | Portfolio CVaR_95 ≤ 3.5%, Herfindahl ≤ 0.12, single ≤ 8% | deferred (no portfolio mode in v1.0) |
-| INV-GS-026 | New thesis: 90d hindcast, IS/OOS, AUC ≥ 0.60 (was 0.60; v1.0 uses 0.50 as table-entry minimum, 0.60 as weight ≥ 0.5 prerequisite) | active |
-| INV-GS-027 | Regime: 5 → 6 states (TRANSITION + 21d confirmation) | deferred |
-| INV-GS-028 | expected_pnl_bps = upside − current_loss | deferred (decision-engine artifact) |
-| INV-GS-029 | Verdict.disagreement_weight required; < 0.5 → UX warn | superseded by Prediction CI |
-| INV-GS-030 | E_NARRATIVE: 60d lookback + crystallization + contrarian | deferred phase 2 |
-| INV-GS-031 | BETASTRIKE inherited calibration weight ≤ 10% | deferred |
-| INV-GS-032 | Edge multipliers must be validated; "never tested" → weight=0 | active (now Brier-derived) |
-| INV-GS-033 | Sprint 4 gate FAIL → automatic shutdown (no override) | **DEPRECATED v1.0** (project not bound to per-thesis Sharpe gate) |
-| INV-GS-034 | Cascade Graph isolated to research/; zero impact on production | deferred phase 3 |
-| INV-GS-035 | RavenPack ToS verified + monthly re-check | active |
-| INV-GS-036 | MVP blocks bigdata_client (ConfigError if GLOSTAT_PHASE=mvp) | active |
-| INV-GS-037 | yfinance_client: 8 req/sec self-throttle + retry | active |
-| INV-GS-038 | sec_edgar_client: User-Agent required (rejects example.com) | active |
-| INV-GS-039 | data_router: phase-gated source activation | active |
-| INV-GS-040 | Bigdata activation requires user consent + budget config | active |
-| **INV-GS-101** | **Output is probability + CI. BUY/SELL action output forbidden** | **active v1.0** |
-| **INV-GS-102** | **Every prediction must cite source signals + calibration window + n_samples** | **active v1.0** |
-| **INV-GS-103** | **Composite probability uses Brier-score-weighted ensemble (not simple mean)** | **active v1.0** |
-| **INV-GS-104** | **Per-prediction disclaimer: personal use, not investment advice (extends INV-GS-024)** | **active v1.0** |
-| **INV-GS-105** | **Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update** | **active v1.0** |
-| **INV-GS-106** | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix** | **active v1.1** |
-| **INV-GS-107** | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly** | **active v1.2** |
-| **INV-GS-108** | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory** | **active v1.3** |
+| ID              | Summary                                                                                                                           | Status                                                            |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| INV-GS-001      | edge_bps ≥ 1.5 × all_in_bps; else BUY → HOLD                                                                                      | **DEPRECATED v1.0** (decision-engine artifact)                    |
+| INV-GS-002      | find_companies result is permanent cache; no re-call                                                                              | active                                                            |
+| INV-GS-003      | E_NARRATIVE weight ≤ 15% (LLM blowout guard)                                                                                      | deferred phase 2                                                  |
+| INV-GS-004      | regime ∈ {CRASH} demotes all new LONG                                                                                             | deferred (decision-engine artifact)                               |
+| INV-GS-005      | ≥ 4 experts agreeing → 0.80× anti-herd discount                                                                                   | **DEPRECATED v1.0** (decision-engine artifact)                    |
+| INV-GS-006      | All verdicts/predictions append to hash-chained NDJSON                                                                            | active                                                            |
+| INV-GS-007      | DEFCON STOP blocks STRONG_BUY/BUY (sticky)                                                                                        | deferred (decision-engine artifact)                               |
+| INV-GS-008      | T ≥ 1.5 + V ≥ 1.0 → conviction × 1.2                                                                                              | deferred                                                          |
+| INV-GS-009      | bigdata_search results: ≤ 14d freshness, polar sentiment only                                                                     | deferred phase 2                                                  |
+| INV-GS-010      | (ticker, date, seed) → identical prediction (deterministic)                                                                       | active                                                            |
+| INV-GS-011..016 | Cascade Graph invariants                                                                                                          | deferred phase 3                                                  |
+| INV-GS-017..021 | UAID + market boundary                                                                                                            | deferred phase 2                                                  |
+| INV-GS-020      | Cost gate per-market all_in_bps lookup                                                                                            | active for hindcast (calibration cost mask)                       |
+| INV-GS-022      | All MCP / API responses persisted to Snapshot Broker                                                                              | active                                                            |
+| INV-GS-023      | LLM calls record prompt_versions[expert] = sha256                                                                                 | active                                                            |
+| INV-GS-024      | Telegram broadcast permanently forbidden; personal-use disclaimer per prediction                                                  | active (reinforced by INV-GS-104)                                 |
+| INV-GS-025      | Portfolio CVaR_95 ≤ 3.5%, Herfindahl ≤ 0.12, single ≤ 8%                                                                          | deferred (no portfolio mode in v1.0)                              |
+| INV-GS-026      | New thesis: 90d hindcast, IS/OOS, AUC ≥ 0.60 (was 0.60; v1.0 uses 0.50 as table-entry minimum, 0.60 as weight ≥ 0.5 prerequisite) | active                                                            |
+| INV-GS-027      | Regime: 5 → 6 states (TRANSITION + 21d confirmation)                                                                              | deferred                                                          |
+| INV-GS-028      | expected_pnl_bps = upside − current_loss                                                                                          | deferred (decision-engine artifact)                               |
+| INV-GS-029      | Verdict.disagreement_weight required; < 0.5 → UX warn                                                                             | superseded by Prediction CI                                       |
+| INV-GS-030      | E_NARRATIVE: 60d lookback + crystallization + contrarian                                                                          | deferred phase 2                                                  |
+| INV-GS-031      | BETASTRIKE inherited calibration weight ≤ 10%                                                                                     | deferred                                                          |
+| INV-GS-032      | Edge multipliers must be validated; "never tested" → weight=0                                                                     | active (now Brier-derived)                                        |
+| INV-GS-033      | Sprint 4 gate FAIL → automatic shutdown (no override)                                                                             | **DEPRECATED v1.0** (project not bound to per-thesis Sharpe gate) |
+| INV-GS-034      | Cascade Graph isolated to research/; zero impact on production                                                                    | deferred phase 3                                                  |
+| INV-GS-035      | RavenPack ToS verified + monthly re-check                                                                                         | active                                                            |
+| INV-GS-036      | MVP blocks bigdata_client (ConfigError if GLOSTAT_PHASE=mvp)                                                                      | active                                                            |
+| INV-GS-037      | yfinance_client: 8 req/sec self-throttle + retry                                                                                  | active                                                            |
+| INV-GS-038      | sec_edgar_client: User-Agent required (rejects example.com)                                                                       | active                                                            |
+| INV-GS-039      | data_router: phase-gated source activation                                                                                        | active                                                            |
+| INV-GS-040      | Bigdata activation requires user consent + budget config                                                                          | active                                                            |
+| **INV-GS-101**  | **Output is probability + CI. BUY/SELL action output forbidden**                                                                  | **active v1.0**                                                   |
+| **INV-GS-102**  | **Every prediction must cite source signals + calibration window + n_samples**                                                    | **active v1.0**                                                   |
+| **INV-GS-103**  | **Composite probability uses Brier-score-weighted ensemble (not simple mean)**                                                    | **active v1.0**                                                   |
+| **INV-GS-104**  | **Per-prediction disclaimer: personal use, not investment advice (extends INV-GS-024)**                                           | **active v1.0**                                                   |
+| **INV-GS-105**  | **Quarterly recalibration: full thesis hindcast re-run + calibration_table.parquet update**                                       | **active v1.0**                                                   |
+| **INV-GS-106**  | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix**                                     | **active v1.1**                                                   |
+| **INV-GS-107**  | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly**                                          | **active v1.2**                                                   |
+| **INV-GS-108**  | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory**          | **active v1.3**                                                   |
+| **INV-GS-111**  | **Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved** | **active v1.4**                                                   |
+| **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 
@@ -113,13 +195,13 @@ Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (
 
 ## Kill criteria (v1.0 — narrowed)
 
-| Trigger | Action |
-|---------|--------|
-| Compliance breach (broadcast attempt) | freeze + user review |
-| Snapshot Broker integrity broken (Merkle root mismatch) | freeze + reconstruct |
-| Calibration table not updated > 2 quarters | warn + auto-degrade weights to 0.5× |
+| Trigger                                                  | Action                                |
+| -------------------------------------------------------- | ------------------------------------- |
+| Compliance breach (broadcast attempt)                    | freeze + user review                  |
+| Snapshot Broker integrity broken (Merkle root mismatch)  | freeze + reconstruct                  |
+| Calibration table not updated > 2 quarters               | warn + auto-degrade weights to 0.5×   |
 | All thesis weights = 0 (composite predictor meaningless) | warn + emit "no usable signal" output |
-| INV-GS-024 / INV-GS-104 bypass attempt | reject PR + auto-close |
+| INV-GS-024 / INV-GS-104 bypass attempt                   | reject PR + auto-close                |
 
 (v0.6's "Sprint 4 gate FAIL → shutdown" is **deprecated**. Weak thesis gets weight ↓; project does not shutdown.)
 

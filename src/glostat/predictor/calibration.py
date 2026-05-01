@@ -425,6 +425,20 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.4 N2 — KR short-selling (KRX). n=0 placeholder; weight=0 until a
+        # dedicated short-selling hindcast runs. Surfaces in contributing
+        # signals so the user sees the short-balance picture.
+        "E_SHORT_SELLING_KR": ThesisCalibration(
+            "E_SHORT_SELLING_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.4 N2 — KR intraday flow (Naver + KIS overlay). n=0 placeholder.
+        "E_INTRADAY_FLOW_KR": ThesisCalibration(
+            "E_INTRADAY_FLOW_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 

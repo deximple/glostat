@@ -3,12 +3,13 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 47
+total: 49
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
 v1_2_active_count: 1   # INV-GS-107 (DART)
 v1_3_active_count: 1   # INV-GS-108 (ECOS)
+v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v2)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -307,6 +308,58 @@ invariants:
       - predictor.thesis_wrappers.collect_contributions
     note: "ECOS (한국은행 경제통계시스템) OpenAPI is the canonical KR macro source. When GLOSTAT_ECOS_API_KEY is unset, E_MACRO_KR reports a universe-aware skip with a setup pointer. With key set, BoK base rate / KRW-USD / CPI / KOSPI series feed a 4-component macro score for any KR ticker. Setup guide: docs/ECOS_API_SETUP.md (free 10,000 calls/day)."
 
+  # ───────── v1.4: KR multi-source flows + short selling + intraday — N1/N2 ──
+  INV-GS-109:
+    summary: "KR investor-flow sources (KIS / Toss cache / Naver) gated by credentials/cache; 3-source fusion uses median when sources disagree > 50%."
+    enforcement: graceful_degradation
+    source: docs/KR_SUPPORT.md (v1.4 N1 addendum)
+    active_in: [v1.4]
+    enforce_at:
+      - data.kis_client.KisCredentialsMissingError
+      - data.kis_client.is_kis_configured
+      - data.toss_client.TossClient.is_available
+      - data.naver_kr_client.fuse_three_source_flows
+      - experts.e_foreign_reversal.EForeignReversalExpert
+      - experts.e_intraday_flow_kr.EIntradayFlowKrExpert
+    note: "KIS Open API requires GLOSTAT_KIS_APP_KEY + GLOSTAT_KIS_APP_SECRET; absent → skip cleanly. Toss is local-parquet only (cache/toss/{code}.parquet) — operator-curated; absent → skip. Naver is always available as the fallback. Fusion helper takes the per-date median when ≥ 2 sources agree on units; logs a warning when disagreement > 50%."
+
+  INV-GS-110:
+    summary: "Short-selling expert (E_SHORT_SELLING_KR) universe excludes tickers without KRX short-balance data; KRX scrape failure → ExpertSkipError."
+    enforcement: universe_gate
+    source: docs/KR_SUPPORT.md (v1.4 N2 addendum)
+    active_in: [v1.4]
+    enforce_at:
+      - data.krx_short_client.KrxShortClient
+      - experts.e_short_selling_kr.EShortSellingKrExpert
+      - predictor.thesis_wrappers.wrap_short_selling_kr
+    note: "KRX 정보데이터시스템 publishes short balance + volume per KOSPI 200 ticker (free, no API key). Tickers excluded from short selling (e.g., dividend-record uplistings) return empty rows → expert raises ExpertSkipError with universe-aware reason. Wrapper additionally enforces KOSPI 200 membership for liquidity (low-liquidity short-balance changes are noise)."
+
+  # ───────── v1.4: TITAN-derived sizing & confidence model — N3/N4 ─────────
+  INV-GS-111:
+    summary: "Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved."
+    enforcement: information_only_attachment
+    source: docs/DCA_SIZING.md (v1.4 N3 addendum) + TITAN L4 W-value §6
+    active_in: [v1.4]
+    enforce_at:
+      - predictor.dca_sizing.SizingRecommendation
+      - predictor.dca_sizing.build_sizing_recommendation
+      - predictor.composite.predict
+      - cli_predict_print.print_prediction
+    note: "TITAN L4 W = 0.30·R + 0.25·T + 0.25·V + 0.20·S (cap 3.5) is reframed for prediction-tool use: R from regime/macro thesis, T from time/convergence thesis, V from fundamental thesis, S from composite edge. SizingRecommendation.tier ∈ {wait, explore, base, active, aggressive} and disclaimer carries explicit INFORMATION ONLY language. INV-GS-101 (no BUY/SELL output) preserved — sizing tier is calibration-derived data, not action label."
+
+  INV-GS-112:
+    summary: "confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor."
+    enforcement: weighting_modifier
+    source: docs/CONFIDENCE_V2.md (v1.4 N4 addendum) + TITAN chart_pattern.py _compute_confidence
+    active_in: [v1.4]
+    enforce_at:
+      - predictor.confidence_v2.compute_confidence_v2
+      - predictor.confidence_v2.confidence_v2_from_calibration
+      - predictor.composite._weight_for_v2
+      - predictor.composite._compute_masses
+      - predictor.composite._attach_confidence_v2
+    note: "Components: sample_quality = log(min(n, 1000))/log(1000), effective_size_factor = sqrt(n/(n+50)), score_stability = 1 - std/mean of rolling AUCs, return_consistency = 1 - |IS - OOS|/max(|IS|, 0.1), recency_quality = exp(-days/90). composite = (c1·c2·c3·c4·c5)^(1/5). Geometric mean gives weakest-link behaviour: a single weak component (e.g. n=0 or stale calibration) collapses composite confidence to ~0, so brier_weight × confidence_v2_factor ≈ 0 and the composite predictor falls back to the base rate prior."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -344,6 +397,13 @@ v1_2_active:
 # v1.3 active set (KR macro via ECOS):
 v1_3_active:
   - INV-GS-108    # ECOS API key requirement + graceful skip
+
+# v1.4 active set (KR multi-source + short + intraday + sizing + confidence — N1/N2/N3/N4):
+v1_4_active:
+  - INV-GS-109    # 3-source fusion (KIS/Toss/Naver) + disagreement guard
+  - INV-GS-110    # KRX short-selling universe + scrape-fail skip
+  - INV-GS-111    # dca_sizing INFORMATION ONLY (TITAN W-value) — INV-GS-101 preserved
+  - INV-GS-112    # confidence_v2 (5-component geometric mean) modulates Brier weight
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

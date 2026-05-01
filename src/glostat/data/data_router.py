@@ -97,6 +97,31 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ("E_MACRO_KR", "cpi"):          (RouteEntry("mvp", "ecos", "get_cpi"),),
     ("E_MACRO_KR", "fx_reserves"):  (RouteEntry("mvp", "ecos", "get_fx_reserves"),),
     ("E_MACRO_KR", "kospi_index"):  (RouteEntry("mvp", "ecos", "get_kospi_index"),),
+    # v1.4 N1 — KR 3-source investor flows (KIS real-time / Toss cache / Naver fallback).
+    # All free; KIS is gated by credentials at the client layer (graceful skip).
+    ("E_FOREIGN_REVERSAL", "kis_intraday"): (
+        RouteEntry("mvp", "kis", "get_intraday_flows"),
+    ),
+    ("E_FOREIGN_REVERSAL", "kis_daily"): (
+        RouteEntry("mvp", "kis", "get_daily_summary"),
+    ),
+    ("E_FOREIGN_REVERSAL", "toss_trend"): (
+        RouteEntry("mvp", "toss_kr", "load_investor_trend"),
+    ),
+    # v1.4 N2 — KR short-selling stats (KRX public AJAX endpoint).
+    ("E_SHORT_SELLING_KR", "balance"): (
+        RouteEntry("mvp", "krx_short", "get_short_balance"),
+    ),
+    ("E_SHORT_SELLING_KR", "volume"): (
+        RouteEntry("mvp", "krx_short", "get_short_volume"),
+    ),
+    # v1.4 N2 — KR intraday flow (KIS overlay over Naver baseline).
+    ("E_INTRADAY_FLOW_KR", "naver_flows"): (
+        RouteEntry("mvp", "naver_kr", "fetch_history"),
+    ),
+    ("E_INTRADAY_FLOW_KR", "kis_intraday"): (
+        RouteEntry("mvp", "kis", "get_intraday_flows"),
+    ),
 }
 
 

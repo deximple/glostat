@@ -233,8 +233,9 @@ def test_foreign_reversal_neutral_for_kr_ticker() -> None:
 
 @pytest.mark.asyncio
 async def test_collect_contributions_returns_thirteen_for_us_ticker() -> None:
-    # v1.3 M2: 14 contributions = 11 v1.0 thesis + E_FUNDAMENTAL_KR slot
-    # + E_INSIDER_KR slot (DART, skip for US) + E_MACRO_KR slot (ECOS, skip for US).
+    # v1.4 N2: 16 contributions = 11 v1.0 thesis + E_FUNDAMENTAL_KR slot
+    # + E_INSIDER_KR slot (DART, skip for US) + E_MACRO_KR slot (ECOS, skip for US)
+    # + E_SHORT_SELLING_KR + E_INTRADAY_FLOW_KR (KR-only, skip for US).
     cal = synthetic_calibration_for_mock()
     fund = _StubExpertOk(name="E_FUNDAMENTAL", score=2.0, direction="LONG")
     time_e = _StubExpertOk(name="E_TIME", score=1.0, direction="LONG")
@@ -243,13 +244,15 @@ async def test_collect_contributions_returns_thirteen_for_us_ticker() -> None:
         ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
         fundamental_expert=fund, time_expert=time_e, fund_flow_expert=ff,
     )
-    assert len(contribs) == 14
+    assert len(contribs) == 16
     names = {c.name for c in contribs}
     assert "E_FUNDAMENTAL" in names
     assert "E_FUNDAMENTAL_KR" in names
     assert "E_FOREIGN_REVERSAL" in names
     assert "E_INSIDER_KR" in names
     assert "E_MACRO_KR" in names
+    assert "E_SHORT_SELLING_KR" in names
+    assert "E_INTRADAY_FLOW_KR" in names
 
 
 @pytest.mark.asyncio

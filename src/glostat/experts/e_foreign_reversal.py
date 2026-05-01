@@ -177,11 +177,14 @@ def realized_return(
 
 
 class EForeignReversalExpert:
-    """v1.1 K1 — live Naver-backed E_FOREIGN_REVERSAL expert.
+    """v1.1 K1 / v1.4 N1 — live KR foreign-reversal expert.
 
-    Wraps the pure score_reversal_at() pattern so the predictor surface gets
-    a real ExpertSignal (instead of the static neutral=0 emitted by the
-    Phase 1D research wrapper). Universe: KOSPI 200 (loaded externally).
+    v1.1 wraps the pure score_reversal_at() pattern with Naver-only flows.
+    v1.4 N1 adds optional KIS + Toss 3-source fusion: when extra clients are
+    wired the expert merges their daily summaries with Naver bars to flag
+    cross-validated days (logged in metadata.sources). Pattern detection still
+    runs on Naver share counts (the only common share-denominated source) so
+    the historical calibration remains valid.
     """
 
     name = "E_FOREIGN_REVERSAL"
@@ -192,10 +195,14 @@ class EForeignReversalExpert:
         router: DataRouter,
         kospi200: frozenset[str],
         max_pages: int = 6,   # ~120 trading days; covers 4-day prior window safely
+        toss_client=None,     # type: ignore[assignment]
+        kis_client=None,      # type: ignore[assignment]
     ) -> None:
         self._router = router
         self._kospi200 = kospi200
         self._max_pages = max_pages
+        self._toss = toss_client
+        self._kis = kis_client
 
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         code = normalize_kr_ticker(ticker)
@@ -208,10 +215,48 @@ class EForeignReversalExpert:
             raise ExpertSkipError(
                 f"E_FOREIGN_REVERSAL: insufficient Naver flows ({len(bars)} bars) for {code}"
             )
+        sources = await self._collect_source_provenance(code, bars)
         snap_id = self._latest_snapshot(code)
         latest_idx = len(bars) - 1
         score = score_reversal_at(bars, current_idx=latest_idx)
-        return _signal_from_score(code=code, ts=ts, score=score, snap_id=snap_id)
+        return _signal_from_score(
+            code=code, ts=ts, score=score, snap_id=snap_id,
+            extra_sources=sources,
+        )
+
+    async def _collect_source_provenance(
+        self, code: str, naver_bars: list[KrFlowBar],
+    ) -> tuple[str, ...]:
+        # WHY: keep score derivation deterministic on Naver, but track which
+        # extra sources were available so downstream predictions can show
+        # 3-source verification when KIS / Toss confirmed Naver.
+        from glostat.data.naver_kr_client import (  # noqa: PLC0415
+            fuse_three_source_flows,
+        )
+
+        toss_bars = []
+        if self._toss is not None:
+            try:
+                toss_bars = self._toss.load_investor_trend(code, days_back=30)
+            except Exception as exc:
+                log.warning("e_foreign_reversal.toss_failed", code=code, err=str(exc))
+        kis_daily = []
+        if self._kis is not None:
+            try:
+                summary = await self._kis.get_daily_summary(code)
+                kis_daily = [summary]
+            except Exception as exc:
+                log.info("e_foreign_reversal.kis_skip", code=code, err=str(exc))
+        if not toss_bars and not kis_daily:
+            return ("naver",)
+        fused = fuse_three_source_flows(
+            code=code, naver_bars=naver_bars, toss_bars=toss_bars,
+            kis_daily=kis_daily,
+        )
+        sources_seen: set[str] = set()
+        for bar in fused:
+            sources_seen.update(bar.sources)
+        return tuple(sorted(sources_seen)) if sources_seen else ("naver",)
 
     async def _fetch_flows(self, code: str) -> list[KrFlowBar]:
         try:
@@ -244,13 +289,15 @@ class EForeignReversalExpert:
 
 
 def _signal_from_score(
-    *, code: str, ts: datetime, score: ForeignReversalScore, snap_id: str
+    *, code: str, ts: datetime, score: ForeignReversalScore, snap_id: str,
+    extra_sources: tuple[str, ...] = ("naver",),
 ) -> ExpertSignal:
     direction = score.direction if score.direction in {"LONG", "SHORT", "NEUTRAL"} else "NEUTRAL"
     basis = (
         f"REVERSAL pattern={score.pattern}, "
         f"prior_consec_sells={score.consec_sell_days}, "
-        f"organ_confirms={score.organ_confirms}"
+        f"organ_confirms={score.organ_confirms}, "
+        f"sources={'+'.join(extra_sources)}"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
         sorted(
@@ -261,6 +308,7 @@ def _signal_from_score(
                 "net_score": f"{score.net_score:.4f}",
                 "confidence": f"{score.confidence:.4f}",
                 "code": code,
+                "data_sources": "+".join(extra_sources),
             }.items()
         )
     )

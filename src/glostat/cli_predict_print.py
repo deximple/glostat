@@ -67,11 +67,34 @@ def print_prediction(p: Prediction) -> None:
             continue
         arrow = {"up": "^", "down": "v", "neutral": "-"}[s.direction]
         val = f"{s.value:+.2f}" if s.value is not None else "n/a"
-        print(
+        line = (
             f"  {s.name:<22} {arrow} {val:>7}  "
-            f"(AUC {s.calibration_auc:.3f}, n={s.n_samples})"
+            f"(AUC {s.calibration_auc:.3f}, n={s.n_samples}"
         )
+        if s.confidence_v2 is not None:
+            line += f", conf_v2={s.confidence_v2.composite_confidence:.3f}"
+        line += ")"
+        print(line)
+        if s.confidence_v2 is not None:
+            c = s.confidence_v2
+            print(
+                f"    conf_v2 breakdown: sample={c.sample_quality:.2f} "
+                f"eff={c.effective_size_factor:.2f} stab={c.score_stability:.2f} "
+                f"cons={c.return_consistency:.2f} recency={c.recency_quality:.2f}"
+            )
     print()
+    if p.dca_sizing is not None:
+        s = p.dca_sizing
+        r, t, v, sscore = s.w_components
+        print(
+            f"Sizing tier: {s.tier.upper()} (W={s.w_value:.2f}, "
+            f"suggested {s.suggested_entry_pct:.1f}% if user enters)"
+        )
+        print(
+            f"  W components: R={r:.2f} T={t:.2f} V={v:.2f} S={sscore:.2f}"
+        )
+        print(f"  {s.disclaimer}")
+        print()
     print("Next triggers:")
     for t in p.next_triggers:
         print(f"  - {t}")
