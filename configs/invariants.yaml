@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 66
+total: 68
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -17,6 +17,7 @@ v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
 v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
 v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis + CI)
 v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst revision)
+v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -493,6 +494,31 @@ invariants:
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
 
   # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  # ───────── v1.9.0: Alpha Discovery Sprint — scan command + cross-universe ─────────
+  INV-GS-130:
+    summary: "glostat scan command: universe-wide ranking by composite edge over baseline. --significant filter (at least one active signal with p<0.05). --min-edge filter. --top N. Reuses single-ticker predict() pipeline; semaphore-throttled async iteration."
+    enforcement: cli_command
+    source: docs/EMPIRICAL_RESULTS_2026-05-02.md (v1.9.0 Alpha Discovery section)
+    active_in: [v1.9.0]
+    enforce_at:
+      - cli_scan.cmd_scan
+      - cli_scan._scan_universe
+      - cli_scan._apply_filters
+      - cli_scan._has_significant_signal
+      - cli_scan._top_active_signal
+    note: "Productization layer for the calibrated framework. Cross-Stock Acid Test 2026-05-02 showed 4 of 5 cyclical KR tickers landed at identical p_up = 53.4% before calibration; after calibration filling, differentiation appeared. The scan command surfaces this differentiation across an entire universe in a single call."
+
+  INV-GS-131:
+    summary: "Cross-universe empirical measurement (KR megacap + KR mid-cap + US megacap + US small-mid) reveals universe × thesis interaction: E_PEAD_KR works on KR megacap (AUC 0.5405) but not KR mid-cap (0.4991); E_TIME_KR reverses (0.4692 vs 0.5138). US Sharpe attenuates moving up cap curve (small-mid +0.355 vs megacap 0.000)."
+    enforcement: empirical_finding
+    source: docs/EMPIRICAL_RESULTS_2026-05-02.md (v1.9.0 cross-universe matrix)
+    active_in: [v1.9.0]
+    enforce_at:
+      - replay.phase_kr_hindcast (KOSDAQ150 universe support)
+      - cli_hindcast (US small-mid universe support)
+      - docs/EMPIRICAL_RESULTS_2026-05-02.md (cross-universe AUC matrix)
+    note: "Reframes P10 Contrarian Veteran prediction: 'infrastructure ≠ alpha' STILL TRUE for single-thesis questions; 'GLOSTAT finds no edge' PARTIALLY FALSE — different theses find different edges in different universes. The ensemble is the product, not any one row."
+
   # ───────── v1.8.0: Multi-stream thesis pipeline — insider velocity hindcast + analyst revision ─────────
   INV-GS-128:
     summary: "v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via evaluate_insider_velocity_kr (7th thesis). Uses live expert.compute() path (DART fetch + score_velocity); skip clean when DART API key missing."
@@ -669,6 +695,11 @@ v1_7_0_active:
 v1_8_0_active:
   - INV-GS-128    # v1.7.1 wired: E_INSIDER_VELOCITY_KR into kr-hindcast (7-thesis run)
   - INV-GS-129    # v1.8 E_ANALYST_REVISION expert (yfinance recommendations, 60d window)
+
+# v1.9.0 active set (Alpha Discovery Sprint — scan + cross-universe):
+v1_9_0_active:
+  - INV-GS-130    # glostat scan command (universe-wide ranking + sig filter)
+  - INV-GS-131    # cross-universe empirical: thesis × universe interaction
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

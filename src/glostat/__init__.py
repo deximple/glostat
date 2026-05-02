@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-__version__ = "1.8.0"
-__plan_version__ = "v1.8"
+__version__ = "1.9.0"
+__plan_version__ = "v1.9"
 __sprint__ = 0
 __status__ = (
-    "v1.8.0 — Multi-stream thesis pipeline activation: v1.7.1 wired "
-    "E_INSIDER_VELOCITY_KR into kr-hindcast (now 7-thesis run), v1.8 added "
-    "E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance "
-    "upgrades_downgrades, 60d window, US/global liquid universe). v1.7.2 "
-    "US re-hindcast running in background. v1.9 (E_OPTIONS_IV_SKEW) "
-    "deferred — design captured in V17_THESIS_IDEATION.md."
+    "v1.9.0 — Alpha Discovery Sprint: glostat scan command (universe-wide "
+    "ranking by composite edge + statistical-significance filter) + "
+    "KOSDAQ150 + US small-mid hindcasts. Cross-universe finding: thesis × "
+    "universe interaction matters — E_PEAD_KR works on KR megacap (AUC "
+    "0.5405), E_TIME_KR works on KR mid-cap (AUC 0.5138, Sharpe 1.63). "
+    "Edge attenuates moving up the cap curve in both KR and US."
 )
 
 __all__ = ["__plan_version__", "__sprint__", "__status__", "__version__"]

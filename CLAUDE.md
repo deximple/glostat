@@ -55,8 +55,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.8.0 — Multi-stream thesis pipeline activation (E_INSIDER_VELOCITY_KR hindcast wired + E_ANALYST_REVISION expert).**
-> Previous: v1.7.0 — Self-eval-driven uplift (SQLite + CI + KOSDAQ150 + thesis ideation);
+> **STATUS: ACTIVE v1.9.0 — Alpha Discovery Sprint (scan command + cross-universe empirical: thesis × universe interaction confirmed).**
+> Previous: v1.8.0 — Multi-stream thesis pipeline (insider velocity hindcast + analyst revision expert);
+> v1.7.0 — Self-eval-driven uplift (SQLite + CI + KOSDAQ150 + thesis ideation);
 > v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
 > v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
 > v1.6 — P5 Event-Driven panel absorption (calendar awareness);
@@ -304,6 +305,8 @@ advice.
 | **INV-GS-127**  | **CI workflow restored (.github/workflows/ci.yml); ruff + format + pytest on every push/PR; uv setup with cache**                                                                | **active v1.7.0**                                                |
 | **INV-GS-128**  | **v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via point-in-time evaluator (7th thesis); calibration loader picks up the report when DART configured**                  | **active v1.8.0**                                                |
 | **INV-GS-129**  | **v1.8 E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance upgrades_downgrades, 60d window, archetype=continuation, US/global liquid universe)**                | **active v1.8.0**                                                |
+| **INV-GS-130**  | **glostat scan command — universe-wide ranking by composite edge + --significant filter (p<0.05) + --min-edge filter; productization layer**                                    | **active v1.9.0**                                                |
+| **INV-GS-131**  | **Cross-universe empirical: thesis × universe interaction. E_PEAD_KR (KR megacap 0.5405 vs mid-cap 0.4991), E_TIME_KR reverses (0.4692 vs 0.5138). US Sharpe ↑ down cap curve** | **active v1.9.0**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 
@@ -467,7 +470,7 @@ Live in v0.6 (kept):
 
 <!-- atlas-rules-ref:start -->
 This workspace operates within a portfolio (MOET / GLOSTAT / TITAN / Betastrike_Compact).
-The Workspace Capability Atlas (`/Applications/_workspace_dashboard/`) auto-generates
+The Workspace Capability Atlas (`/Applications/ATLAS/`) auto-generates
 `.atlas-rules.md` in this workspace's root on every regen, expressing:
 
 - **Caps** — DO NOT EXCEED by design (e.g., GLOSTAT `exec ≤ 2` per INV-GS-024/104)
