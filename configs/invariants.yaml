@@ -21,6 +21,7 @@ v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
 v1_10_0_active_count: 1 # INV-GS-132 (E_REGIME_US + US regime hindcast harness)
 v1_10_4_active_count: 1 # INV-GS-133 (OOS-stability factor in composite weighting)
 v1_10_6_active_count: 1 # INV-GS-134 (E_VKOSPI_MOOD_KR — Lee/Son/Lee 2024 + KRX 2009)
+v1_10_8_active_count: 1 # INV-GS-135 (phase_kr_vkospi_mood hindcast harness + resolvers)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -495,6 +496,23 @@ invariants:
       - replay.phase_kr_report.persist_phase_kr_reports
       - predictor.calibration._PHASE_SOURCES
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
+
+  # ───────── v1.10.8: phase_kr_vkospi_mood hindcast harness ─────────
+  INV-GS-135:
+    summary: "phase_kr_vkospi_mood hindcast harness lifts E_VKOSPI_MOOD_KR from bootstrap (n=0) to a measured calibration entry. Iterates KOSPI 200 universe over (start..end) sample days, scores each (ticker, day) via VkospiClient.get_delta_at + YFinanceReturnResolver + KospiSmallCapResolver + score_vkospi_mood, then aggregates aligned tickers into a 1-trade-per-day basket (mean raw_score, mean forward return) to prevent the shared ΔVKOSPI from autocorrelating across the cross-section. IS/OOS split (default 0.7), 20d horizon (paper headline), phase1b-shaped JSON output picked up by calibration loader. CLI: glostat kr-vkospi-hindcast --vkospi-csv cache/vkospi_history.csv. Requires CSV-exported VKOSPI history per docs/VKOSPI_SETUP.md."
+    enforcement: hindcast_harness
+    source: "INV-GS-134 (expert) + docs/VKOSPI_SETUP.md (data) + phase_us_regime_hindcast (basket-mode pattern)"
+    active_in: [v1.10.8]
+    enforce_at:
+      - data.vkospi_resolvers.YFinanceReturnResolver
+      - data.vkospi_resolvers.KospiSmallCapResolver
+      - replay.phase_kr_vkospi_mood_hindcast.run_phase_kr_vkospi_mood_hindcast
+      - replay.phase_kr_vkospi_mood_hindcast._process_event_day
+      - replay.phase_kr_vkospi_mood_hindcast._score_one_ticker
+      - replay.phase_kr_vkospi_mood_hindcast.persist_phase_kr_vkospi_reports
+      - cli_kr_vkospi_hindcast.cmd_kr_vkospi_hindcast
+      - predictor.calibration._PHASE_SOURCES (E_VKOSPI_MOOD_KR loader)
+    note: "Resolvers degrade gracefully on yfinance failure (None/False rather than raising) so the hindcast can proceed with reduced inputs. Small-cap threshold default 5T KRW (configurable; approximates KOSPI 200 bottom-30%). KospiSmallCapResolver caches per-code only (market caps move slowly); YFinanceReturnResolver caches per-(code,as_of). Skip categories surfaced in skip_breakdown: vkospi_unavailable, return_unavailable, below_threshold, misaligned_or_neutral. Live measurement requires operator to drop a VKOSPI CSV at cache/vkospi_history.csv per docs/VKOSPI_SETUP.md before running glostat kr-vkospi-hindcast."
 
   # ───────── v1.10.6: VKOSPI mood expert (KR asymmetric event-conditional) ─────────
   INV-GS-134:

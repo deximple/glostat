@@ -20,6 +20,10 @@ from glostat.cli_kr_hindcast import (
     add_kr_hindcast_subparser,
     cmd_kr_hindcast,
 )
+from glostat.cli_kr_vkospi_hindcast import (
+    add_kr_vkospi_hindcast_subparser,
+    cmd_kr_vkospi_hindcast,
+)
 from glostat.cli_predictor import (
     add_calibrate_subparser,
     add_predict_subparser,
@@ -74,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         "hindcast":    cmd_hindcast,
         "kr-hindcast": cmd_kr_hindcast,
         "us-regime-hindcast": cmd_us_regime_hindcast,
+        "kr-vkospi-hindcast": cmd_kr_vkospi_hindcast,
         "gate-status": cmd_gate_status,
     }[args.command]
     try:
@@ -116,6 +121,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_hindcast_subparser(sub)
     add_kr_hindcast_subparser(sub)
     add_us_regime_hindcast_subparser(sub)
+    add_kr_vkospi_hindcast_subparser(sub)
     add_gate_status_subparser(sub)
 
     return p

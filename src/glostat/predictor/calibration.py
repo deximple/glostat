@@ -314,6 +314,12 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
         "hindcast/phase_us_regime/e_regime_us_report.json",
         "phase1b", {},
     ),
+    # v1.10.8 — KR VKOSPI mood hindcast (Lee/Son/Lee 2024, basket-mode).
+    (
+        "E_VKOSPI_MOOD_KR",
+        "hindcast/phase_kr_vkospi_mood/e_vkospi_mood_kr_report.json",
+        "phase1b", {},
+    ),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.
