@@ -48,9 +48,11 @@ from glostat.data.snapshot_broker import SnapshotBroker, SnapshotKey
 log: Final = structlog.get_logger(__name__)
 
 _LIVE_FETCH_PENDING_HINT: Final[str] = (
-    "VKOSPI live fetcher deferred — call client.set_history_provider(fn) to "
-    "inject a backend (KRX session-cookie flow or Naver scrape) before use. "
-    "See docs/VKOSPI_SETUP.md (planned)."
+    "VKOSPI live fetcher not configured. Plug in a backend by either:\n"
+    "  - attach_csv_provider(client, Path('cache/vkospi_history.csv')) "
+    "for the recommended KRX-CSV-export workflow, or\n"
+    "  - client.set_history_provider(fn) for a custom async backend.\n"
+    "See docs/VKOSPI_SETUP.md for the operator instructions."
 )
 
 
