@@ -268,3 +268,95 @@ def test_insider_cluster_event_dates_filters_buys_only():
     ]
     days = expert.cluster_event_dates("TEST")
     assert days == [date(2024, 6, 10), date(2024, 6, 12)]
+
+
+# ── v1.10.5: configurable cluster_threshold + window_days ────────────────
+
+
+def test_insider_cluster_relaxed_threshold_two_fires_long():
+    # v1.10.5: with threshold=2, the 2-buyer case (previously NEUTRAL at
+    # threshold=3) now fires LONG. Use case: re-hindcast with relaxed gating
+    # to grow n above the 50-sample activation floor.
+    expert = EInsiderClusterExpert(sec_client=None, cluster_threshold=2)
+    base = dict(
+        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
+        reporter_role="Director", code="P", shares=100.0, price=10.0,
+        value_usd=1000.0,
+    )
+    expert._txn_cache["TEST"] = [
+        Form4Transaction(
+            transaction_date=date(2024, 6, 10), reporter_name="A",
+            reporter_cik="1", **base,
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 11), reporter_name="B",
+            reporter_cik="2", **base,
+        ),
+    ]
+    s = expert.score_at("TEST", date(2024, 6, 14))
+    assert s.cluster_buyers == 2
+    assert s.direction == "LONG"
+    assert s.score == pytest.approx(1.0)
+
+
+def test_insider_cluster_default_threshold_unchanged():
+    # Live expert default must remain threshold=3 to preserve predict-time
+    # behaviour. v1.10.5 makes threshold configurable; default semantics
+    # MUST not regress.
+    expert = EInsiderClusterExpert(sec_client=None)
+    assert expert.cluster_threshold == 3
+    assert expert.window_days == 14
+
+
+def test_insider_cluster_widened_window_captures_spread_cluster():
+    # v1.10.5: widening window from 14d → 30d captures clusters spread out
+    # across a month — useful for thesis variants that target slower
+    # accumulation patterns.
+    expert = EInsiderClusterExpert(sec_client=None, window_days=30)
+    base = dict(
+        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
+        reporter_role="Director", code="P", shares=100.0, price=10.0,
+        value_usd=1000.0,
+    )
+    # 3 buyers spread 20 days apart — would miss a 14d window.
+    expert._txn_cache["TEST"] = [
+        Form4Transaction(
+            transaction_date=date(2024, 5, 25), reporter_name="A",
+            reporter_cik="1", **base,
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 5), reporter_name="B",
+            reporter_cik="2", **base,
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 14), reporter_name="C",
+            reporter_cik="3", **base,
+        ),
+    ]
+    s = expert.score_at("TEST", date(2024, 6, 14))
+    # 30d window picks up all 3 buyers; 14d would miss the 5/25 entry.
+    assert s.cluster_buyers == 3
+    assert s.direction == "LONG"
+
+
+def test_insider_cluster_invalid_threshold_raises():
+    with pytest.raises(ValueError, match="cluster_threshold"):
+        EInsiderClusterExpert(sec_client=None, cluster_threshold=0)
+
+
+def test_insider_cluster_invalid_window_raises():
+    with pytest.raises(ValueError, match="window_days"):
+        EInsiderClusterExpert(sec_client=None, window_days=0)
+
+
+def test_insider_cluster_signal_metadata_includes_threshold():
+    # Threshold should round-trip through PhaseSignal metadata so the
+    # downstream calibration record carries the spec parameters.
+    expert = EInsiderClusterExpert(
+        sec_client=None, cluster_threshold=2, window_days=21,
+    )
+    expert._txn_cache["TEST"] = []
+    sig = expert.signal_at("TEST", date(2024, 6, 14))
+    md = dict(sig.metadata)
+    assert md["cluster_threshold"] == "2"
+    assert md["window_days"] == "21"

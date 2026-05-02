@@ -128,3 +128,75 @@ E_FOREIGN_REVERSAL (0.067) + E_TIME (0.035) — the three OOS-stable theses.
 Floor of 0.10 (not 0) keeps unstable theses visible in `contributing_signals`
 at minimal weight rather than silently disappearing — preserves calibration
 honesty.
+
+## v1.10.5 update: E_INSIDER_CLUSTER re-hindcast (relaxed gating)
+
+**Decision context.** 2026-05-02 audit identified E_INSIDER_CLUSTER as the
+top-ROI promotion candidate from `underfit` (n=11) — Sharpe=+0.78 looked
+real if n could grow above the 50-sample activation floor. v1.10.5 made
+`cluster_threshold` and `window_days` configurable on the expert + runner
+so re-hindcast can vary the spec without changing predict-time defaults.
+
+**Run config.**
+- universe: 60 Russell 2000 small/mid-cap names → 55 CIKs resolved
+- window: 2024-01-02..2026-03-29 (matches phase1b baseline)
+- horizon: 30d
+- spec change: `cluster_threshold=2` (was 3), `window_days=14` (unchanged)
+
+**Result table.**
+
+| metric | v1.0 (threshold=3) | v1.10.5 (threshold=2) |
+|---|---:|---:|
+| n_signals | 11 | **47** (+327%) |
+| AUC overall | 0.339 | **0.7353** (+0.40) |
+| AUC IS | — | 0.7227 |
+| AUC OOS | — | **0.8229** (better than IS) |
+| Sharpe overall | +0.782 | -0.3486 |
+| Sharpe IS | — | +0.1500 |
+| Sharpe OOS | — | **-2.3020** |
+| OOS_degradation | 0.0 | **16.35** |
+| calibration_status | underfit | **underfit** (n=47 < 50) |
+| is_active | False | **False** |
+| composite weight | 0.000 | 0.000 |
+
+**Honest reading.**
+
+The relaxed-gating run measures a *different signal* from the v1.0 entry —
+2-buyer clusters fire ~4x more often than 3-buyer clusters. So the
+"Sharpe=+0.78" of the prior n=11 measurement is **not** the same thesis
+the v1.10.5 row characterises. Treating these as comparable would be
+dishonest. What v1.10.5 measures honestly:
+
+1. **AUC=0.735 with OOS=0.82** is striking — the directional ordering is
+   real and *improves* out of sample. Insiders at threshold-2 *do* discriminate
+   forward equity direction.
+
+2. **Sharpe OOS=-2.30** says the same theory loses money. Translation:
+   knowing direction beats random, but the LONG-leg forward returns went
+   negative through the OOS window (Russell 2000 small-cap weakness
+   2025-2026). The signal sorts trades correctly while the basket itself
+   bleeds.
+
+3. **n=47 is still below the 50-sample floor.** No promotion.
+   `is_active()=False`. Composite weight stays 0.
+
+4. Even if n had cleared 50, INV-GS-133's OOS-stability factor would
+   floor the final weight to 10% of brier_weight (0.21 × 0.10 = 0.021)
+   because OOS_degradation is 16x. Real signal, unstable PnL, suppressed
+   correctly.
+
+**Why this is a complete experiment, not a failure.**
+
+ROI was measured directly:
+- before: top promotion candidate, large unmeasured edge
+- after: edge confirmed (AUC), pnl unstable (Sharpe), correctly suppressed
+- net: framework absorbed the measurement, no calibration distortion
+
+**Followup decisions (deferred, low ROI).**
+
+- Lower threshold further (2 → 1) would fire on every Form 4 buy → noise.
+- Widen window (14d → 30d) would grow n but dilute the cluster signal.
+- Expand universe (60 → 200 Russell names) would grow n proportionally.
+  Highest-effort, highest-uncertainty option.
+- **Recommendation**: leave at v1.10.5 measurement. Move ROI search to
+  remaining bootstrap theses (E_FUNDAMENTAL_KR, E_PEAD_KR via kr-hindcast).

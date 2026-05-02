@@ -54,9 +54,34 @@ class EInsiderClusterExpert:
         self,
         *,
         sec_client: SecEdgarClient,
+        cluster_threshold: int = _CLUSTER_THRESHOLD,
+        window_days: int = _WINDOW_DAYS,
     ) -> None:
+        # v1.10.5 — make cluster_threshold + window_days configurable so the
+        # hindcast harness can re-measure with relaxed gating (n=11 with
+        # threshold=3 was below the 50-sample activation floor). Live expert
+        # default is preserved at threshold=3 (strict cluster) to avoid
+        # changing predict-time behaviour.
+        if cluster_threshold < 1:
+            raise ValueError(
+                f"cluster_threshold must be >= 1, got {cluster_threshold}"
+            )
+        if window_days < 1:
+            raise ValueError(
+                f"window_days must be >= 1, got {window_days}"
+            )
         self._sec = sec_client
+        self._cluster_threshold = cluster_threshold
+        self._window_days = window_days
         self._txn_cache: dict[str, list[Form4Transaction]] = {}
+
+    @property
+    def cluster_threshold(self) -> int:
+        return self._cluster_threshold
+
+    @property
+    def window_days(self) -> int:
+        return self._window_days
 
     async def warm_cache(self, ticker: str, cik: str, days_back: int = 760) -> int:
         # WHY: hindcast spans 2024-01..2026-03 → fetch ~760 days of Form 4s once
@@ -92,11 +117,15 @@ class EInsiderClusterExpert:
 
     def score_at(self, ticker: str, day: date) -> InsiderClusterScore:
         txns = self._txn_cache.get(ticker.upper(), [])
-        n_buyers = cluster_buy_count(txns, window_end=day, window_days=_WINDOW_DAYS)
-        value = cluster_buy_value(txns, window_end=day, window_days=_WINDOW_DAYS)
+        n_buyers = cluster_buy_count(
+            txns, window_end=day, window_days=self._window_days,
+        )
+        value = cluster_buy_value(
+            txns, window_end=day, window_days=self._window_days,
+        )
         raw = n_buyers * _SCORE_PER_BUYER
         score = min(_SCORE_CLIP, raw)
-        direction = "LONG" if n_buyers >= _CLUSTER_THRESHOLD else "NEUTRAL"
+        direction = "LONG" if n_buyers >= self._cluster_threshold else "NEUTRAL"
         if direction == "NEUTRAL":
             score = 0.0
         return InsiderClusterScore(
@@ -122,7 +151,8 @@ class EInsiderClusterExpert:
             metadata=(
                 ("cluster_buyers", str(s.cluster_buyers)),
                 ("cluster_value_usd", f"{s.cluster_value_usd:.0f}"),
-                ("window_days", str(_WINDOW_DAYS)),
+                ("window_days", str(self._window_days)),
+                ("cluster_threshold", str(self._cluster_threshold)),
             ),
         )
 

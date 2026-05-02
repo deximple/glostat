@@ -33,8 +33,17 @@ async def run_insider_cluster_hindcast(
     start: date,
     end: date,
     horizon_days: int = _HORIZON_DAYS,
+    cluster_threshold: int = 3,
+    window_days: int = 14,
 ) -> PhaseHindcastReport:
-    expert = EInsiderClusterExpert(sec_client=sec_client)
+    # v1.10.5 — accept cluster_threshold + window_days so re-hindcast can
+    # relax gating (default 3 buyers in 14d → optionally 2 buyers in 14d
+    # or 3 in 21d) to grow n from 11 above the 50-sample activation floor.
+    expert = EInsiderClusterExpert(
+        sec_client=sec_client,
+        cluster_threshold=cluster_threshold,
+        window_days=window_days,
+    )
     sem = asyncio.Semaphore(_PARALLEL_WARM)
 
     async def warm(ticker: str, cik: str) -> tuple[str, int]:
@@ -84,7 +93,7 @@ async def run_insider_cluster_hindcast(
         notes=(
             f"tickers_with_form4_data={n_with_data}",
             f"horizon_days={horizon_days}",
-            "cluster_threshold=3 insiders in trailing 14d",
+            f"cluster_threshold={cluster_threshold} insiders in trailing {window_days}d",
         ),
     )
     return build_report(rows, config)
