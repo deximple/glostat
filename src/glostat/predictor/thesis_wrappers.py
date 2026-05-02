@@ -115,6 +115,55 @@ async def wrap_fundamental_kr(
     return await _wrap_expert_compute("E_FUNDAMENTAL_KR", expert, ticker, ts, cal_table)
 
 
+async def wrap_fundamental_kr_cyclical(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.5 P6 — cyclical-sector override for E_FUNDAMENTAL_KR. Activates only
+    # when sector_classifier_kr classifies the ticker as cyclical (정유/철강/
+    # 화학/운송/건설/자동차). Otherwise emits a universe-aware skip so the
+    # user sees the slot exists.
+    from glostat.data.sector_classifier_kr import (  # noqa: PLC0415 — cold import
+        cycle_class_of, CycleClass, sector_of,
+    )
+    if not is_kr_ticker(ticker):
+        return _skip("E_FUNDAMENTAL_KR_CYCLICAL", "ticker not KR equity", cal_table)
+    if not is_kospi200(ticker):
+        return _skip(
+            "E_FUNDAMENTAL_KR_CYCLICAL",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
+            cal_table,
+        )
+    if cycle_class_of(ticker) != CycleClass.CYCLICAL:
+        sector = sector_of(ticker)
+        return _skip(
+            "E_FUNDAMENTAL_KR_CYCLICAL",
+            f"ticker {kr_canonical(ticker)} not cyclical (sector={sector.value})",
+            cal_table,
+        )
+    return await _wrap_expert_compute(
+        "E_FUNDAMENTAL_KR_CYCLICAL", expert, ticker, ts, cal_table,
+    )
+
+
+async def wrap_commodity_index_kr(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.5 P6 — KR refining-sector commodity-momentum expert (WTI + crack
+    # spread). Universe-gated to refining tickers only.
+    from glostat.data.sector_classifier_kr import is_refining  # noqa: PLC0415
+    if not is_kr_ticker(ticker):
+        return _skip("E_COMMODITY_INDEX_KR", "ticker not KR equity", cal_table)
+    if not is_refining(ticker):
+        return _skip(
+            "E_COMMODITY_INDEX_KR",
+            f"ticker {kr_canonical(ticker)} not in KR refining universe",
+            cal_table,
+        )
+    return await _wrap_expert_compute(
+        "E_COMMODITY_INDEX_KR", expert, ticker, ts, cal_table,
+    )
+
+
 async def wrap_foreign_reversal_live(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
@@ -218,12 +267,14 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     fundamental_expert: Any | None = None,
     time_expert: Any | None = None,
     fund_flow_expert: Any | None = None,
-    fundamental_kr_expert: Any | None = None,    # v1.1 K1
-    foreign_reversal_expert: Any | None = None,  # v1.1 K1
-    insider_kr_expert: Any | None = None,        # v1.2 L2 (DART)
-    macro_kr_expert: Any | None = None,          # v1.3 M2 (ECOS)
-    short_selling_kr_expert: Any | None = None,  # v1.4 N2 (KRX)
-    intraday_flow_kr_expert: Any | None = None,  # v1.4 N2 (KIS+Naver)
+    fundamental_kr_expert: Any | None = None,         # v1.1 K1
+    foreign_reversal_expert: Any | None = None,       # v1.1 K1
+    insider_kr_expert: Any | None = None,             # v1.2 L2 (DART)
+    macro_kr_expert: Any | None = None,               # v1.3 M2 (ECOS)
+    short_selling_kr_expert: Any | None = None,       # v1.4 N2 (KRX)
+    intraday_flow_kr_expert: Any | None = None,       # v1.4 N2 (KIS+Naver)
+    fundamental_kr_cyclical_expert: Any | None = None,# v1.5 P6 (sector cycle)
+    commodity_index_kr_expert: Any | None = None,     # v1.5 P6 (WTI + crack)
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -313,12 +364,42 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
         ))
     else:
         out.append(_skip("E_INTRADAY_FLOW_KR", "ticker not KR equity", cal_table))
+    # v1.5 P6: cyclical-sector fundamental override + commodity-momentum.
+    if fundamental_kr_cyclical_expert is not None:
+        out.append(await wrap_fundamental_kr_cyclical(
+            fundamental_kr_cyclical_expert, ticker, ts, cal_table,
+        ))
+    elif is_kr_ticker(ticker):
+        out.append(_skip(
+            "E_FUNDAMENTAL_KR_CYCLICAL",
+            "commodity client not wired (cyclical-sector override)",
+            cal_table,
+        ))
+    else:
+        out.append(_skip(
+            "E_FUNDAMENTAL_KR_CYCLICAL", "ticker not KR equity", cal_table,
+        ))
+    if commodity_index_kr_expert is not None:
+        out.append(await wrap_commodity_index_kr(
+            commodity_index_kr_expert, ticker, ts, cal_table,
+        ))
+    elif is_kr_ticker(ticker):
+        out.append(_skip(
+            "E_COMMODITY_INDEX_KR",
+            "commodity client not wired (refining sector only)",
+            cal_table,
+        ))
+    else:
+        out.append(_skip(
+            "E_COMMODITY_INDEX_KR", "ticker not KR equity", cal_table,
+        ))
     return tuple(out)
 
 
 __all__ = [
     "WrapperResult",
     "collect_contributions",
+    "wrap_commodity_index_kr",
     "wrap_commodity_ts_static",
     "wrap_fomc_drift_static",
     "wrap_foreign_reversal_live",
@@ -326,6 +407,7 @@ __all__ = [
     "wrap_fund_flow",
     "wrap_fundamental",
     "wrap_fundamental_kr",
+    "wrap_fundamental_kr_cyclical",
     "wrap_funding_carry_static",
     "wrap_fx_carry_static",
     "wrap_insider_cluster_static",

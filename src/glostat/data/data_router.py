@@ -90,6 +90,10 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     # institutional flows that yfinance does not expose.
     ("E_FUNDAMENTAL_KR", "ohlcv"):        (RouteEntry("mvp", "yfinance",   "get_ohlcv"),),
     ("E_FUNDAMENTAL_KR", "fundamentals"): (RouteEntry("mvp", "yfinance",   "get_fundamentals"),),
+    # v1.5 P6 — KR cyclical-sector fundamentals (EV/EBITDA + commodity cycle).
+    ("E_FUNDAMENTAL_KR_CYCLICAL", "fundamentals"): (
+        RouteEntry("mvp", "yfinance", "get_fundamentals"),
+    ),
     ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr",  "fetch_history"),),
     # v1.3 M2 — KR macro (BoK ECOS OpenAPI). Free + 10000 calls/day per key.
     ("E_MACRO_KR", "base_rate"):    (RouteEntry("mvp", "ecos", "get_base_rate"),),

@@ -55,11 +55,34 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.4.1 — X+W honesty patch (P8 Statistician + P10 Contrarian Veteran panel synthesis).**
-> Previous: v1.4 — N1+N2+N3+N4 (KR multi-source + experts + sizing + confidence);
+> **STATUS: ACTIVE v1.5 — P6 KR Market Specialist absorption (sector-aware cyclicals).**
+> Previous: v1.4.1 — X+W honesty patch (P8+P10 panel synthesis);
+> v1.4 — N1+N2+N3+N4 (KR multi-source + experts + sizing + confidence);
 > v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
 > + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200) production support;
 > v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.5 delta (P6 sector cycle absorption — INV-GS-115/116/117/118):
+> - **commodity_client.py** (~200 lines) — wraps yfinance commodity futures
+>   (CL=F WTI, BZ=F Brent, RB=F gasoline, TIO=F iron ore, HG=F copper, BDRY)
+>   with cycle-percentile + 30d-momentum metrics. Computes crack spread
+>   (42·gas − WTI) for refining margin. 6h per-process cache; mandatory
+>   snapshot broker writes (INV-GS-022).
+> - **sector_classifier_kr.py** (~120 lines) — KOSPI 200 ticker → KrSector +
+>   CycleClass. Hard-coded ~40 ticker roster covering 정유 5, 철강 4, 화학 5,
+>   운송 4, 건설 5, 자동차 3 cyclical + defensive/growth slots.
+> - **E_FUNDAMENTAL_KR_CYCLICAL** (~280 lines) — gates to cyclical sectors
+>   only. Score formula: −0.6·EV/EBITDA_z + 0.4·(−cycle_term·2). Trough
+>   percentile + cheap valuation → LONG (mean-reversion archetype, contrarian).
+>   Directly addresses P6 panel finding: "정유주는 사이클 저점에서 PER 상승 =
+>   healthy, not bearish". E_FUNDAMENTAL_KR for SK이노베이션 (-1.78 SHORT)
+>   was structurally wrong; the cyclical version produces correct LONG when
+>   EV/EBITDA cheap + crack spread at trough.
+> - **E_COMMODITY_INDEX_KR** (~180 lines) — refining-only universe gate;
+>   30d momentum on WTI + crack spread, archetype=continuation (momentum-
+>   following). Refining tickers: 010950 S-Oil, 096770 SK이노베이션, 078930
+>   GS, 267250 HD현대.
+> - All 4 modules cleanly integrate with thesis_wrappers + cli_predictor +
+>   calibration backfill. 81 new tests; 1029 total pass.
 > v1.4.1 delta (X+W honesty patch — INV-GS-113 + INV-GS-114):
 > - **X1 — CI 1-sigma label clarity.** `confidence_interval_bps` is a 1-sigma
 >   (~68%) interval, not 95%. Output now reads `CI 1-sigma (68%): ...`.
@@ -203,6 +226,10 @@ advice.
 | **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
 | **INV-GS-113**  | **Output honesty: CI label = '1-sigma (~68%)'; CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer** | **active v1.4.1**                                                |
 | **INV-GS-114**  | **Universe-specific honesty: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure footer**                                              | **active v1.4.1**                                                |
+| **INV-GS-115**  | **commodity_client wraps yfinance commodity futures with cycle-percentile + 30d-momentum metrics; mandatory snapshot writes**                                               | **active v1.5**                                                  |
+| **INV-GS-116**  | **sector_classifier_kr maps KOSPI 200 → KrSector + CycleClass; hard-coded ~40 cyclical/defensive/growth roster**                                                            | **active v1.5**                                                  |
+| **INV-GS-117**  | **E_FUNDAMENTAL_KR_CYCLICAL gates to cyclical sectors; EV/EBITDA z-score + commodity-cycle term where trough → LONG (contrarian)**                                          | **active v1.5**                                                  |
+| **INV-GS-118**  | **E_COMMODITY_INDEX_KR gates to refining tickers; 30d WTI + crack spread momentum (continuation)**                                                                          | **active v1.5**                                                  |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

@@ -11,6 +11,7 @@ from typing import Any, Final
 
 from glostat.cli_mocks import MockSecEdgarClient, MockYFinanceClient
 from glostat.cli_predict_print import print_prediction
+from glostat.data.commodity_client import CommodityClient
 from glostat.data.data_router import DataRouter, is_kr_ticker
 from glostat.data.kis_client import KisClient, is_kis_configured
 from glostat.data.krx_short_client import KrxShortClient
@@ -20,8 +21,10 @@ from glostat.data.snapshot_broker import SnapshotBroker
 from glostat.data.toss_client import TossClient
 from glostat.data.yfinance_client import YFinanceClient
 from glostat.experts import (
+    ECommodityIndexKrExpert,
     EForeignReversalExpert,
     EFundamentalExpert,
+    EFundamentalKrCyclicalExpert,
     EFundamentalKrExpert,
     EFundFlowExpert,
     EInsiderKrExpert,
@@ -168,6 +171,16 @@ async def _predict_live(
         naver_client=naver_client, kis_client=kis_client,
         kospi200=KOSPI200_UNIVERSE,
     )
+    # v1.5 P6 — wire commodity client + cyclical/refining experts.
+    commodity_client = CommodityClient(
+        yfinance_client=yf_client, snapshot_broker=broker,
+    )
+    fundamental_kr_cyclical = EFundamentalKrCyclicalExpert(
+        router=router, commodity_client=commodity_client,
+    )
+    commodity_index_kr = ECommodityIndexKrExpert(
+        commodity_client=commodity_client,
+    )
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
@@ -181,6 +194,8 @@ async def _predict_live(
             macro_kr_expert=macro_kr,
             short_selling_kr_expert=short_selling_kr,
             intraday_flow_kr_expert=intraday_flow_kr,
+            fundamental_kr_cyclical_expert=fundamental_kr_cyclical,
+            commodity_index_kr_expert=commodity_index_kr,
         )
     finally:
         await sec_client.aclose()

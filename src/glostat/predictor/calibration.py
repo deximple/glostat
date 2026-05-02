@@ -439,6 +439,21 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.5 P6 — KR cyclical-sector fundamentals (EV/EBITDA + commodity
+        # cycle). n=0 placeholder; weight=0 until a phase_kr_cyclical hindcast
+        # measures predictive AUC for cyclical universe.
+        "E_FUNDAMENTAL_KR_CYCLICAL": ThesisCalibration(
+            "E_FUNDAMENTAL_KR_CYCLICAL", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.5 P6 — KR refining commodity-momentum (WTI + crack spread).
+        # Refining-universe-only; n=0 placeholder.
+        "E_COMMODITY_INDEX_KR": ThesisCalibration(
+            "E_COMMODITY_INDEX_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 

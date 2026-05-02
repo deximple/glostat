@@ -121,14 +121,21 @@ def _print_signal_line(s: SignalContribution) -> None:
         short = reason if len(reason) <= 50 else reason[:47] + "..."
         print(f"  {s.name:<22} . skip   ({short})")
         return
-    # X5: explicit "no data" rendering for n=0 thesis (vs the silent "+0.00").
-    if s.n_samples == 0:
+    # X5: explicit "no data" rendering only for experts that never fired
+    # (no value AND no calibration). v1.5 fix: when expert fired (value
+    # present) but calibration is bootstrap n=0, render the value with a
+    # "calibration pending" tag instead of hiding it.
+    if s.n_samples == 0 and s.value is None:
         print(f"  {s.name:<22} no data (n=0, weight=0)")
         return
     arrow = {"up": "^", "down": "v", "neutral": "-"}[s.direction]
     val = f"{s.value:+.2f}" if s.value is not None else "n/a"
     # X3: AUC z-score / p-value annotation. "n.s." when |z| < 1.96.
-    sig = format_significance(s.calibration_auc, s.n_samples)
+    sig = (
+        "calibration pending (n=0)"
+        if s.n_samples == 0
+        else format_significance(s.calibration_auc, s.n_samples)
+    )
     line = (
         f"  {s.name:<22} {arrow} {val:>7}  "
         f"(AUC {s.calibration_auc:.3f}, n={s.n_samples}, {sig}"

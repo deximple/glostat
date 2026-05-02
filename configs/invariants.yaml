@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 51
+total: 55
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -11,6 +11,7 @@ v1_2_active_count: 1   # INV-GS-107 (DART)
 v1_3_active_count: 1   # INV-GS-108 (ECOS)
 v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v2)
 v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
+v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -389,6 +390,50 @@ invariants:
       - cli_predict_print._maybe_print_universe_note
     note: "Phase KR M1 hindcast measured E_FUNDAMENTAL_KR AUC=0.495 (n=3510), E_TIME_KR AUC=0.483 — both statistically indistinguishable from random. Honest disclosure gives the user the full context for any KR megacap probability output. Non-KR markets (XNAS/XNYS) emit no extra footer. Future v1.5+ work (sector-aware E_FUNDAMENTAL_KR_CYCLICAL, E_PEAD_KR event calendar) will reduce the KR megacap honesty footer's necessity once new experts pass the same statistical test."
 
+  # ───────── v1.5: P6 KR Market Specialist absorption — sector cycle ─────────
+  INV-GS-115:
+    summary: "commodity_client wraps yfinance commodity futures (CL=F WTI, BZ=F Brent, RB=F gasoline, TIO=F iron ore, HG=F copper, BDRY) with cycle-percentile + 30d-momentum metrics; mandatory snapshot broker writes for replay (INV-GS-022)."
+    enforcement: data_client
+    source: docs/V15_SECTOR.md (v1.5 P6 panel) + P6 KR Market Specialist evaluation
+    active_in: [v1.5]
+    enforce_at:
+      - data.commodity_client.CommodityClient.get_cycle
+      - data.commodity_client.CommodityClient.get_crack_spread
+      - data.commodity_client._record_snapshot
+    note: "All commodity OHLCV is dollar-denominated US futures (free via yfinance) — Korea-specific exchange data avoided to keep MVP free-stack. 6h per-process cache shares fetches across multiple experts in one prediction. Crack spread = 42 * gasoline_$/gal - WTI_$/bbl (textbook refining margin proxy, aligned by date)."
+
+  INV-GS-116:
+    summary: "sector_classifier_kr maps KOSPI 200 tickers to KrSector + CycleClass; cyclical roster (정유/철강/화학/운송/건설/자동차) is hard-coded for the 30+ tickers where mis-scoring is most damaging. Other tickers fall through to KrSector.OTHER."
+    enforcement: classification_table
+    source: docs/V15_SECTOR.md (v1.5 P6 panel)
+    active_in: [v1.5]
+    enforce_at:
+      - data.sector_classifier_kr.sector_of
+      - data.sector_classifier_kr.cycle_class_of
+      - data.sector_classifier_kr.is_cyclical
+      - data.sector_classifier_kr.is_refining
+    note: "Hard-coded roster prioritises KSIC accuracy on the cyclical subset where E_FUNDAMENTAL_KR's generic PER scoring most damages signal quality. Programmatic KSIC lookup deferred to v1.6+ once calendar/PEAD work needs sector grouping. Manual roster covers ~40 tickers across all KOSPI 200 cyclical, defensive, growth buckets."
+
+  INV-GS-117:
+    summary: "E_FUNDAMENTAL_KR_CYCLICAL gates to cyclical sectors only (ExpertSkipError otherwise); scores via EV/EBITDA z-score (sector-specific median) + commodity-cycle term where trough percentile → LONG (mean-reversion archetype)."
+    enforcement: cyclical_expert_gate
+    source: docs/V15_SECTOR.md (v1.5 P6 panel) + P6 specialist on SK이노베이션 misscoring
+    active_in: [v1.5]
+    enforce_at:
+      - experts.e_fundamental_kr_cyclical.EFundamentalKrCyclicalExpert.compute
+      - predictor.thesis_wrappers.wrap_fundamental_kr_cyclical
+    note: "Refining → crack spread; steel → iron ore; chemicals → Brent (naphtha proxy); shipping → BDRY; construction/auto → copper. EV/EBITDA medians: refining 5.5±2.5, steel 6.0±2.5, chemicals 7.5±3.0, shipping 4.5±3.0, construction 5.0±2.0, consumer cyclical 8.0±3.0. Score formula: -W_VALUE * ev_ebitda_z + W_CYCLE * (-cycle_term * 2.0); W_VALUE=0.6, W_CYCLE=0.4. Direction threshold 0.5 (relaxed from generic 1.0 since cyclicals reward earlier mean-reversion entry). archetype=contrarian (per CompositeSignal taxonomy)."
+
+  INV-GS-118:
+    summary: "E_COMMODITY_INDEX_KR gates to refining-sector tickers only (ExpertSkipError otherwise); scores 30-day momentum on WTI + crack spread, archetype=continuation (momentum-following, not contrarian)."
+    enforcement: refining_universe_gate
+    source: docs/V15_SECTOR.md (v1.5 P6 panel)
+    active_in: [v1.5]
+    enforce_at:
+      - experts.e_commodity_index_kr.ECommodityIndexKrExpert.compute
+      - predictor.thesis_wrappers.wrap_commodity_index_kr
+    note: "Refining-only gate keeps oil-sensitive momentum from spuriously firing on non-refining cyclicals (where commodity dynamics differ). raw = 0.5 * wti_signal + 0.5 * crack_signal where each sub_signal = clamp(momentum_30d * 5.0, ±1.5). +20% commodity move → +1.0 sub-signal. Direction threshold 0.3."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -438,6 +483,13 @@ v1_4_active:
 v1_4_1_active:
   - INV-GS-113    # Statistical-significance disclosure (CI 1-sigma, p-value, all-noise flag)
   - INV-GS-114    # KR megacap universe-specific honesty footer
+
+# v1.5 active set (P6 KR Market Specialist absorption — sector cycle):
+v1_5_active:
+  - INV-GS-115    # commodity_client (yfinance commodity futures + cycle metrics)
+  - INV-GS-116    # sector_classifier_kr (KOSPI 200 cyclical/defensive/growth)
+  - INV-GS-117    # E_FUNDAMENTAL_KR_CYCLICAL (EV/EBITDA + sector cycle, contrarian)
+  - INV-GS-118    # E_COMMODITY_INDEX_KR (WTI + crack momentum, refining gate, continuation)
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:
