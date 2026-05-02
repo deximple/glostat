@@ -496,6 +496,14 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.10 — US regime expert (VIX term + UST 3m-10y curve, yfinance free).
+        # Closes the documented US peer of E_MACRO_KR. n=0 bootstrap; weight=0
+        # until a dedicated US-regime hindcast measures predictive AUC.
+        "E_REGIME_US": ThesisCalibration(
+            "E_REGIME_US", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 

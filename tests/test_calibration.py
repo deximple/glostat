@@ -111,9 +111,9 @@ def test_calibration_table_names() -> None:
 
 
 def test_synthetic_calibration_has_twentytwo_theses() -> None:
-    # v1.8.0: 21 prior + E_ANALYST_REVISION = 22.
+    # v1.10: 22 prior + E_REGIME_US = 23.
     table = synthetic_calibration_for_mock()
-    assert len(table.entries) == 22
+    assert len(table.entries) == 23
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -123,6 +123,7 @@ def test_synthetic_calibration_has_twentytwo_theses() -> None:
     assert "E_FUNDAMENTAL_KR_CYCLICAL" in table.entries
     assert "E_COMMODITY_INDEX_KR" in table.entries
     assert "E_PEAD_KR" in table.entries
+    assert "E_REGIME_US" in table.entries
 
 
 def test_synthetic_includes_phase1b_theses() -> None:
@@ -159,9 +160,9 @@ def test_synthetic_pead_matches_archived_metrics() -> None:
 
 
 def test_load_calibration_empty_cache(tmp_path: Path) -> None:
-    # v1.8.0: 22 entries = 21 prior + E_ANALYST_REVISION (skeleton).
+    # v1.10: 23 entries = 22 prior + E_REGIME_US (skeleton).
     table = load_calibration(cache_dir=tmp_path)
-    assert len(table.entries) == 22
+    assert len(table.entries) == 23
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -248,7 +249,7 @@ def test_calibration_table_writes_parquet_or_json(tmp_path: Path) -> None:
 def test_calibration_table_to_records_round_trip() -> None:
     table = synthetic_calibration_for_mock()
     records = table.to_records()
-    # v1.8.0: 21 prior + E_ANALYST_REVISION = 22.
-    assert len(records) == 22
+    # v1.10: 22 prior + E_REGIME_US = 23.
+    assert len(records) == 23
     assert all("brier_score" in r for r in records)
     assert all("auc" in r for r in records)

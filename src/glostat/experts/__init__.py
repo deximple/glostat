@@ -41,6 +41,7 @@ from glostat.experts.e_intraday_flow_kr import (
 from glostat.experts.e_macro_kr import EMacroKrExpert, MacroKrScore
 from glostat.experts.e_pead import EPeadExpert
 from glostat.experts.e_pead_kr import EPeadKrExpert, PeadKrScore
+from glostat.experts.e_regime_us import ERegimeUsExpert, RegimeUsScore
 from glostat.experts.e_sector_rotation import ESectorRotationExpert
 from glostat.experts.e_short_selling_kr import (
     EShortSellingKrExpert,
@@ -70,6 +71,7 @@ __all__ = [
     "EMacroKrExpert",
     "EPeadExpert",
     "EPeadKrExpert",
+    "ERegimeUsExpert",
     "ESectorRotationExpert",
     "EShortSellingKrExpert",
     "ETimeExpert",
@@ -83,6 +85,7 @@ __all__ = [
     "IntradayFlowScore",
     "MacroKrScore",
     "PeadKrScore",
+    "RegimeUsScore",
     "ShortSellingScore",
     "TimeScore",
 ]
