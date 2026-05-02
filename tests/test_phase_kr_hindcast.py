@@ -149,20 +149,41 @@ def _make_result(report: KrThesisReport | None = None) -> PhaseKrHindcastResult:
         is_auc=0.52, oos_auc=0.49, overall_auc=0.51,
         is_sharpe=0.1, oos_sharpe=0.05, overall_sharpe=0.075,
     )
+    cyclical_r = KrThesisReport(    # v1.6.2 wave 2
+        thesis="E_FUNDAMENTAL_KR_CYCLICAL", universe=r.universe,
+        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
+        n_universe=r.n_universe, n_evaluated=200, n_skipped=170,
+        n_actionable=30, n_traded=30,
+        is_auc=0.53, oos_auc=0.51, overall_auc=0.52,
+        is_sharpe=0.15, oos_sharpe=0.10, overall_sharpe=0.12,
+    )
+    commodity_r = KrThesisReport(    # v1.6.2 wave 2
+        thesis="E_COMMODITY_INDEX_KR", universe=r.universe,
+        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
+        n_universe=r.n_universe, n_evaluated=200, n_skipped=190,
+        n_actionable=10, n_traded=10,
+        is_auc=0.54, oos_auc=0.50, overall_auc=0.52,
+        is_sharpe=0.20, oos_sharpe=0.15, overall_sharpe=0.18,
+    )
     return PhaseKrHindcastResult(
         fundamental_kr=r, time_kr=time_r,
         foreign_reversal=rev, pead_kr=pead_r,
+        fundamental_kr_cyclical=cyclical_r,
+        commodity_index_kr=commodity_r,
         skipped_tickers=("099999",),
     )
 
 
-def test_persist_writes_four_jsons_and_comparison(tmp_path: Path) -> None:
+def test_persist_writes_six_jsons_and_comparison(tmp_path: Path) -> None:
     res = _make_result()
     paths = persist_phase_kr_reports(result=res, output_dir=tmp_path)
     assert "comparison" in paths
     assert (tmp_path / "phase_kr_comparison.md").exists()
-    # v1.6 P5: 4 thesis JSONs (was 3 before E_PEAD_KR landed).
-    for slug in ("e_fundamental_kr", "e_time_kr", "e_foreign_reversal", "e_pead_kr"):
+    # v1.6.2 wave 2: 6 thesis JSONs (was 4 with E_PEAD_KR; +cyclical+commodity).
+    for slug in (
+        "e_fundamental_kr", "e_time_kr", "e_foreign_reversal", "e_pead_kr",
+        "e_fundamental_kr_cyclical", "e_commodity_index_kr",
+    ):
         path = tmp_path / f"{slug}_report.json"
         assert path.exists(), f"missing {slug}"
         body = json.loads(path.read_text("utf-8"))
@@ -170,12 +191,14 @@ def test_persist_writes_four_jsons_and_comparison(tmp_path: Path) -> None:
         assert body["report"]["expert"]
 
 
-def test_render_comparison_includes_all_four_columns() -> None:
+def test_render_comparison_includes_all_six_columns() -> None:
     md = render_phase_kr_comparison(_make_result())
     assert "E_FUNDAMENTAL_KR" in md
     assert "E_TIME_KR" in md
     assert "E_FOREIGN_REVERSAL" in md
     assert "E_PEAD_KR" in md   # v1.6 P5
+    assert "E_FUNDAMENTAL_KR_CYCLICAL" in md   # v1.6.2 wave 2
+    assert "E_COMMODITY_INDEX_KR" in md         # v1.6.2 wave 2
     assert "AUC (overall)" in md
     assert "Sharpe IS" in md
 

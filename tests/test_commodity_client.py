@@ -176,6 +176,38 @@ class TestCommodityClientIntegration:
         assert crack.last_spread == pytest.approx(25.0, abs=0.5)
         assert crack.n_observations == 30
 
+    @pytest.mark.asyncio
+    async def test_point_in_time_get_cycle_slices_by_as_of(self) -> None:
+        # v1.6.2 wave 2: ascending bars 70 → 90 over 60 days. as_of = day 30
+        # should see only days 0..30 (closes 70..80), so cycle_percentile of
+        # the LAST close in the slice (~80) should be near top of [70..80].
+        wti_bars = _bars_with_trend(70.0, 90.0, 60)
+        client = CommodityClient(
+            yfinance_client=_FakeYFinance(bars_per_call={"CL=F": wti_bars}),  # type: ignore[arg-type]
+        )
+        as_of = datetime(2026, 1, 30, tzinfo=UTC).date()
+        cycle = await client.get_cycle(CommodityKey.WTI, as_of=as_of)
+        # Last bar in slice is day 29 (~80.0), and it's near top of slice.
+        assert cycle.last_close < 85.0
+        assert cycle.cycle_percentile > 0.85   # near top of the 0..29 slice
+        # Without as_of, would see full 60 bars and last_close = 90.
+        cycle_full = await client.get_cycle(CommodityKey.WTI)
+        assert cycle_full.last_close > 89.0
+
+    @pytest.mark.asyncio
+    async def test_point_in_time_crack_spread_slices(self) -> None:
+        # Crack spread point-in-time: same slicing on both legs.
+        wti_bars = _bars_with_trend(80.0, 80.0, 60)
+        gas_bars = _bars_with_trend(2.5, 2.5, 60)
+        client = CommodityClient(yfinance_client=_FakeYFinance(  # type: ignore[arg-type]
+            bars_per_call={"CL=F": wti_bars, "RB=F": gas_bars},
+        ))
+        as_of = datetime(2026, 1, 15, tzinfo=UTC).date()
+        crack = await client.get_crack_spread(as_of=as_of)
+        # Only first 15 bars considered → n_observations capped accordingly.
+        assert crack.n_observations <= 15
+        assert crack.n_observations > 0
+
 
 # ── CrackSpread basic ─────────────────────────────────────────────────────
 

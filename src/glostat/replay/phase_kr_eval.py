@@ -7,11 +7,36 @@ from typing import Any, Final
 import structlog
 
 from glostat.core.errors import ExpertSkipError
+from glostat.data.commodity_client import (
+    CommodityClient,
+    CommodityDataError,
+    CommodityKey,
+)
 from glostat.data.data_router import to_yfinance_kr_ticker
 from glostat.data.naver_kr_client import KrFlowBar
+from glostat.data.sector_classifier_kr import (
+    CycleClass,
+    KrSector,
+    cycle_class_of,
+    is_refining,
+    sector_of,
+)
 from glostat.data.yfinance_client import YFinanceClient
+from glostat.experts.e_commodity_index_kr import (
+    _MOMENTUM_GAIN,
+    _SUB_SIGNAL_CLIP,
+)
+from glostat.experts.e_commodity_index_kr import (
+    _SCORE_CLIP as _COMMODITY_SCORE_CLIP,
+)
 from glostat.experts.e_foreign_reversal import score_reversal_at
 from glostat.experts.e_fundamental_kr import EFundamentalKrExpert
+from glostat.experts.e_fundamental_kr_cyclical import (
+    _SECTOR_CYCLE_KEY,
+    _SECTOR_EV_EBITDA,
+    _W_CYCLE,
+    _W_VALUE,
+)
 from glostat.experts.e_pead_kr import (
     _DRIFT_GAIN,
     _DRIFT_WINDOW_END,
@@ -265,10 +290,159 @@ def _close_on_or_after(bars: Sequence[object], target: date) -> float | None:
     return None
 
 
+async def evaluate_fundamental_kr_cyclical(
+    *,
+    fundamental: EFundamentalKrExpert,
+    commodity: CommodityClient,
+    code: str,
+    day: date,
+    ts: datetime,
+    yf: YFinanceClient,
+    horizon_days: int,
+    accumulator: Any,
+) -> None:
+    # v1.6.2 wave 2: cyclical-sector EV/EBITDA + commodity cycle hindcast.
+    # Universe gate: cyclical sectors only (refining, steel, chemicals,
+    # shipping, construction, consumer cyclical). Falls through to skip
+    # otherwise so the report's skip rate honestly reflects the gate.
+    accumulator.n_evaluated += 1
+    if cycle_class_of(code) != CycleClass.CYCLICAL:
+        accumulator.record_skip(f"not_cyclical_sector ({sector_of(code).value})")
+        return
+    sector = sector_of(code)
+    # Fetch fundamentals via the live expert (yfinance Fundamentals.raw
+    # carries enterpriseToEbitda when present).
+    try:
+        sig = await fundamental.compute(code, ts)
+    except ExpertSkipError as exc:
+        accumulator.record_skip(f"fundamental_fetch ({exc})")
+        return
+    except Exception as exc:
+        accumulator.record_skip(f"unexpected ({exc})")
+        return
+    # Pull EV/EBITDA from yfinance.info.raw via the existing expert path.
+    ev_ebitda = _ev_ebitda_from_signal(sig)
+    cycle_pctile = await _cycle_percentile_for_sector(
+        commodity=commodity, sector=sector, as_of=day,
+    )
+    if cycle_pctile is None:
+        accumulator.record_skip("commodity_cycle_unavailable")
+        return
+    raw = _cyclical_score(sector, ev_ebitda, cycle_pctile)
+    direction = (
+        "LONG" if raw > 0.5 else ("SHORT" if raw < -0.5 else "NEUTRAL")
+    )
+    fwd = await forward_return_yfinance(
+        yf, code, day=day, horizon_days=horizon_days,
+    )
+    if fwd is None:
+        accumulator.record_skip("no_forward_return")
+        return
+    accumulator.record_signal(
+        ticker=code, day=day, raw_score=raw,
+        direction=direction, forward_return=fwd,
+    )
+
+
+async def evaluate_commodity_index_kr(
+    *,
+    commodity: CommodityClient,
+    code: str,
+    day: date,
+    yf: YFinanceClient,
+    horizon_days: int,
+    accumulator: Any,
+) -> None:
+    # v1.6.2 wave 2: WTI + crack spread momentum hindcast (refining only).
+    accumulator.n_evaluated += 1
+    if not is_refining(code):
+        accumulator.record_skip(f"not_refining ({sector_of(code).value})")
+        return
+    try:
+        wti = await commodity.get_cycle(CommodityKey.WTI, as_of=day)
+        crack = await commodity.get_crack_spread(as_of=day)
+    except CommodityDataError as exc:
+        accumulator.record_skip(f"commodity_fetch ({exc})")
+        return
+    wti_signal = max(
+        -_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP, wti.momentum_30d * _MOMENTUM_GAIN),
+    )
+    crack_signal = max(
+        -_SUB_SIGNAL_CLIP,
+        min(_SUB_SIGNAL_CLIP, crack.momentum_30d * _MOMENTUM_GAIN),
+    )
+    raw = max(
+        -_COMMODITY_SCORE_CLIP,
+        min(_COMMODITY_SCORE_CLIP, 0.5 * wti_signal + 0.5 * crack_signal),
+    )
+    direction = (
+        "LONG" if raw > 0.3 else ("SHORT" if raw < -0.3 else "NEUTRAL")
+    )
+    fwd = await forward_return_yfinance(
+        yf, code, day=day, horizon_days=horizon_days,
+    )
+    if fwd is None:
+        accumulator.record_skip("no_forward_return")
+        return
+    accumulator.record_signal(
+        ticker=code, day=day, raw_score=raw,
+        direction=direction, forward_return=fwd,
+    )
+
+
+def _ev_ebitda_from_signal(sig: object) -> float | None:
+    # The cyclical expert reads enterpriseToEbitda from Fundamentals.raw.
+    # The generic E_FUNDAMENTAL_KR signal doesn't carry EV/EBITDA in metadata,
+    # so we conservatively return None — caller falls back to cycle-only score.
+    metadata = getattr(sig, "metadata", ())
+    for k, v in metadata:
+        if k != "ev_ebitda":
+            continue
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+async def _cycle_percentile_for_sector(
+    *, commodity: CommodityClient, sector: KrSector, as_of: date,
+) -> float | None:
+    if sector == KrSector.REFINING:
+        try:
+            crack = await commodity.get_crack_spread(as_of=as_of)
+        except CommodityDataError:
+            return None
+        return crack.cycle_percentile
+    key = _SECTOR_CYCLE_KEY.get(sector)
+    if key is None:
+        return None
+    try:
+        cycle = await commodity.get_cycle(key, as_of=as_of)
+    except CommodityDataError:
+        return None
+    return cycle.cycle_percentile
+
+
+def _cyclical_score(
+    sector: KrSector, ev_ebitda: float | None, cycle_percentile: float,
+) -> float:
+    median, stddev = _SECTOR_EV_EBITDA.get(sector, (7.0, 3.0))
+    ev_ebitda_z = (
+        0.0 if ev_ebitda is None
+        else (ev_ebitda - median) / max(stddev, 1e-3)
+    )
+    cycle_term = cycle_percentile - 0.5
+    raw = -_W_VALUE * ev_ebitda_z + _W_CYCLE * (-cycle_term * 2.0)
+    return max(-3.0, min(3.0, raw))
+
+
 __all__ = [
     "close_on_or_before",
+    "evaluate_commodity_index_kr",
     "evaluate_foreign_reversal",
     "evaluate_fundamental",
+    "evaluate_fundamental_kr_cyclical",
     "evaluate_pead_kr",
     "evaluate_time",
     "forward_return_yfinance",

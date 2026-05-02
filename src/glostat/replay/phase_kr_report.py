@@ -31,6 +31,7 @@ def persist_phase_kr_reports(
     for report in (
         result.fundamental_kr, result.time_kr,
         result.foreign_reversal, result.pead_kr,
+        result.fundamental_kr_cyclical, result.commodity_index_kr,
     ):
         slug = report.thesis.lower()
         path = out / f"{slug}_report.json"
@@ -51,20 +52,26 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         "",
         "Honest measurement of KR-active theses on a real KR universe + window.",
         "",
-        "| metric | E_FUNDAMENTAL_KR | E_TIME_KR | E_FOREIGN_REVERSAL | E_PEAD_KR |",
-        "|---|---:|---:|---:|---:|",
+        "| metric | E_FUNDAMENTAL_KR | E_TIME_KR | E_FOREIGN_REVERSAL | "
+        "E_PEAD_KR | E_FUNDAMENTAL_KR_CYCLICAL | E_COMMODITY_INDEX_KR |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
-    f = result.fundamental_kr
-    t = result.time_kr
-    r = result.foreign_reversal
-    p = result.pead_kr
-    lines.extend(_render_metric_rows(f=f, t=t, r=r, p=p))
+    reports = (
+        result.fundamental_kr, result.time_kr,
+        result.foreign_reversal, result.pead_kr,
+        result.fundamental_kr_cyclical, result.commodity_index_kr,
+    )
+    lines.extend(_render_metric_rows(reports))
     lines.append("")
     lines.append("## Notes")
     lines.append("")
     for thesis_name, report in (
-        ("E_FUNDAMENTAL_KR", f), ("E_TIME_KR", t),
-        ("E_FOREIGN_REVERSAL", r), ("E_PEAD_KR", p),
+        ("E_FUNDAMENTAL_KR", result.fundamental_kr),
+        ("E_TIME_KR", result.time_kr),
+        ("E_FOREIGN_REVERSAL", result.foreign_reversal),
+        ("E_PEAD_KR", result.pead_kr),
+        ("E_FUNDAMENTAL_KR_CYCLICAL", result.fundamental_kr_cyclical),
+        ("E_COMMODITY_INDEX_KR", result.commodity_index_kr),
     ):
         lines.append(f"- {thesis_name}: {', '.join(report.notes)}")
         if report.skip_breakdown:
@@ -88,39 +95,31 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
 
 
 def _render_metric_rows(
-    *,
-    f: KrThesisReport,
-    t: KrThesisReport,
-    r: KrThesisReport,
-    p: KrThesisReport,
+    reports: tuple[KrThesisReport, ...],
 ) -> list[str]:
+    # Build N-column rows (one column per report) for any thesis count.
+    def cells_int(attr: str) -> str:
+        return " | ".join(str(getattr(r, attr)) for r in reports)
+
+    def cells_float4(attr: str) -> str:
+        return " | ".join(f"{getattr(r, attr):.4f}" for r in reports)
+
+    def cells_pct(attr: str) -> str:
+        return " | ".join(f"{getattr(r, attr):.2%}" for r in reports)
+
     return [
-        f"| universe size | {f.n_universe} | {t.n_universe} | "
-        f"{r.n_universe} | {p.n_universe} |",
-        f"| evaluated | {f.n_evaluated} | {t.n_evaluated} | "
-        f"{r.n_evaluated} | {p.n_evaluated} |",
-        f"| skipped | {f.n_skipped} | {t.n_skipped} | "
-        f"{r.n_skipped} | {p.n_skipped} |",
-        f"| actionable | {f.n_actionable} | {t.n_actionable} | "
-        f"{r.n_actionable} | {p.n_actionable} |",
-        f"| traded (n) | {f.n_traded} | {t.n_traded} | "
-        f"{r.n_traded} | {p.n_traded} |",
-        f"| **AUC (overall)** | {f.overall_auc:.4f} | {t.overall_auc:.4f} | "
-        f"{r.overall_auc:.4f} | {p.overall_auc:.4f} |",
-        f"| AUC IS | {f.is_auc:.4f} | {t.is_auc:.4f} | "
-        f"{r.is_auc:.4f} | {p.is_auc:.4f} |",
-        f"| AUC OOS | {f.oos_auc:.4f} | {t.oos_auc:.4f} | "
-        f"{r.oos_auc:.4f} | {p.oos_auc:.4f} |",
-        f"| **Sharpe (overall)** | {f.overall_sharpe:.4f} | "
-        f"{t.overall_sharpe:.4f} | "
-        f"{r.overall_sharpe:.4f} | {p.overall_sharpe:.4f} |",
-        f"| Sharpe IS | {f.is_sharpe:.4f} | {t.is_sharpe:.4f} | "
-        f"{r.is_sharpe:.4f} | {p.is_sharpe:.4f} |",
-        f"| Sharpe OOS | {f.oos_sharpe:.4f} | {t.oos_sharpe:.4f} | "
-        f"{r.oos_sharpe:.4f} | {p.oos_sharpe:.4f} |",
-        f"| OOS degradation | {f.oos_degradation:.2%} | "
-        f"{t.oos_degradation:.2%} | "
-        f"{r.oos_degradation:.2%} | {p.oos_degradation:.2%} |",
+        f"| universe size | {cells_int('n_universe')} |",
+        f"| evaluated | {cells_int('n_evaluated')} |",
+        f"| skipped | {cells_int('n_skipped')} |",
+        f"| actionable | {cells_int('n_actionable')} |",
+        f"| traded (n) | {cells_int('n_traded')} |",
+        f"| **AUC (overall)** | {cells_float4('overall_auc')} |",
+        f"| AUC IS | {cells_float4('is_auc')} |",
+        f"| AUC OOS | {cells_float4('oos_auc')} |",
+        f"| **Sharpe (overall)** | {cells_float4('overall_sharpe')} |",
+        f"| Sharpe IS | {cells_float4('is_sharpe')} |",
+        f"| Sharpe OOS | {cells_float4('oos_sharpe')} |",
+        f"| OOS degradation | {cells_pct('oos_degradation')} |",
     ]
 
 

@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 59
+total: 60
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -14,6 +14,7 @@ v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap univ
 v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
 v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
 v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
+v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -489,6 +490,27 @@ invariants:
       - predictor.calibration._PHASE_SOURCES
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
 
+  # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  INV-GS-123:
+    summary: "kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via point-in-time evaluators using commodity_client.get_cycle(as_of=...) and get_crack_spread(as_of=...). commodity_client now caches the FULL fetched series and slices on demand, with prefetch() helper for hindcast callers (single fetch per commodity per run)."
+    enforcement: hindcast_wiring
+    source: Cross-Stock Acid Test 2026-05-02 finding + Wave 1 (INV-GS-122) follow-up
+    active_in: [v1.6.2]
+    enforce_at:
+      - data.commodity_client.CommodityClient.get_cycle
+      - data.commodity_client.CommodityClient.get_crack_spread
+      - data.commodity_client.CommodityClient.prefetch
+      - data.commodity_client._bars_on_or_before
+      - data.commodity_client._closes_on_or_before
+      - data.commodity_client._cache_covers_window
+      - replay.phase_kr_eval.evaluate_fundamental_kr_cyclical
+      - replay.phase_kr_eval.evaluate_commodity_index_kr
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.fundamental_kr_cyclical
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.commodity_index_kr
+      - predictor.calibration._PHASE_SOURCES
+    note: "Wave 2 completes the v1.5/v1.6 expert calibration filling — all 6 KR-active theses (E_FUNDAMENTAL_KR, E_TIME_KR, E_FOREIGN_REVERSAL, E_PEAD_KR, E_FUNDAMENTAL_KR_CYCLICAL, E_COMMODITY_INDEX_KR) now produce real measured AUC/Sharpe via kr-hindcast. Point-in-time correctness for commodity series: cache stores full fetched window; get_cycle(key, as_of=d) slices to bars on/before `d` for percentile + momentum. Prefetch helper calls _fetch_series with earliest as_of so subsequent get_cycle(as_of=d) calls hit cache."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -555,6 +577,10 @@ v1_6_active:
 # v1.6.1 active set (Option A wave 1 — E_PEAD_KR hindcast wiring):
 v1_6_1_active:
   - INV-GS-122    # kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift
+
+# v1.6.2 active set (Option A wave 2 — cyclical + commodity hindcast wiring):
+v1_6_2_active:
+  - INV-GS-123    # kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR; commodity_client point-in-time
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

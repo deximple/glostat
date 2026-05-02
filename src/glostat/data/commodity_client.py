@@ -97,6 +97,12 @@ class CommodityClient:
     Uses a per-process cache (TTL = 6h) so multiple experts in one prediction
     call share a single round-trip. Snapshot broker writes are honoured
     (INV-GS-022) because the underlying yfinance client already records them.
+
+    v1.6.2 (Option A wave 2): point-in-time semantics. The cache stores the
+    FULL fetched series; `get_cycle(key, as_of=...)` slices to bars on or
+    before `as_of` and computes percentile + momentum on the slice. Hindcast
+    callers can iterate sample days without re-fetching. Live `as_of=None`
+    callers use the entire series.
     """
 
     def __init__(
@@ -116,12 +122,12 @@ class CommodityClient:
         as_of: date | None = None,
     ) -> CommodityCycle:
         series = await self._fetch_series(key, as_of=as_of)
-        bars = series.bars
-        if not bars:
-            raise CommodityDataError(f"empty OHLCV series for {key.value}")
-        closes = tuple(b.close for b in bars if b.close is not None)
+        closes = _closes_on_or_before(series.bars, as_of)
         if not closes:
-            raise CommodityDataError(f"no close prices for {key.value}")
+            raise CommodityDataError(
+                f"no close prices for {key.value}"
+                + (f" on or before {as_of.isoformat()}" if as_of else "")
+            )
         last = closes[-1]
         pctile = _percentile_rank(closes, last)
         momentum = _momentum(closes, _MOMENTUM_LOOKBACK_DAYS)
@@ -141,10 +147,20 @@ class CommodityClient:
             self._fetch_series(CommodityKey.WTI, as_of=as_of),
             self._fetch_series(CommodityKey.GASOLINE, as_of=as_of),
         )
-        spreads = _aligned_crack_spreads(wti, gasoline)
+        # Slice both series to bars on/before as_of (point-in-time correctness).
+        wti_sliced = OhlcvSeries(
+            ticker=wti.ticker, interval=wti.interval,
+            bars=tuple(_bars_on_or_before(wti.bars, as_of)),
+        )
+        gas_sliced = OhlcvSeries(
+            ticker=gasoline.ticker, interval=gasoline.interval,
+            bars=tuple(_bars_on_or_before(gasoline.bars, as_of)),
+        )
+        spreads = _aligned_crack_spreads(wti_sliced, gas_sliced)
         if not spreads:
             raise CommodityDataError(
                 "crack spread: no aligned WTI + gasoline closes"
+                + (f" on or before {as_of.isoformat()}" if as_of else "")
             )
         last_spread = spreads[-1]
         pctile = _percentile_rank(spreads, last_spread)
@@ -159,12 +175,25 @@ class CommodityClient:
     async def _fetch_series(
         self, key: CommodityKey, *, as_of: date | None = None,
     ) -> OhlcvSeries:
+        # WHY: cache stores the FULL fetched series (start = today - lookback,
+        # end = today). When `as_of` is in the past, we still need bars from
+        # `as_of - lookback` to `as_of`. If the cached series's first bar is
+        # later than `as_of - lookback`, refetch with the correct start.
         cached = self._cache.get(key)
         now = datetime.now(tz=UTC)
-        if cached is not None and (now - cached[0]) < timedelta(hours=_CACHE_TTL_HOURS):
+        if (
+            cached is not None
+            and (now - cached[0]) < timedelta(hours=_CACHE_TTL_HOURS)
+            and _cache_covers_window(cached[1], as_of=as_of)
+        ):
             return cached[1]
-        end = as_of or now.date()
-        start = end - timedelta(days=_PCTILE_LOOKBACK_DAYS)
+        end = now.date()
+        # Always include the lookback window before the earliest as_of we
+        # might serve. For live (as_of=None) this defaults to today minus
+        # lookback. For hindcast callers, they can call _fetch_series ahead
+        # with their earliest as_of to widen the cache.
+        anchor = as_of or end
+        start = anchor - timedelta(days=_PCTILE_LOOKBACK_DAYS)
         ticker = _YFINANCE_TICKER[key]
         try:
             series = await self._yf.get_ohlcv(ticker, start=start, end=end, interval="1d")
@@ -179,6 +208,17 @@ class CommodityClient:
         self._cache[key] = (now, series)
         self._record_snapshot(key, series, ticker)
         return series
+
+    async def prefetch(
+        self,
+        keys: tuple[CommodityKey, ...],
+        *,
+        earliest_as_of: date,
+    ) -> None:
+        # Hindcast helper: fetch each key once with a window that covers all
+        # planned sample days. Avoids per-day re-fetch.
+        for k in keys:
+            await self._fetch_series(k, as_of=earliest_as_of)
 
     def _record_snapshot(
         self, key: CommodityKey, series: OhlcvSeries, ticker: str,
@@ -213,6 +253,38 @@ class CommodityClient:
 
 class CommodityDataError(RuntimeError):
     pass
+
+
+def _bars_on_or_before(
+    bars: tuple[OhlcvBar, ...], as_of: date | None,
+) -> list[OhlcvBar]:
+    if as_of is None:
+        return list(bars)
+    return [b for b in bars if b.ts.date() <= as_of]
+
+
+def _closes_on_or_before(
+    bars: tuple[OhlcvBar, ...], as_of: date | None,
+) -> tuple[float, ...]:
+    out: list[float] = []
+    for b in _bars_on_or_before(bars, as_of):
+        if b.close is not None:
+            out.append(b.close)
+    return tuple(out)
+
+
+def _cache_covers_window(series: OhlcvSeries, *, as_of: date | None) -> bool:
+    # WHY: cache hit only valid when the cached series's first bar is at or
+    # before `as_of - lookback`. Otherwise the percentile baseline is wrong
+    # (e.g., cached series starts 2026-01 but as_of is 2024-06; we'd be
+    # computing percentile against a future-only window).
+    if as_of is None:
+        return True
+    if not series.bars:
+        return False
+    first_bar_day = series.bars[0].ts.date()
+    needed_start = as_of - timedelta(days=_PCTILE_LOOKBACK_DAYS)
+    return first_bar_day <= needed_start
 
 
 def _percentile_rank(values: tuple[float, ...], target: float) -> float:
@@ -262,4 +334,7 @@ __all__ = [
     "CommodityDataError",
     "CommodityKey",
     "CrackSpread",
+    "_bars_on_or_before",
+    "_cache_covers_window",
+    "_closes_on_or_before",
 ]

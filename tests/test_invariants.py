@@ -326,6 +326,6 @@ def test_hindcast_stub_report_is_deterministic() -> None:
 
 
 def test_version_string() -> None:
-    assert __version__ == "1.6.1"
+    assert __version__ == "1.6.2"
 
 # v0.6 INV-GS-036..040 live in tests/test_invariants_v06.py to keep this file ≤ 400 lines.

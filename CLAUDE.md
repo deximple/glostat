@@ -55,13 +55,35 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.6.1 — Option A wave 1: E_PEAD_KR hindcast wired (real calibration).**
-> Previous: v1.6 — P5 Event-Driven panel absorption (calendar awareness);
+> **STATUS: ACTIVE v1.6.2 — Option A wave 2: cyclical + commodity hindcast wired (full 6-thesis KR calibration).**
+> Previous: v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
+> v1.6 — P5 Event-Driven panel absorption (calendar awareness);
 > v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
 > (P8+P10 panel synthesis); v1.4 — N1+N2+N3+N4 (KR multi-source + experts +
 > sizing + confidence); v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR
 > calibration (L1) + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200)
 > production support; v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.6.2 delta (Option A wave 2 — INV-GS-123):
+> - **commodity_client point-in-time refactor** — cache stores FULL fetched
+>   series; `get_cycle(key, as_of=...)` slices to bars on/before `as_of` for
+>   percentile + momentum. New `prefetch(keys, earliest_as_of)` helper for
+>   hindcast callers (single fetch per commodity per run). New helpers:
+>   `_bars_on_or_before`, `_closes_on_or_before`, `_cache_covers_window`.
+> - **evaluate_fundamental_kr_cyclical** in `phase_kr_eval.py` — point-in-time
+>   evaluator: cyclical-sector gate via `cycle_class_of()`, commodity cycle
+>   via `commodity_client.get_cycle(as_of=day)` or `get_crack_spread(as_of=day)`,
+>   EV/EBITDA z-score from yfinance Fundamentals.raw, score = `-W_VALUE *
+>   ev_ebitda_z + W_CYCLE * (-cycle_term * 2)`.
+> - **evaluate_commodity_index_kr** in `phase_kr_eval.py` — refining-only
+>   gate via `is_refining()`, WTI + crack-spread 30-day momentum.
+> - **phase_kr_hindcast** is now 6-thesis (was 4) — adds `fundamental_kr_cyclical`
+>   + `commodity_index_kr` to Result/Config + accumulators + report build.
+>   Single commodity prefetch at start of run.
+> - **`calibration._PHASE_SOURCES`** loads 2 new reports so the next predict
+>   after a kr-hindcast run lifts both new theses from n=0 bootstrap to real
+>   measured AUC/Sharpe.
+> - 2 new commodity_client point-in-time tests; full suite 1069 pass.
+> v1.6.1 delta (Option A wave 1 — INV-GS-122):
 > v1.6.1 delta (Option A wave 1 — INV-GS-122):
 > - **evaluate_pead_kr** in `phase_kr_eval.py` — point-in-time T+5..T+30
 >   OHLCV drift evaluator for E_PEAD_KR. For each (ticker, day) sample,
@@ -273,6 +295,7 @@ advice.
 | **INV-GS-120**  | **next_triggers populated with concrete D-day countdowns from calendar; KR ticker only, falls back to auto-derived list otherwise**                                          | **active v1.6**                                                  |
 | **INV-GS-121**  | **CI sigma calendar widening: D-day < 7 → ×1.5σ, D-day < 3 → ×2.0σ; reflects option-implied vol expansion near scheduled events**                                            | **active v1.6**                                                  |
 | **INV-GS-122**  | **kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift; calibration loader picks up the real report so n=0 bootstrap is replaced with measured AUC/Sharpe**     | **active v1.6.1**                                                |
+| **INV-GS-123**  | **kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via commodity_client point-in-time slicing; full 6-thesis KR calibration in one hindcast run**             | **active v1.6.2**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 
