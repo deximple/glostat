@@ -200,3 +200,106 @@ ROI was measured directly:
   Highest-effort, highest-uncertainty option.
 - **Recommendation**: leave at v1.10.5 measurement. Move ROI search to
   remaining bootstrap theses (E_FUNDAMENTAL_KR, E_PEAD_KR via kr-hindcast).
+
+## v1.10.9 update: E_INSIDER_CLUSTER 승격 검토 → 보류
+
+**컨텍스트**. v1.10.5 re-hindcast로 E_INSIDER_CLUSTER가 AUC=0.7353 (테이블 1위)
+n=47 (50 임계값 6% 부족)으로 측정됨. 운영자가 calibration weight를 measured
+기반으로 승격할 수 있는지 10-패널 크리틱 진행.
+
+**정량 데이터 (n=50 가정 강제 승격 시)**:
+
+| 메트릭 | 값 |
+|---|---:|
+| AUC | 0.7353 (1위) |
+| AUC IS / OOS | 0.7227 / 0.8229 |
+| n | 47 (현재) → 50 (가정) |
+| Sharpe IS / OOS | +0.150 / -2.302 |
+| OOS_degradation | 16.35 |
+| AUC z-score | 5.59 (p<0.0001) |
+| brier_weight | 0.2207 |
+| OOS factor (INV-GS-133) | 0.10 (floor) |
+| **final composite weight** | **0.0221** |
+
+**10-패널 표결**: 승격 3, 보류 7.
+
+| # | 패널 | 표결 | 핵심 논리 |
+|---|---|:-:|---|
+| 1 | Senior quant | 승격 | AUC OOS 0.82 = 진짜 discrimination |
+| 2 | Risk officer | 보류 | n<50은 INV-GS-103 설계 임계값, 한 thesis만 변경 = 게이트 위반 |
+| 3 | Statistician | 승격 | z=5.59, p<0.0001 |
+| 4 | Skeptic | 보류 | direction-only edge with no PnL, 0.022 weight = 무의미 |
+| 5 | Architect | 보류 | special-case = slippery slope |
+| 6 | Performance | 보류 | weight 0 vs 0.022 차이 거의 없음 |
+| 7 | Compliance | 보류 | INV-GS 위반 없으나 명분 약함 |
+| 8 | Maintainer | 보류 | 기준 명목화 필요 |
+| 9 | Product | 승격 | UX 가시성 |
+| 10 | Honest engineer | 보류 | 프레임워크가 의도대로 동작 중 |
+
+**결정**: **승격 보류**. n=47은 50 임계값 6% 부족. INV-GS-103 게이트 존중.
+
+**핵심 근거**:
+
+1. **AUC discrimination은 진짜**지만 (OOS=0.82, IS=0.72) **OOS Sharpe=-2.30**이
+   LONG들이 OOS 윈도우에서 손실 발생을 증명. Direction은 맞고 PnL은 안 나옴.
+2. 강제 승격해도 **INV-GS-133 OOS-stability factor가 weight를 0.10× brier로
+   floor** → final = 0.0221. composite output에서 거의 관찰 불가능.
+3. n=47이 임계값 6% 부족 — **한 thesis만 봐주면 게이트의 의미 상실**.
+4. **프레임워크가 정확히 의도대로 동작 중**. AUC 측정, OOS 패널티 적용,
+   sample-count 게이트 존중 — INV-GS-133 설계 케이스 그 자체.
+
+**Follow-up 권고 (low ROI, 이번 wave 외)**:
+
+- universe 확대: Russell 2000 60 → 200 names → n proportionally 증가하여
+  자연스럽게 50 통과 가능. 단 yfinance throttle + Form4 fetch 비용 증가.
+- 윈도우 확장: 2024-01..2026-03 → 2022-07..2026-03 → 추가 1.5년치 이벤트.
+  단 Form4 캐시 재구축 필요.
+- threshold 변경: cluster_threshold 2 → 1.5 (소수점 가중)? — 의미 모호.
+
+이번 commit은 **승격 결정만 문서화**, 코드 변경 없음.
+
+## v1.10.9 추가: Weight 재조정 후보 분석
+
+**의문**: measured + AUC > 0.60인데 composite weight이 낮은 thesis가 있나?
+있다면 weight 재조정으로 ROI가 나올까?
+
+**분석 결과 — 후보 0개**:
+
+전체 24개 thesis 중 **measured + AUC > 0.60**인 entry는 없다. 현재 measured
+edge의 ceiling은 **E_PEAD AUC=0.586** (n=298).
+
+대신 "AUC edge는 큰데 weight는 작다" 케이스를 보면 모두 INV-GS-133의 OOS
+suppression이 의도적으로 적용된 결과:
+
+| thesis | AUC | OOS_deg | brier_w | OOS factor | final |
+|---|---:|---:|---:|---:|---:|
+| `E_FOMC_DRIFT` | 0.357 | 100% | 0.2860 | 0.10 | 0.0286 |
+| `E_FX_CARRY` | 0.400 | 100% | 0.2000 | 0.10 | 0.0200 |
+| `E_PEAD` | 0.586 | 115.6% | 0.1720 | 0.10 | 0.0172 |
+| `E_FUNDAMENTAL` | 0.550 | 20% | 0.1000 | 0.82 | 0.0820 |
+
+이 4개 모두 **INV-GS-133이 정확히 디자인된 케이스 (IS edge dies OOS)**.
+재조정으로 weight를 끌어올리면:
+- IS-only edge가 다시 composite를 steer
+- v1.10.4가 close한 calibration 버그 재도입
+- 운영자에게 거짓 conviction 제공
+
+**결정**: weight 재조정 안 함. 프레임워크가 의도대로 작동.
+
+**대신 ROI가 있는 follow-up (이번 wave 외)**:
+
+- **E_PEAD OOS_deg 조사**: AUC=0.586 자체는 진짜 edge. OOS_deg=115.6%이
+  데이터 품질 문제(2026 Q4 universe drift, earnings season 외부 충격
+  등)에서 왔다면, 클린 데이터로 re-hindcast하면 OOS_deg가 내려가고
+  weight도 자연 상승. 현재 0.017 → 잠재 0.17 (10x 가능성).
+- **E_FUND_FLOW retire**: AUC=0.48, n=80, brier=0.25 (random) → weight=0.
+  measured but "no edge" 명확. retirement 후보.
+- **E_TIME 추가 측정**: AUC=0.52, n=200, weight=0.0346. 임계 근처에서
+  안정적인 약한 edge. 재 hindcast로 n 늘리면 weight 미세 상승 가능.
+
+**ROI 우선순위**:
+1. E_PEAD re-hindcast (high, 10x 잠재)
+2. KR theses 11개 중 무엇이라도 measured로 승격 (high if 진짜 edge)
+3. E_FUND_FLOW retirement (medium, 단순 cleanup)
+
+위 모두 별도 wave 작업. v1.10.9는 분석 + 결정 문서화에 한정.
