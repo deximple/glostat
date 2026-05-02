@@ -26,6 +26,10 @@ from glostat.experts.e_fundamental_kr_cyclical import (
 from glostat.experts.e_fx_carry import EFxCarryExpert, FxCarrySnapshot
 from glostat.experts.e_insider_cluster import EInsiderClusterExpert
 from glostat.experts.e_insider_kr import EInsiderKrExpert, InsiderKrScore
+from glostat.experts.e_insider_velocity_kr import (
+    EInsiderVelocityKrExpert,
+    InsiderVelocityScore,
+)
 from glostat.experts.e_intraday_flow_kr import (
     EIntradayFlowKrExpert,
     IntradayFlowScore,
@@ -55,6 +59,7 @@ __all__ = [
     "EFxCarryExpert",
     "EInsiderClusterExpert",
     "EInsiderKrExpert",
+    "EInsiderVelocityKrExpert",
     "EIntradayFlowKrExpert",
     "EMacroKrExpert",
     "EPeadExpert",
@@ -68,6 +73,7 @@ __all__ = [
     "FundamentalScore",
     "FxCarrySnapshot",
     "InsiderKrScore",
+    "InsiderVelocityScore",
     "IntradayFlowScore",
     "MacroKrScore",
     "PeadKrScore",

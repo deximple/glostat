@@ -55,8 +55,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.6.2 — Option A wave 2: cyclical + commodity hindcast wired (full 6-thesis KR calibration).**
-> Previous: v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
+> **STATUS: ACTIVE v1.7.0 — Self-eval-driven uplift (SQLite parallel safety + KOSDAQ150 + QUICKSTART + new thesis ideation).**
+> Previous: v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
+> v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
 > v1.6 — P5 Event-Driven panel absorption (calendar awareness);
 > v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
 > (P8+P10 panel synthesis); v1.4 — N1+N2+N3+N4 (KR multi-source + experts +
@@ -296,6 +297,10 @@ advice.
 | **INV-GS-121**  | **CI sigma calendar widening: D-day < 7 → ×1.5σ, D-day < 3 → ×2.0σ; reflects option-implied vol expansion near scheduled events**                                            | **active v1.6**                                                  |
 | **INV-GS-122**  | **kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift; calibration loader picks up the real report so n=0 bootstrap is replaced with measured AUC/Sharpe**     | **active v1.6.1**                                                |
 | **INV-GS-123**  | **kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via commodity_client point-in-time slicing; full 6-thesis KR calibration in one hindcast run**             | **active v1.6.2**                                                |
+| **INV-GS-124**  | **SnapshotBroker parallel-process safety (busy_timeout=30s + WAL retry-on-lock); concurrent `glostat predict` runs no longer raise 'database is locked'**                       | **active v1.7.0**                                                |
+| **INV-GS-125**  | **KOSDAQ150 universe registered (KR_KOSDAQ150_TOP30, 30 mid-cap names: bio/battery/반도체-장비/게임)**                                                                            | **active v1.7.0**                                                |
+| **INV-GS-126**  | **E_INSIDER_VELOCITY_KR skeleton (first-derivative of E_INSIDER_KR cluster, log-velocity buy/sell ratio); calibration n=0 bootstrap; hindcast wiring deferred to v1.7.1**         | **active v1.7.0**                                                |
+| **INV-GS-127**  | **CI workflow restored (.github/workflows/ci.yml); ruff + format + pytest on every push/PR; uv setup with cache**                                                                | **active v1.7.0**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 
@@ -452,3 +457,22 @@ Live in v0.6 (kept):
 - **Never weaken INV-GS-024 / INV-GS-104** — broadcast permanently forbidden, disclaimer permanently required.
 - **Never re-introduce action output (BUY/SELL/target/stop)** — INV-GS-101 violation.
 - Every new thesis PR must include calibration data (n ≥ 50, AUC, Sharpe, OOS deg) and a `calibration_table.parquet` row.
+
+---
+
+## Workspace Capability Atlas — portfolio boundaries
+
+<!-- atlas-rules-ref:start -->
+This workspace operates within a portfolio (MOET / GLOSTAT / TITAN / Betastrike_Compact).
+The Workspace Capability Atlas (`/Applications/_workspace_dashboard/`) auto-generates
+`.atlas-rules.md` in this workspace's root on every regen, expressing:
+
+- **Caps** — DO NOT EXCEED by design (e.g., GLOSTAT `exec ≤ 2` per INV-GS-024/104)
+- **Active gaps** — focus axes ranked by size
+- **Borrow opportunities** — other workspaces ahead on uncapped axes
+
+If a request implies exceeding a cap, raise the conflict explicitly rather than
+complying silently. Treat caps as architecture, not as goals.
+
+@.atlas-rules.md
+<!-- atlas-rules-ref:end -->

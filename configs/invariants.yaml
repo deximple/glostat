@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 60
+total: 64
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -15,6 +15,7 @@ v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
 v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
 v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
 v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
+v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis + CI)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -491,6 +492,47 @@ invariants:
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
 
   # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  # ───────── v1.7.0: Self-eval uplift — SQLite + CI + KOSDAQ150 + new thesis ─────────
+  INV-GS-124:
+    summary: "SnapshotBroker SQLite parallel-process safety: connect timeout=30s + PRAGMA busy_timeout=30000 + WAL pragma idempotent retry-on-lock (5 attempts with linear backoff). Concurrent `glostat predict` runs from same cwd no longer raise 'database is locked'."
+    enforcement: data_layer
+    source: Cross-Stock Acid Test 2026-05-02 finding (5 parallel predicts hit lock)
+    active_in: [v1.7.0]
+    enforce_at:
+      - data.snapshot_broker.SnapshotBroker.__post_init__
+      - data.snapshot_broker.SnapshotBroker._enable_wal_with_retry
+    note: "Race: concurrent processes may try to flip journal_mode = WAL simultaneously. WAL bit lives in file header, requires brief exclusive access. Retry idempotent — once any process sets WAL, file persists state and subsequent reads return 'wal' without contention."
+
+  INV-GS-125:
+    summary: "KOSDAQ150 universe registered (KR_KOSDAQ150_TOP30) covering 30 mid-cap KR growth/bio/battery/반도체-장비/게임 names. KOSPI 200 vs KOSDAQ 150 split allows the predictor to differentiate mega-cap (efficient market hard) from mid-cap (potentially more signal)."
+    enforcement: universe_registration
+    source: docs/QUICKSTART.md + self-eval gap (KR coverage 7.5 → 9 path)
+    active_in: [v1.7.0]
+    enforce_at:
+      - configs/universes.yaml KR_KOSDAQ150_TOP30 entry
+      - configs/universes/kosdaq150_top30.txt (30 tickers)
+    note: "Refresh policy: quarterly (next 2026-08-31). Universe is starter — KOSDAQ150 full membership rotates more than KOSPI200; users running production should re-source from KRX official membership list."
+
+  INV-GS-126:
+    summary: "E_INSIDER_VELOCITY_KR skeleton (v1.7.0). First-derivative of E_INSIDER_KR cluster signal: rate of insider buy / sell acceleration week-over-week using log-velocity ratio. Calibration n=0 bootstrap (weight=0 in composite); hindcast wiring deferred to v1.7.1+."
+    enforcement: skeleton_expert
+    source: docs/V17_THESIS_IDEATION.md (1 of 3 new theses ideated; this is the v1.7.0 implementation)
+    active_in: [v1.7.0]
+    enforce_at:
+      - experts.e_insider_velocity_kr.EInsiderVelocityKrExpert.compute
+      - experts.e_insider_velocity_kr.score_velocity
+      - predictor.calibration.synthetic_calibration_for_mock (E_INSIDER_VELOCITY_KR entry)
+    note: "Score formula: net_velocity = log((buys_recent+1)/(buys_prior+1)) - log((sells_recent+1)/(sells_prior+1)); raw = clip(net_velocity * 2.0, ±2.5). Universe gate: KOSPI 200 + DART API key required (graceful skip otherwise). Other 2 ideated theses (E_OPTIONS_IV_SKEW + E_ANALYST_REVISION) documented for v1.8/v1.9."
+
+  INV-GS-127:
+    summary: "CI workflow restored (.github/workflows/ci.yml). Runs ruff check + ruff format check + pytest on every push to main and every PR. Cache: uv setup with enable-cache=true."
+    enforcement: ci_pipeline
+    source: Self-eval gap (Operational Maturity 6.5 → 9 path)
+    active_in: [v1.7.0]
+    enforce_at:
+      - .github/workflows/ci.yml
+    note: "Workflow was removed in 2025 due to OAuth scope issue during initial GitHub push. Restored from commit 2b96ca58 git history. If push fails again with 'workflow scope' error, use `gh auth refresh -s workflow` first."
+
   INV-GS-123:
     summary: "kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via point-in-time evaluators using commodity_client.get_cycle(as_of=...) and get_crack_spread(as_of=...). commodity_client now caches the FULL fetched series and slices on demand, with prefetch() helper for hindcast callers (single fetch per commodity per run)."
     enforcement: hindcast_wiring
@@ -581,6 +623,13 @@ v1_6_1_active:
 # v1.6.2 active set (Option A wave 2 — cyclical + commodity hindcast wiring):
 v1_6_2_active:
   - INV-GS-123    # kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR; commodity_client point-in-time
+
+# v1.7.0 active set (Self-eval uplift — operational + KR coverage + new thesis):
+v1_7_0_active:
+  - INV-GS-124    # SnapshotBroker SQLite parallel safety
+  - INV-GS-125    # KOSDAQ150 universe registration
+  - INV-GS-126    # E_INSIDER_VELOCITY_KR skeleton (1 of 3 ideated)
+  - INV-GS-127    # CI workflow restoration
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

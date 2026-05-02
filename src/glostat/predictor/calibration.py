@@ -474,6 +474,14 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.7.0 — KR Insider Velocity (skeleton). DART-derived first-derivative
+        # of E_INSIDER_KR cluster signal. Requires GLOSTAT_DART_API_KEY for
+        # live activation. Hindcast wiring deferred to v1.7.1+.
+        "E_INSIDER_VELOCITY_KR": ThesisCalibration(
+            "E_INSIDER_VELOCITY_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 

@@ -170,11 +170,11 @@ def test_calibrate_mock_runs(workdir: Path) -> None:
     assert "synthetic_mock" in r.stdout
 
 
-def test_calibrate_mock_lists_twenty_theses(workdir: Path) -> None:
-    # v1.6 P5: 19 prior + E_PEAD_KR = 20.
+def test_calibrate_mock_lists_twentyone_theses(workdir: Path) -> None:
+    # v1.7.0: 20 prior + E_INSIDER_VELOCITY_KR = 21.
     r = _run("calibrate", "--mock", cwd=workdir)
     assert r.returncode == 0
-    assert "theses found : 20" in r.stdout
+    assert "theses found : 21" in r.stdout
 
 
 def test_calibrate_mock_writes_output(workdir: Path) -> None:

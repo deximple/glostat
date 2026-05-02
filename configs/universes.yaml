@@ -36,6 +36,15 @@ universes:
     refresh_cadence: quarterly
     snapshot_date: 2026-04-29
 
+  # v1.7.0 — KOSDAQ 150 mid-cap subset (bio / battery / 반도체 장비 / 게임).
+  KR_KOSDAQ150_TOP30:
+    name: "KOSDAQ 150 Top 30 (mid-cap growth + bio + battery)"
+    markets: [XKOS]
+    source_file: configs/universes/kosdaq150_top30.txt
+    size: 30
+    refresh_cadence: quarterly
+    snapshot_date: 2026-05-02
+
   # Phase 2 extensions — block load() with ConfigError until graduated.
   US_LARGE_500:
     name: "S&P 500 Full (Phase 2)"
