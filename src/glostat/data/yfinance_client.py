@@ -238,6 +238,47 @@ class YFinanceClient:
         )
         return history
 
+    async def get_recommendations(self, ticker: str) -> Any:
+        # v1.8.0 — sell-side analyst recommendation history. Imports
+        # AnalystRecommendationHistory locally to avoid widening the
+        # module-level import set.
+        from glostat.data.yfinance_parsers import (  # noqa: PLC0415
+            parse_recommendations,
+            recommendations_to_payload,
+        )
+        from glostat.data.yfinance_types import (  # noqa: PLC0415
+            AnalystRecommendationHistory,
+        )
+        yf_ticker = _yf_ticker(ticker)
+
+        async def _fetch() -> list[Any]:
+            await self._throttle.acquire()
+            try:
+                yf = _import_yfinance()
+                return await asyncio.to_thread(
+                    parse_recommendations, yf, yf_ticker,
+                )
+            finally:
+                self._throttle.release()
+
+        events = await with_retry(
+            _fetch,
+            stats=self._retry_stats,
+            operation=f"yfinance.recommendations:{yf_ticker}",
+        )
+        history = AnalystRecommendationHistory(
+            ticker=yf_ticker, events=tuple(events),
+        )
+        self._record_snapshot(
+            tool="yfinance.recommendations",
+            uaid=_uaid_for(yf_ticker),
+            edge_type="analyst_recommendations",
+            ts=datetime.now(tz=UTC),
+            params={"ticker": yf_ticker},
+            payload=recommendations_to_payload(history),
+        )
+        return history
+
     async def get_earnings_calendar(self, ticker: str) -> EarningsCalendar:
         yf_ticker = _yf_ticker(ticker)
 

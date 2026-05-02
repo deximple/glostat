@@ -285,6 +285,12 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
         "hindcast/phase_kr/e_commodity_index_kr_report.json",
         "phase1b", {},
     ),
+    # v1.7.1 — KR Insider Velocity hindcast (skeleton wave 3).
+    (
+        "E_INSIDER_VELOCITY_KR",
+        "hindcast/phase_kr/e_insider_velocity_kr_report.json",
+        "phase1b", {},
+    ),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.
@@ -476,9 +482,17 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
         ),
         # v1.7.0 — KR Insider Velocity (skeleton). DART-derived first-derivative
         # of E_INSIDER_KR cluster signal. Requires GLOSTAT_DART_API_KEY for
-        # live activation. Hindcast wiring deferred to v1.7.1+.
+        # live activation. v1.7.1 added kr-hindcast wiring.
         "E_INSIDER_VELOCITY_KR": ThesisCalibration(
             "E_INSIDER_VELOCITY_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.8.0 — Sell-side analyst revision drift. yfinance recommendations
+        # API; coverage best in US large/mid-cap (Russell 2000+). KR megacap
+        # has partial coverage. n=0 bootstrap; weight=0 until live hindcast.
+        "E_ANALYST_REVISION": ThesisCalibration(
+            "E_ANALYST_REVISION", auc=0.50, sharpe=0.0, n_samples=0,
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),

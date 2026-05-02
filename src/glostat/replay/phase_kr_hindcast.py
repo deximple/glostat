@@ -15,6 +15,7 @@ from glostat.data.naver_kr_client import KrFlowBar, NaverKrClient
 from glostat.data.snapshot_broker import SnapshotBroker
 from glostat.data.yfinance_client import YFinanceClient
 from glostat.experts.e_fundamental_kr import EFundamentalKrExpert
+from glostat.experts.e_insider_velocity_kr import EInsiderVelocityKrExpert
 from glostat.experts.e_time import ETimeExpert
 from glostat.replay.metrics import annualized_sharpe, auc_roc
 from glostat.replay.phase_kr_eval import (
@@ -22,6 +23,7 @@ from glostat.replay.phase_kr_eval import (
     evaluate_foreign_reversal,
     evaluate_fundamental,
     evaluate_fundamental_kr_cyclical,
+    evaluate_insider_velocity_kr,
     evaluate_pead_kr,
     evaluate_time,
 )
@@ -52,6 +54,7 @@ _DEFAULT_HORIZON_REVERSAL: Final[int] = 7
 _DEFAULT_HORIZON_PEAD: Final[int] = 30          # v1.6 P5
 _DEFAULT_HORIZON_CYCLICAL: Final[int] = 30      # v1.6.2 wave 2
 _DEFAULT_HORIZON_COMMODITY: Final[int] = 30     # v1.6.2 wave 2
+_DEFAULT_HORIZON_INSIDER_VELOCITY: Final[int] = 30  # v1.7.1
 _DEFAULT_SPLIT_RATIO: Final[float] = 0.7
 _DEFAULT_SAMPLE_STRIDE_DAYS: Final[int] = 7
 _DEFAULT_OHLCV_PADDING_DAYS: Final[int] = 14
@@ -242,6 +245,7 @@ class PhaseKrHindcastConfig:
     horizon_pead: int = _DEFAULT_HORIZON_PEAD   # v1.6 P5
     horizon_cyclical: int = _DEFAULT_HORIZON_CYCLICAL    # v1.6.2 wave 2
     horizon_commodity: int = _DEFAULT_HORIZON_COMMODITY  # v1.6.2 wave 2
+    horizon_insider_velocity: int = _DEFAULT_HORIZON_INSIDER_VELOCITY  # v1.7.1
     max_concurrent: int = 5
 
 
@@ -253,6 +257,7 @@ class PhaseKrHindcastResult:
     pead_kr: KrThesisReport                       # v1.6 P5
     fundamental_kr_cyclical: KrThesisReport       # v1.6.2 wave 2
     commodity_index_kr: KrThesisReport            # v1.6.2 wave 2
+    insider_velocity_kr: KrThesisReport           # v1.7.1
     skipped_tickers: tuple[str, ...]
 
 
@@ -276,6 +281,9 @@ async def run_phase_kr_hindcast(
     commodity_client = CommodityClient(
         yfinance_client=yf, snapshot_broker=broker,
     )
+    # v1.7.1: insider velocity expert (skeleton — works only when DART is
+    # configured; otherwise hindcast records skip with explanation).
+    insider_velocity_expert = EInsiderVelocityKrExpert.from_env()
     # WHY: REVERSAL is computed pure-functionally below from cached Naver bars
     # via score_reversal_at, so we don't need the live EForeignReversalExpert
     # wrapper here. The wrapper is the predict-time surface; the hindcast walks
@@ -298,6 +306,10 @@ async def run_phase_kr_hindcast(
     )
     commodity_acc = _ThesisAccumulator(    # v1.6.2 wave 2
         thesis="E_COMMODITY_INDEX_KR", horizon_days=config.horizon_commodity,
+    )
+    insider_velocity_acc = _ThesisAccumulator(  # v1.7.1
+        thesis="E_INSIDER_VELOCITY_KR",
+        horizon_days=config.horizon_insider_velocity,
     )
     skipped_tickers: list[str] = []
 
@@ -324,10 +336,12 @@ async def run_phase_kr_hindcast(
                 yf=yf, naver=naver,
                 fundamental=fundamental, time_expert=time_expert,
                 commodity=commodity_client,
+                insider_velocity=insider_velocity_expert,
                 fund_acc=fund_acc, time_acc=time_acc, rev_acc=rev_acc,
                 pead_acc=pead_acc,
                 cyclical_acc=cyclical_acc,
                 commodity_acc=commodity_acc,
+                insider_velocity_acc=insider_velocity_acc,
                 skipped_tickers=skipped_tickers,
                 horizon_fundamental=config.horizon_fundamental,
                 horizon_time=config.horizon_time,
@@ -335,6 +349,7 @@ async def run_phase_kr_hindcast(
                 horizon_pead=config.horizon_pead,
                 horizon_cyclical=config.horizon_cyclical,
                 horizon_commodity=config.horizon_commodity,
+                horizon_insider_velocity=config.horizon_insider_velocity,
             )
 
     tasks = [process_ticker(t) for t in config.universe_tickers]
@@ -377,6 +392,12 @@ async def run_phase_kr_hindcast(
         period_start=config.start, period_end=config.end,
         split_ratio=config.split_ratio,
     )
+    insider_velocity_report = _build_report(    # v1.7.1
+        thesis="E_INSIDER_VELOCITY_KR", accumulator=insider_velocity_acc,
+        universe=config.universe_tickers,
+        period_start=config.start, period_end=config.end,
+        split_ratio=config.split_ratio,
+    )
     return PhaseKrHindcastResult(
         fundamental_kr=fund_report,
         time_kr=time_report,
@@ -384,6 +405,7 @@ async def run_phase_kr_hindcast(
         pead_kr=pead_report,
         fundamental_kr_cyclical=cyclical_report,
         commodity_index_kr=commodity_report,
+        insider_velocity_kr=insider_velocity_report,
         skipped_tickers=tuple(sorted(set(skipped_tickers))),
     )
 
@@ -397,12 +419,14 @@ async def _process_one_ticker(
     fundamental: EFundamentalKrExpert,
     time_expert: ETimeExpert,
     commodity: CommodityClient,
+    insider_velocity: EInsiderVelocityKrExpert | None,
     fund_acc: _ThesisAccumulator,
     time_acc: _ThesisAccumulator,
     rev_acc: _ThesisAccumulator,
     pead_acc: _ThesisAccumulator,
     cyclical_acc: _ThesisAccumulator,
     commodity_acc: _ThesisAccumulator,
+    insider_velocity_acc: _ThesisAccumulator,
     skipped_tickers: list[str],
     horizon_fundamental: int,
     horizon_time: int,
@@ -410,6 +434,7 @@ async def _process_one_ticker(
     horizon_pead: int,
     horizon_cyclical: int,
     horizon_commodity: int,
+    horizon_insider_velocity: int,
 ) -> None:
     naver_bars: list[KrFlowBar] = []
     try:
@@ -459,6 +484,12 @@ async def _process_one_ticker(
         await evaluate_commodity_index_kr(
             commodity=commodity, code=code, day=day, yf=yf,
             horizon_days=horizon_commodity, accumulator=commodity_acc,
+        )
+        # v1.7.1: insider velocity hindcast.
+        await evaluate_insider_velocity_kr(
+            expert=insider_velocity, code=code, day=day, ts=ts, yf=yf,
+            horizon_days=horizon_insider_velocity,
+            accumulator=insider_velocity_acc,
         )
 
 

@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 64
+total: 66
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -16,6 +16,7 @@ v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
 v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
 v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
 v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis + CI)
+v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst revision)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -492,6 +493,39 @@ invariants:
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
 
   # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  # ───────── v1.8.0: Multi-stream thesis pipeline — insider velocity hindcast + analyst revision ─────────
+  INV-GS-128:
+    summary: "v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via evaluate_insider_velocity_kr (7th thesis). Uses live expert.compute() path (DART fetch + score_velocity); skip clean when DART API key missing."
+    enforcement: hindcast_wiring
+    source: V17_THESIS_IDEATION.md (E_INSIDER_VELOCITY_KR section)
+    active_in: [v1.8.0]
+    enforce_at:
+      - replay.phase_kr_eval.evaluate_insider_velocity_kr
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastConfig.horizon_insider_velocity
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.insider_velocity_kr
+      - replay.phase_kr_hindcast._process_one_ticker
+      - replay.phase_kr_report (7-column comparison rendering)
+      - predictor.calibration._PHASE_SOURCES (E_INSIDER_VELOCITY_KR loader)
+    note: "Same point-in-time pattern as PEAD wiring. Universe gate: KOSPI 200 + DART. Without DART API key, expert is None → all samples skip with 'expert_not_wired (DART API key required)' reason. Calibration loader picks up live measurement once user runs kr-hindcast with GLOSTAT_DART_API_KEY set."
+
+  INV-GS-129:
+    summary: "v1.8 E_ANALYST_REVISION expert: sell-side rec-revision drift via yfinance Ticker.upgrades_downgrades. 60d rolling window, score = clip(net_revisions * 0.5, ±2.5). Universe: US/global liquid (Russell 2000+ has reliable data); KR megacap partial coverage. archetype=continuation."
+    enforcement: expert
+    source: V17_THESIS_IDEATION.md (E_ANALYST_REVISION section) + Stickel 1991 / Womack 1996 academic literature
+    active_in: [v1.8.0]
+    enforce_at:
+      - data.yfinance_client.YFinanceClient.get_recommendations
+      - data.yfinance_parsers.parse_recommendations
+      - data.yfinance_parsers.recommendations_to_payload
+      - data.yfinance_types.AnalystRecommendationEvent
+      - data.yfinance_types.AnalystRecommendationHistory
+      - experts.e_analyst_revision.EAnalystRevisionExpert.compute
+      - experts.e_analyst_revision.score_revisions
+      - data.data_router (E_ANALYST_REVISION → yfinance.get_recommendations route)
+      - predictor.calibration.synthetic_calibration_for_mock (E_ANALYST_REVISION entry)
+    note: "Skeleton n=0 bootstrap. Hindcast wiring deferred to v1.8.1 (US-side hindcast harness needs analyst-rec evaluator). Expected AUC 0.53-0.56 per academic literature on US large/mid-cap."
+
   # ───────── v1.7.0: Self-eval uplift — SQLite + CI + KOSDAQ150 + new thesis ─────────
   INV-GS-124:
     summary: "SnapshotBroker SQLite parallel-process safety: connect timeout=30s + PRAGMA busy_timeout=30000 + WAL pragma idempotent retry-on-lock (5 attempts with linear backoff). Concurrent `glostat predict` runs from same cwd no longer raise 'database is locked'."
@@ -630,6 +664,11 @@ v1_7_0_active:
   - INV-GS-125    # KOSDAQ150 universe registration
   - INV-GS-126    # E_INSIDER_VELOCITY_KR skeleton (1 of 3 ideated)
   - INV-GS-127    # CI workflow restoration
+
+# v1.8.0 active set (Multi-stream thesis pipeline activation):
+v1_8_0_active:
+  - INV-GS-128    # v1.7.1 wired: E_INSIDER_VELOCITY_KR into kr-hindcast (7-thesis run)
+  - INV-GS-129    # v1.8 E_ANALYST_REVISION expert (yfinance recommendations, 60d window)
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

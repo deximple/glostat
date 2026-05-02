@@ -32,6 +32,7 @@ def persist_phase_kr_reports(
         result.fundamental_kr, result.time_kr,
         result.foreign_reversal, result.pead_kr,
         result.fundamental_kr_cyclical, result.commodity_index_kr,
+        result.insider_velocity_kr,
     ):
         slug = report.thesis.lower()
         path = out / f"{slug}_report.json"
@@ -53,13 +54,15 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         "Honest measurement of KR-active theses on a real KR universe + window.",
         "",
         "| metric | E_FUNDAMENTAL_KR | E_TIME_KR | E_FOREIGN_REVERSAL | "
-        "E_PEAD_KR | E_FUNDAMENTAL_KR_CYCLICAL | E_COMMODITY_INDEX_KR |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "E_PEAD_KR | E_FUNDAMENTAL_KR_CYCLICAL | E_COMMODITY_INDEX_KR | "
+        "E_INSIDER_VELOCITY_KR |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     reports = (
         result.fundamental_kr, result.time_kr,
         result.foreign_reversal, result.pead_kr,
         result.fundamental_kr_cyclical, result.commodity_index_kr,
+        result.insider_velocity_kr,
     )
     lines.extend(_render_metric_rows(reports))
     lines.append("")
@@ -72,6 +75,7 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         ("E_PEAD_KR", result.pead_kr),
         ("E_FUNDAMENTAL_KR_CYCLICAL", result.fundamental_kr_cyclical),
         ("E_COMMODITY_INDEX_KR", result.commodity_index_kr),
+        ("E_INSIDER_VELOCITY_KR", result.insider_velocity_kr),
     ):
         lines.append(f"- {thesis_name}: {', '.join(report.notes)}")
         if report.skip_breakdown:

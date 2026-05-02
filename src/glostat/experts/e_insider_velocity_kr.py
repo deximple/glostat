@@ -133,7 +133,7 @@ class EInsiderVelocityKrExpert:
             ) from exc
         try:
             txns = await self._dart.get_executive_transactions(
-                corp_code, lookback_days=_LOOKBACK_DAYS,
+                corp_code, days_back=_LOOKBACK_DAYS,
             )
         except DartApiError as exc:
             raise ExpertSkipError(

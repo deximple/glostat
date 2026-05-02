@@ -124,6 +124,69 @@ def parse_dividends(yf: Any, ticker: str) -> list[DividendEvent]:
     return out
 
 
+def parse_recommendations(yf: Any, ticker: str) -> list[Any]:
+    # v1.8.0 — sell-side analyst rec changes via yfinance.Ticker.upgrades_downgrades.
+    # Returns list of AnalystRecommendationEvent. Tolerates missing data
+    # (yfinance raises various exceptions on tickers without analyst coverage).
+    from datetime import UTC as _UTC  # noqa: PLC0415
+    from datetime import datetime as _dt  # noqa: PLC0415
+
+    from glostat.data.yfinance_types import (  # noqa: PLC0415
+        AnalystRecommendationEvent,
+    )
+    ticker_obj = yf.Ticker(ticker.upper())
+    try:
+        df = ticker_obj.upgrades_downgrades
+    except (AttributeError, TypeError, ValueError, KeyError):
+        return []
+    if df is None or len(df) == 0:
+        return []
+    out: list[AnalystRecommendationEvent] = []
+    try:
+        records = df.reset_index().to_dict("records")
+    except (AttributeError, TypeError):
+        return []
+    for row in records:
+        ts_raw = row.get("GradeDate") or row.get("Date") or row.get("index")
+        try:
+            if hasattr(ts_raw, "to_pydatetime"):
+                ts = ts_raw.to_pydatetime()
+            elif isinstance(ts_raw, _dt):
+                ts = ts_raw
+            else:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=_UTC)
+        except (AttributeError, TypeError, ValueError):
+            continue
+        firm = str(row.get("Firm") or "").strip()
+        from_grade = str(row.get("FromGrade") or "").strip()
+        to_grade = str(row.get("ToGrade") or "").strip()
+        action = str(row.get("Action") or "").strip().lower()
+        out.append(AnalystRecommendationEvent(
+            ts=ts, firm=firm,
+            from_grade=from_grade, to_grade=to_grade,
+            action=action,
+        ))
+    return out
+
+
+def recommendations_to_payload(history: Any) -> dict[str, Any]:
+    return {
+        "ticker": history.ticker,
+        "events": [
+            {
+                "ts": e.ts.isoformat(),
+                "firm": e.firm,
+                "from_grade": e.from_grade,
+                "to_grade": e.to_grade,
+                "action": e.action,
+            }
+            for e in history.events
+        ],
+    }
+
+
 def parse_earnings_calendar(yf: Any, ticker: str) -> list[EarningsEvent]:
     # WHY: combine future events from .calendar + recent history from .earnings_dates;
     # both surfaces are unstable in yfinance, so handle each independently.
@@ -395,4 +458,6 @@ __all__ = [
     "parse_fundamentals",
     "parse_holders",
     "parse_ohlcv",
+    "parse_recommendations",
+    "recommendations_to_payload",
 ]

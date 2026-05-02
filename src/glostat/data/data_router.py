@@ -96,6 +96,10 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ),
     # v1.6 P5 — KR PEAD (post-earnings drift) needs OHLCV.
     ("E_PEAD_KR", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    # v1.8.0 — Analyst revision drift expert (US/global, yfinance recommendations).
+    ("E_ANALYST_REVISION", "recommendations"): (
+        RouteEntry("mvp", "yfinance", "get_recommendations"),
+    ),
     ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr",  "fetch_history"),),
     # v1.3 M2 — KR macro (BoK ECOS OpenAPI). Free + 10000 calls/day per key.
     ("E_MACRO_KR", "base_rate"):    (RouteEntry("mvp", "ecos", "get_base_rate"),),

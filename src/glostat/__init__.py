@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-__version__ = "1.7.0"
-__plan_version__ = "v1.7"
+__version__ = "1.8.0"
+__plan_version__ = "v1.8"
 __sprint__ = 0
 __status__ = (
-    "v1.7.0 — Self-eval-driven uplift sprint: SnapshotBroker SQLite fix "
-    "(parallel-process safe, busy_timeout=30s + WAL retry), CI workflow "
-    "restored, KOSDAQ150 universe added (KR_KOSDAQ150_TOP30), QUICKSTART "
-    "docs, V17_THESIS_IDEATION (3 new theses designed: options IV skew + "
-    "analyst revision + insider velocity), E_INSIDER_VELOCITY_KR skeleton "
-    "(first-derivative of E_INSIDER_KR cluster signal)."
+    "v1.8.0 — Multi-stream thesis pipeline activation: v1.7.1 wired "
+    "E_INSIDER_VELOCITY_KR into kr-hindcast (now 7-thesis run), v1.8 added "
+    "E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance "
+    "upgrades_downgrades, 60d window, US/global liquid universe). v1.7.2 "
+    "US re-hindcast running in background. v1.9 (E_OPTIONS_IV_SKEW) "
+    "deferred — design captured in V17_THESIS_IDEATION.md."
 )
 
 __all__ = ["__plan_version__", "__sprint__", "__status__", "__version__"]

@@ -47,6 +47,28 @@ class Fundamentals:
 
 
 @dataclass(frozen=True, slots=True)
+class AnalystRecommendationEvent:
+    # v1.8.0 — sell-side analyst rating change event (yfinance upgrades_downgrades).
+    ts: datetime
+    firm: str
+    from_grade: str
+    to_grade: str
+    action: str   # 'up' / 'down' / 'reit' / 'init' / ''
+
+
+@dataclass(frozen=True, slots=True)
+class AnalystRecommendationHistory:
+    ticker: str
+    events: tuple[AnalystRecommendationEvent, ...]
+
+    def in_window(self, days: int) -> tuple[AnalystRecommendationEvent, ...]:
+        from datetime import UTC, timedelta  # noqa: PLC0415
+        from datetime import datetime as _dt  # noqa: PLC0415
+        cutoff = _dt.now(tz=UTC) - timedelta(days=days)
+        return tuple(e for e in self.events if e.ts >= cutoff)
+
+
+@dataclass(frozen=True, slots=True)
 class DividendEvent:
     ex_date: date
     amount: float

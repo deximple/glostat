@@ -37,6 +37,9 @@ from glostat.experts.e_fundamental_kr_cyclical import (
     _W_CYCLE,
     _W_VALUE,
 )
+from glostat.experts.e_insider_velocity_kr import (
+    EInsiderVelocityKrExpert,
+)
 from glostat.experts.e_pead_kr import (
     _DRIFT_GAIN,
     _DRIFT_WINDOW_END,
@@ -437,12 +440,50 @@ def _cyclical_score(
     return max(-3.0, min(3.0, raw))
 
 
+async def evaluate_insider_velocity_kr(
+    *,
+    expert: EInsiderVelocityKrExpert | None,
+    code: str,
+    day: date,
+    ts: datetime,
+    yf: YFinanceClient,
+    horizon_days: int,
+    accumulator: Any,
+) -> None:
+    # v1.7.1 — point-in-time E_INSIDER_VELOCITY_KR hindcast.
+    # Uses the live expert's compute() path (DART fetch + score_velocity).
+    # When DART is unconfigured or expert wasn't wired, skip cleanly.
+    accumulator.n_evaluated += 1
+    if expert is None:
+        accumulator.record_skip("expert_not_wired (DART API key required)")
+        return
+    try:
+        sig = await expert.compute(code, ts)
+    except ExpertSkipError as exc:
+        accumulator.record_skip(str(exc))
+        return
+    except Exception as exc:
+        accumulator.record_skip(f"unexpected ({exc})")
+        return
+    fwd = await forward_return_yfinance(
+        yf, code, day=day, horizon_days=horizon_days,
+    )
+    if fwd is None:
+        accumulator.record_skip("no_forward_return")
+        return
+    accumulator.record_signal(
+        ticker=code, day=day, raw_score=sig.net_score,
+        direction=sig.direction, forward_return=fwd,
+    )
+
+
 __all__ = [
     "close_on_or_before",
     "evaluate_commodity_index_kr",
     "evaluate_foreign_reversal",
     "evaluate_fundamental",
     "evaluate_fundamental_kr_cyclical",
+    "evaluate_insider_velocity_kr",
     "evaluate_pead_kr",
     "evaluate_time",
     "forward_return_yfinance",

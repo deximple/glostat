@@ -55,8 +55,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.7.0 — Self-eval-driven uplift (SQLite parallel safety + KOSDAQ150 + QUICKSTART + new thesis ideation).**
-> Previous: v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
+> **STATUS: ACTIVE v1.8.0 — Multi-stream thesis pipeline activation (E_INSIDER_VELOCITY_KR hindcast wired + E_ANALYST_REVISION expert).**
+> Previous: v1.7.0 — Self-eval-driven uplift (SQLite + CI + KOSDAQ150 + thesis ideation);
+> v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
 > v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
 > v1.6 — P5 Event-Driven panel absorption (calendar awareness);
 > v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
@@ -301,6 +302,8 @@ advice.
 | **INV-GS-125**  | **KOSDAQ150 universe registered (KR_KOSDAQ150_TOP30, 30 mid-cap names: bio/battery/반도체-장비/게임)**                                                                            | **active v1.7.0**                                                |
 | **INV-GS-126**  | **E_INSIDER_VELOCITY_KR skeleton (first-derivative of E_INSIDER_KR cluster, log-velocity buy/sell ratio); calibration n=0 bootstrap; hindcast wiring deferred to v1.7.1**         | **active v1.7.0**                                                |
 | **INV-GS-127**  | **CI workflow restored (.github/workflows/ci.yml); ruff + format + pytest on every push/PR; uv setup with cache**                                                                | **active v1.7.0**                                                |
+| **INV-GS-128**  | **v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via point-in-time evaluator (7th thesis); calibration loader picks up the report when DART configured**                  | **active v1.8.0**                                                |
+| **INV-GS-129**  | **v1.8 E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance upgrades_downgrades, 60d window, archetype=continuation, US/global liquid universe)**                | **active v1.8.0**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

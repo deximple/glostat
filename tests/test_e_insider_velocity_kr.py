@@ -165,7 +165,7 @@ class _FakeDart:
         return f"CORP_{code}"
 
     async def get_executive_transactions(
-        self, corp_code: str, *, lookback_days: int = 30,
+        self, corp_code: str, *, days_back: int = 180,
     ) -> list[Any]:
         if self._fail_txn:
             raise DartApiError("fake txn failure")

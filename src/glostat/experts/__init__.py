@@ -9,6 +9,10 @@ from glostat.experts.e_foreign_reversal import (
     EForeignReversalExpert,
     ForeignReversalScore,
 )
+from glostat.experts.e_analyst_revision import (
+    AnalystRevisionScore,
+    EAnalystRevisionExpert,
+)
 from glostat.experts.e_commodity_index_kr import (
     CommodityIndexScore,
     ECommodityIndexKrExpert,
@@ -45,9 +49,11 @@ from glostat.experts.e_short_selling_kr import (
 from glostat.experts.e_time import ETimeExpert, TimeScore
 
 __all__ = [
+    "AnalystRevisionScore",
     "CommodityIndexScore",
     "CommodityTsSnapshot",
     "CyclicalScore",
+    "EAnalystRevisionExpert",
     "ECommodityIndexKrExpert",
     "ECommodityTsExpert",
     "EFomcDriftExpert",
