@@ -20,6 +20,7 @@ v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst rev
 v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
 v1_10_0_active_count: 1 # INV-GS-132 (E_REGIME_US + US regime hindcast harness)
 v1_10_4_active_count: 1 # INV-GS-133 (OOS-stability factor in composite weighting)
+v1_10_6_active_count: 1 # INV-GS-134 (E_VKOSPI_MOOD_KR — Lee/Son/Lee 2024 + KRX 2009)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -494,6 +495,23 @@ invariants:
       - replay.phase_kr_report.persist_phase_kr_reports
       - predictor.calibration._PHASE_SOURCES
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
+
+  # ───────── v1.10.6: VKOSPI mood expert (KR asymmetric event-conditional) ─────────
+  INV-GS-134:
+    summary: "E_VKOSPI_MOOD_KR encodes Lee/Son/Lee (2024) finding: KR investors over-react to fear (VKOSPI↑ + r<-10% → 20d reversal +2.43% ***) and under-react to greed (VKOSPI↓ + r>+10% → 20d drift +2.11% ***), p<0.001 over 18 years. Misaligned (↑↑ / ↓↓) and below-threshold (|r|<10%) cells emit NEUTRAL direction. Small-cap multiplier 1.5x reflects paper Table 5A's +9.21% small-cap drift effect. Universe: KOSPI 200 only. Live VKOSPI fetcher deferred via VkospiClient.set_history_provider plug-in (KRX session-cookie or Naver scrape backend in follow-up wave)."
+    enforcement: expert_and_data_provider
+    source: "Lee/Son/Lee (2024) 금융정보연구 13(1) + KRX (2009) 변동성지수 해설 + docs/CALIBRATION_AUDIT_2026-05-02.md (audit identified KR megacap thesis gap)"
+    active_in: [v1.10.6]
+    enforce_at:
+      - data.vkospi_client.VkospiClient
+      - data.vkospi_client.VkospiBar
+      - data.vkospi_client.VkospiDelta
+      - data.vkospi_client.compute_delta_at
+      - experts.e_vkospi_mood_kr.EVkospiMoodKrExpert
+      - experts.e_vkospi_mood_kr.score_vkospi_mood
+      - experts.e_vkospi_mood_kr.VkospiMoodInputs.regime
+      - predictor.calibration._BOOTSTRAP_THESES (E_VKOSPI_MOOD_KR entry)
+    note: "12 caveats baked into module docstring: zero-cost academic measurement (KRX RT 23bps), look-ahead ambiguity (next-day-open execution), multiple-testing un-corrected, R²/IC unreported, low frequency (~1.3 events/yr/ticker), alpha-decay risk (paper data ends 2022-07), price-limit fills, VKOSPI noise, lag-0-only correlation (KRX 2009), institutional bias of KRX-published study, 3-lag mean reversion baseline, calibration-not-prediction framing. n=0 bootstrap until phase_kr_vkospi_mood hindcast measures OOS AUC/Sharpe; INV-GS-103 + INV-GS-133 keep composite weight = 0 until then."
 
   # ───────── v1.10.4: OOS-stability factor in composite weighting ─────────
   INV-GS-133:

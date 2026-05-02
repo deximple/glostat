@@ -142,9 +142,9 @@ def test_calibration_table_names() -> None:
 
 
 def test_synthetic_calibration_has_twentytwo_theses() -> None:
-    # v1.10: 22 prior + E_REGIME_US = 23.
+    # v1.10.6: 23 prior + E_VKOSPI_MOOD_KR = 24.
     table = synthetic_calibration_for_mock()
-    assert len(table.entries) == 23
+    assert len(table.entries) == 24
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -193,7 +193,7 @@ def test_synthetic_pead_matches_archived_metrics() -> None:
 def test_load_calibration_empty_cache(tmp_path: Path) -> None:
     # v1.10: 23 entries = 22 prior + E_REGIME_US (skeleton).
     table = load_calibration(cache_dir=tmp_path)
-    assert len(table.entries) == 23
+    assert len(table.entries) == 24
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -280,7 +280,7 @@ def test_calibration_table_writes_parquet_or_json(tmp_path: Path) -> None:
 def test_calibration_table_to_records_round_trip() -> None:
     table = synthetic_calibration_for_mock()
     records = table.to_records()
-    # v1.10: 22 prior + E_REGIME_US = 23.
-    assert len(records) == 23
+    # v1.10.6: 23 prior + E_VKOSPI_MOOD_KR = 24.
+    assert len(records) == 24
     assert all("brier_score" in r for r in records)
     assert all("auc" in r for r in records)

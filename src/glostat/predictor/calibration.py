@@ -452,6 +452,7 @@ _BOOTSTRAP_THESES: Final[tuple[str, ...]] = (
     "E_INSIDER_VELOCITY_KR",     # v1.7.0 — first-derivative DART signal
     "E_ANALYST_REVISION",        # v1.8.0 — yfinance revisions
     "E_REGIME_US",               # v1.10 — VIX term + UST curve
+    "E_VKOSPI_MOOD_KR",          # v1.10.6 — VKOSPI asymmetric mood (Lee et al. 2024)
 )
 
 
