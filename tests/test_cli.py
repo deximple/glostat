@@ -108,7 +108,7 @@ def test_audit_returns_merkle_root_string(workdir: Path) -> None:
 def test_status_prints_version_and_phase(workdir: Path) -> None:
     r = _run("status", cwd=workdir)
     assert r.returncode == 0
-    assert "1.9.0" in r.stdout
+    assert "1.9.1" in r.stdout
     assert "phase" in r.stdout.lower()
     assert "snapshots" in r.stdout.lower()
 
