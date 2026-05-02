@@ -358,3 +358,82 @@ honest 결과지 코드 버그 아님.
 예상. 논문 4,976의 절반 수준이지만 통계적으로 충분.
 
 **Polish-bias 체크**: v1.10.10은 Task 2 검증 결과 문서화. 코드 변경 없음.
+
+## v1.10.11 update: OOS-stability factor (INV-GS-133) before/after 정량 측정
+
+**의문**: v1.10.4가 INV-GS-133 OOS factor를 도입한 이후 실제 prediction
+output에 얼마나 영향을 주나? before/after 측정 안 한 상태 — Task 3
+요청으로 정량화.
+
+**방법**: synthetic_calibration_for_mock의 8개 active thesis에 대해
+3개 시나리오로 prediction 실행:
+
+- **bullish**: 모든 active thesis가 LONG (value=+1.5)
+- **bearish**: 모든 active thesis가 SHORT (value=-1.5)
+- **mixed**: IS-only-edge 4개 (E_PEAD/FOMC/FX/SECTOR)만 LONG, 나머지 NEUTRAL
+
+각 시나리오에서 v1.10.3 (OOS factor=1.0 monkey-patch) vs v1.10.4 (current)
+prediction 비교.
+
+스크립트: `scripts/measure_oos_factor_impact.py` (재현 가능, deterministic).
+
+**결과**:
+
+| 시나리오 | p_up v1.10.3 | p_up v1.10.4 | Δp_up | Δedge | ΔE[r] | ΔCI width |
+|---|---:|---:|---:|---:|---:|---:|
+| bullish | 0.5306 | 0.5314 | +0.0008 | +0.08pp | +3.8 bps | +18.8 bps |
+| bearish | 0.5025 | 0.5031 | +0.0007 | +0.07pp | −3.8 bps | +18.8 bps |
+| **mixed** | **0.4372** | **0.4500** | **+0.0128** | **+1.28pp** | **+8.4 bps** | **−46.4 bps** |
+
+**Per-thesis weight shift**:
+
+| thesis | v1.10.3 (brier만) | v1.10.4 (×OOS factor) | shift |
+|---|---:|---:|---:|
+| `E_FOMC_DRIFT` | 0.2860 | 0.0286 | **−0.2574 (−90%)** |
+| `E_FX_CARRY` | 0.2000 | 0.0200 | **−0.1800 (−90%)** |
+| `E_PEAD` | 0.1720 | 0.0172 | **−0.1548 (−90%)** |
+| `E_SECTOR_ROTATION` | 0.0600 | 0.0060 | −0.0540 (−90%) |
+| `E_FUNDAMENTAL` | 0.1000 | 0.0820 | −0.0180 (−18%) |
+| `E_TIME` | 0.0400 | 0.0346 | −0.0054 (−14%) |
+| `E_FUND_FLOW` | 0.0000 | 0.0000 | 0 (이미 0) |
+| `E_FOREIGN_REVERSAL` | 0.0666 | 0.0666 | 0 (OOS_deg=0) |
+
+**해석 — 3가지 핵심 효과**:
+
+1. **All-bullish/bearish 시나리오의 작은 영향 (Δp_up ≈ 0.0008)**:
+   stable 3개 (E_FUNDAMENTAL, E_TIME, E_FOREIGN_REVERSAL)와 IS-only-edge
+   4개가 같은 방향(LONG)으로 votes하니 IS-only-edge suppression이 stable
+   theses의 LONG 표를 가리지 않음. 다만 expected_return_bps는 거의
+   2배(3.5→7.3) 차이 — base rate prior 가중치가 더 강해진 결과.
+
+2. **Mixed 시나리오의 큰 영향 (Δp_up = +0.0128, Δedge = +1.28pp)**:
+   IS-only-edge 4개만 단독으로 LONG votes할 때 v1.10.3는 그 신호를 strong
+   하게 받아 p_up=0.437 (강한 down-tilt, residual baseline 효과). v1.10.4는
+   weight를 90% 차감해서 p_up=0.450으로 baseline 가까이 끌어당김.
+   **= over-confidence 억제 작동 확인**.
+
+3. **CI width 극적 축소 (mixed: 53.6 → 7.2 bps, −87%)**:
+   IS-only-edge 4개 weight 차감으로 sigma 계산에 들어가는 신호 magnitude
+   감소 → 예측 분산도 크게 축소. 운영자에게 "강한 signal처럼 보이지만
+   실제로는 OOS에서 검증 안 됨" 메시지 전달.
+
+**핵심 검증**:
+
+INV-GS-133은 정확히 **IS-only-edge 케이스**에서만 강하게 작동하며,
+stable-edge 케이스 (E_FOREIGN_REVERSAL, E_FUNDAMENTAL)는 거의 영향
+없음. 의도한 설계대로 동작.
+
+**현장 적용 함의**:
+
+- 8개 active thesis 중 4개 (50%)가 OOS-deg ≥ 100% → composite weight의
+  대부분이 IS-only-edge에서 왔던 v1.10.3 시절은 over-confidence 위험
+  매우 높았음
+- v1.10.4 이후 composite은 **stable 3개 (E_FOREIGN_REVERSAL +
+  E_FUNDAMENTAL + E_TIME)**가 사실상 모두 steer
+- 이는 칼리브레이션 honest화의 결과 — predictions이 더 보수적이지만
+  ground truth와 더 일치할 가능성 높음
+
+**ROI 체크**: 측정 자체는 0 코드 변경. 결과는 INV-GS-133 결정의 정량
+근거 — 향후 weight 변경 제안 검토 시 reference numbers로 활용 가능.
+
+스크립트 + JSON 결과: `scripts/measure_oos_factor_impact.py` (재실행 가능).

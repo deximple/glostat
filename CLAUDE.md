@@ -55,8 +55,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.9.0 — Alpha Discovery Sprint (scan command + cross-universe empirical: thesis × universe interaction confirmed).**
-> Previous: v1.8.0 — Multi-stream thesis pipeline (insider velocity hindcast + analyst revision expert);
+> **STATUS: ACTIVE v1.10.11 — Calibration Honesty Sprint (E_REGIME_US + E_VKOSPI_MOOD_KR thesis + INV-GS-133 OOS-stability factor + v1.10.11 정량 측정: mixed scenario p_up shift +0.0128, CI 87% narrowing).**
+> Previous: v1.10.0-10 — VKOSPI mood thesis + CSV provider + hindcast harness + E_INSIDER_CLUSTER 승격 보류 + OOS factor before/after measurement;
+> v1.9.0 — Alpha Discovery Sprint (scan command + cross-universe empirical: thesis × universe interaction confirmed);
+> v1.8.0 — Multi-stream thesis pipeline (insider velocity hindcast + analyst revision expert);
 > v1.7.0 — Self-eval-driven uplift (SQLite + CI + KOSDAQ150 + thesis ideation);
 > v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
 > v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
