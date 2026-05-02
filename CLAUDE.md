@@ -307,6 +307,7 @@ advice.
 | **INV-GS-129**  | **v1.8 E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance upgrades_downgrades, 60d window, archetype=continuation, US/global liquid universe)**                | **active v1.8.0**                                                |
 | **INV-GS-130**  | **glostat scan command — universe-wide ranking by composite edge + --significant filter (p<0.05) + --min-edge filter; productization layer**                                    | **active v1.9.0**                                                |
 | **INV-GS-131**  | **Cross-universe empirical: thesis × universe interaction. E_PEAD_KR (KR megacap 0.5405 vs mid-cap 0.4991), E_TIME_KR reverses (0.4692 vs 0.5138). US Sharpe ↑ down cap curve** | **active v1.9.0**                                                |
+| **INV-GS-132**  | **v1.10 closes US macro asymmetry: E_REGIME_US (VIX9D/VIX3M term ratio + UST 3m-10y curve, yfinance free) + `glostat us-regime-hindcast` (basket-mode, 1 trade/day). ThesisCalibration.calibration_status (bootstrap/underfit/near_random/measured) distinguishes awaiting-hindcast from measured-no-edge.** | **active v1.10**                                                  |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

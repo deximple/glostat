@@ -18,6 +18,7 @@ v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
 v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis + CI)
 v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst revision)
 v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
+v1_10_0_active_count: 1 # INV-GS-132 (E_REGIME_US + US regime hindcast harness)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -493,7 +494,26 @@ invariants:
       - predictor.calibration._PHASE_SOURCES
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
 
-  # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  # ───────── v1.10: US regime expert + hindcast harness ─────────
+  INV-GS-132:
+    summary: "v1.10 closes US macro asymmetry: E_REGIME_US (VIX9D/VIX3M term ratio + UST 3m-10y curve slope, both via yfinance, no API key) + glostat us-regime-hindcast subcommand. Basket-mode (1 trade/day mean of US universe forward return) so the same regime score doesn't autocorrelate. Calibration loader picks up cache/hindcast/phase_us_regime/e_regime_us_report.json so the next predict after a live hindcast lifts E_REGIME_US from n=0 bootstrap to measured AUC/Sharpe."
+    enforcement: expert_and_hindcast
+    source: docs/V18_REGIME_US.md (planned) + symmetry with INV-GS-108 (E_MACRO_KR ECOS analog)
+    active_in: [v1.10]
+    enforce_at:
+      - data.regime_us_client.RegimeUsClient
+      - data.regime_us_client.VixTermStructure
+      - data.regime_us_client.UstCurveSlope
+      - experts.e_regime_us.ERegimeUsExpert
+      - experts.e_regime_us.score_regime_us
+      - replay.phase_us_regime_hindcast.run_phase_us_regime_hindcast
+      - replay.phase_us_regime_hindcast.persist_phase_us_regime_reports
+      - cli_us_regime_hindcast.cmd_us_regime_hindcast
+      - predictor.calibration._PHASE_SOURCES (E_REGIME_US loader)
+      - predictor.calibration.ThesisCalibration.calibration_status
+      - predictor.calibration._bootstrap_entry
+    note: "US-only universe gate (KR ticker → ExpertSkipError → use E_MACRO_KR). Partial-data tolerance: either VIX or curve fetch can fail; expert still emits if at least one term resolves. Score formula: raw = w_vix·z(ratio) + w_curve·z(slope_bps) clipped ±3.0; direction threshold ±0.6. Snapshot broker writes mandatory (mirrors commodity_client). Bootstrap status = 'bootstrap' until live hindcast lands; the calibration_status property distinguishes bootstrap / underfit / near_random / measured so operators no longer treat 'awaiting hindcast' identically to 'measured no-edge'."
+
   # ───────── v1.9.0: Alpha Discovery Sprint — scan command + cross-universe ─────────
   INV-GS-130:
     summary: "glostat scan command: universe-wide ranking by composite edge over baseline. --significant filter (at least one active signal with p<0.05). --min-edge filter. --top N. Reuses single-ticker predict() pipeline; semaphore-throttled async iteration."
