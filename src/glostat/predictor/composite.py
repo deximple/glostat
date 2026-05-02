@@ -73,10 +73,41 @@ def _brier_to_weight(brier: float) -> float:
     return max(0.0, min(1.0, raw))
 
 
+_OOS_STABILITY_FLOOR: Final[float] = 0.10
+_OOS_PENALTY_SCALE: Final[float] = 0.90
+
+
+def _oos_stability_factor(cal: ThesisCalibration) -> float:
+    # v1.10.4 (INV-GS-133): OOS-degradation penalty in composite weighting.
+    #
+    # WHY: prior to v1.10.4 the brier weight depended only on AUC + sample
+    # count; OOS_degradation was reported but never consulted. 2026-05-02
+    # calibration audit found that 5 of 8 measured theses (E_PEAD,
+    # E_FOMC_DRIFT, E_FX_CARRY, E_SECTOR_ROTATION, E_FUNDING_CARRY) have
+    # OOS_degradation ≥ 100% — the IS edge died OOS — yet they all carried
+    # full weight in the composite. That's a calibration bug masquerading
+    # as edge.
+    #
+    # Formula: factor = max(_OOS_STABILITY_FLOOR, 1 - 0.9 * clip(deg, 0, 1))
+    #   deg=0.0  → 1.00  (no degradation, no penalty)
+    #   deg=0.5  → 0.55  (50% degradation, moderate penalty)
+    #   deg=1.0  → 0.10  (IS edge fully wiped OOS, hard penalty)
+    #   deg>1.0  → 0.10  (floored — OOS reverses or worsens)
+    #
+    # Floor of 0.10 (not 0) so a thesis with extreme OOS degradation can
+    # still surface in contributing_signals at minimal weight, rather than
+    # silently disappearing — keeps the calibration honest.
+    deg = cal.oos_degradation
+    if deg <= 0.0:
+        return 1.0
+    clipped = min(1.0, deg)
+    return max(_OOS_STABILITY_FLOOR, 1.0 - _OOS_PENALTY_SCALE * clipped)
+
+
 def _weight_for(cal: ThesisCalibration) -> float:
     if not is_active(cal):
         return 0.0
-    return _brier_to_weight(cal.brier_score)
+    return _brier_to_weight(cal.brier_score) * _oos_stability_factor(cal)
 
 
 def _weight_for_v2(cal: ThesisCalibration, conf: ConfidenceV2) -> float:

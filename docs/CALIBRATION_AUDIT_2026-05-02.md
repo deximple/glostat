@@ -91,3 +91,40 @@ designed: measure honestly, gate strictly.
 
 ### BOOTSTRAP (awaiting hindcast wave)
 - 11 KR theses + E_ANALYST_REVISION still bootstrap. Most have hindcast wiring (kr-hindcast adds 7 KR theses); the remaining 4 (E_INSIDER_KR, E_MACRO_KR, E_SHORT_SELLING_KR, E_INTRADAY_FLOW_KR) + E_ANALYST_REVISION need their own dedicated hindcast waves.
+
+## v1.10.4 update: OOS-stability factor (INV-GS-133)
+
+The 2026-05-02 audit identified the highest-ROI calibration bug: **5 of 8
+measured theses had OOS_degradation ≥ 100% but carried full Brier weight in
+the composite predictor.** The Brier formula previously consulted only AUC
++ sample count; OOS stability was reported but never penalized.
+
+v1.10.4 wires `_oos_stability_factor()` into `_weight_for()`:
+
+```
+factor = max(0.10, 1.0 - 0.9 * clip(oos_degradation, 0, 1))
+final_weight = brier_weight × factor
+```
+
+Concrete impact on the 8 measured theses:
+
+| thesis | OOS_deg | brier_w | factor | final_w | delta |
+|---|---:|---:|---:|---:|---:|
+| `E_PEAD`              | 115.6% | 0.1720 | 0.10 | 0.0172 | **−0.155** (zeroed) |
+| `E_FOMC_DRIFT`        | 100.0% | 0.2860 | 0.10 | 0.0286 | **−0.257** (zeroed) |
+| `E_FX_CARRY`          | 100.0% | 0.2000 | 0.10 | 0.0200 | **−0.180** (zeroed) |
+| `E_SECTOR_ROTATION`   | 100.0% | 0.0600 | 0.10 | 0.0060 | **−0.054** (zeroed) |
+| `E_FUND_FLOW`         |  50.0% | 0.0000 | 0.55 | 0.0000 | (already 0) |
+| `E_FUNDAMENTAL`       |  20.0% | 0.1000 | 0.82 | 0.0820 | −0.018 (kept) |
+| `E_TIME`              |  15.0% | 0.0400 | 0.87 | 0.0346 | −0.005 (kept) |
+| `E_FOREIGN_REVERSAL`  |   0.0% | 0.0666 | 1.00 | 0.0666 | 0 (kept) |
+
+**Before:** composite weight steered by E_FOMC_DRIFT (0.286) + E_FX_CARRY
+(0.200) + E_PEAD (0.172) — all of which fully reverse OOS.
+
+**After:** composite weight steered by E_FUNDAMENTAL (0.082) +
+E_FOREIGN_REVERSAL (0.067) + E_TIME (0.035) — the three OOS-stable theses.
+
+Floor of 0.10 (not 0) keeps unstable theses visible in `contributing_signals`
+at minimal weight rather than silently disappearing — preserves calibration
+honesty.

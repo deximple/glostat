@@ -10,6 +10,10 @@ from glostat.predictor.calibration import (
     synthetic_calibration_for_mock,
 )
 from glostat.predictor.composite import (
+    _OOS_STABILITY_FLOOR,
+    _brier_to_weight,
+    _oos_stability_factor,
+    _weight_for,
     horizon_to_days,
     horizon_to_timedelta,
     predict,
@@ -282,3 +286,104 @@ def test_predict_raises_on_empty_contributions() -> None:
             contributions=(),
             cal_table=CalibrationTable(),
         )
+
+
+# ── v1.10.4: OOS-stability factor (INV-GS-133) ───────────────────────────
+
+
+class TestOosStabilityFactor:
+    def _cal_with_deg(
+        self, *, deg: float, auc: float = 0.6, n: int = 200,
+    ) -> ThesisCalibration:
+        return ThesisCalibration(
+            name="X", auc=auc, sharpe=0.5, n_samples=n,
+            oos_degradation=deg,
+            period_start=date(2024, 1, 1), period_end=date(2026, 3, 31),
+        )
+
+    def test_zero_degradation_no_penalty(self) -> None:
+        cal = self._cal_with_deg(deg=0.0)
+        assert _oos_stability_factor(cal) == 1.0
+
+    def test_negative_degradation_no_penalty(self) -> None:
+        # OOS Sharpe > IS Sharpe (rare but possible) — treat like zero deg.
+        cal = self._cal_with_deg(deg=-0.3)
+        assert _oos_stability_factor(cal) == 1.0
+
+    def test_full_degradation_floors_to_min(self) -> None:
+        cal = self._cal_with_deg(deg=1.0)
+        assert _oos_stability_factor(cal) == pytest.approx(
+            _OOS_STABILITY_FLOOR, abs=1e-9,
+        )
+
+    def test_extreme_degradation_clipped_to_floor(self) -> None:
+        # E_PEAD-style 115% degradation → still floor.
+        # E_FUNDING_CARRY-style 457% degradation → still floor.
+        for deg in (1.156, 4.5741, 10.0):
+            cal = self._cal_with_deg(deg=deg)
+            assert _oos_stability_factor(cal) == pytest.approx(
+                _OOS_STABILITY_FLOOR, abs=1e-9,
+            )
+
+    def test_moderate_degradation_linear_ramp(self) -> None:
+        # deg=0.5 → factor = 1.0 - 0.9*0.5 = 0.55
+        cal = self._cal_with_deg(deg=0.5)
+        assert _oos_stability_factor(cal) == pytest.approx(0.55, abs=1e-6)
+
+
+class TestWeightForAppliesOosFactor:
+    def _cal(
+        self, *, auc: float, n: int, oos_deg: float,
+    ) -> ThesisCalibration:
+        return ThesisCalibration(
+            name="X", auc=auc, sharpe=0.5, n_samples=n,
+            oos_degradation=oos_deg,
+            period_start=date(2024, 1, 1), period_end=date(2026, 3, 31),
+        )
+
+    def test_high_auc_low_oos_deg_keeps_weight(self) -> None:
+        cal = self._cal(auc=0.586, n=298, oos_deg=0.0)
+        base = _brier_to_weight(cal.brier_score)
+        final = _weight_for(cal)
+        # No OOS degradation → final weight equals brier weight.
+        assert final == pytest.approx(base, abs=1e-9)
+
+    def test_high_auc_high_oos_deg_collapses_weight(self) -> None:
+        # E_PEAD-style: AUC 0.586, n=298, oos_deg=1.156
+        cal = self._cal(auc=0.586, n=298, oos_deg=1.156)
+        base = _brier_to_weight(cal.brier_score)
+        final = _weight_for(cal)
+        # OOS degradation > 100% → final weight floored to base * 0.10
+        assert final == pytest.approx(base * 0.10, abs=1e-6)
+        # Concrete check: base ≈ 0.172, final ≈ 0.0172
+        assert final < base * 0.15
+
+    def test_inactive_thesis_still_zero(self) -> None:
+        # n=10 < 50 threshold → is_active False → weight 0 regardless of OOS.
+        cal = self._cal(auc=0.6, n=10, oos_deg=0.0)
+        assert _weight_for(cal) == 0.0
+
+
+class TestCompositeWeightingShiftFromV1101:
+    """Regression tests anchoring the v1.10.4 OOS penalty in the composite."""
+
+    def test_e_pead_weight_drops_after_oos_penalty(self) -> None:
+        cal = synthetic_calibration_for_mock().entries["E_PEAD"]
+        # E_PEAD has oos_degradation=1.156 → final weight floored.
+        # Pre-v1.10.4: weight = 0.172. Post-v1.10.4: weight ≈ 0.0172.
+        w = _weight_for(cal)
+        assert w < 0.025
+
+    def test_e_foreign_reversal_weight_unchanged(self) -> None:
+        cal = synthetic_calibration_for_mock().entries["E_FOREIGN_REVERSAL"]
+        # oos_degradation=0.0 → factor=1.0 → weight unchanged from brier_w.
+        assert _weight_for(cal) == pytest.approx(
+            _brier_to_weight(cal.brier_score), abs=1e-9,
+        )
+
+    def test_e_fundamental_weight_mildly_reduced(self) -> None:
+        cal = synthetic_calibration_for_mock().entries["E_FUNDAMENTAL"]
+        # oos_degradation=0.20 → factor=0.82 → mild reduction.
+        base = _brier_to_weight(cal.brier_score)
+        final = _weight_for(cal)
+        assert 0.65 * base < final < 0.95 * base

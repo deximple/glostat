@@ -19,6 +19,7 @@ v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis +
 v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst revision)
 v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
 v1_10_0_active_count: 1 # INV-GS-132 (E_REGIME_US + US regime hindcast harness)
+v1_10_4_active_count: 1 # INV-GS-133 (OOS-stability factor in composite weighting)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -493,6 +494,20 @@ invariants:
       - replay.phase_kr_report.persist_phase_kr_reports
       - predictor.calibration._PHASE_SOURCES
     note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
+
+  # ───────── v1.10.4: OOS-stability factor in composite weighting ─────────
+  INV-GS-133:
+    summary: "Composite _weight_for() multiplies brier_weight by an OOS-stability factor: factor = max(0.10, 1 - 0.9 * clip(oos_degradation, 0, 1)). Theses with OOS_degradation ≥ 100% (IS edge dies OOS) get weight floored to 10% of brier_weight, preventing the IS-only edge from steering the composite. Closes the 2026-05-02 audit finding that 5 of 8 measured theses had OOS_degradation ≥ 100% but carried full Brier weight."
+    enforcement: composite_weighting
+    source: docs/CALIBRATION_AUDIT_2026-05-02.md (audit table, 2026-05-02 post-hindcast)
+    active_in: [v1.10.4]
+    enforce_at:
+      - predictor.composite._oos_stability_factor
+      - predictor.composite._weight_for
+      - predictor.composite._weight_for_v2 (transitively, via _weight_for)
+      - predictor.composite._OOS_STABILITY_FLOOR
+      - predictor.composite._OOS_PENALTY_SCALE
+    note: "Floor 0.10 (not 0) so unstable theses still surface in contributing_signals at minimal weight rather than silently disappearing. Concrete impact 2026-05-02: E_PEAD weight 0.172→0.017 (115% OOS deg), E_FOMC_DRIFT 0.286→0.029, E_FX_CARRY 0.200→0.020, E_SECTOR_ROTATION 0.060→0.006. KEPT: E_FOREIGN_REVERSAL 0.067 (0% deg), E_FUNDAMENTAL 0.082 (20% deg), E_TIME 0.035 (15% deg). Composite is now driven by OOS-stable theses, not by IS-only darlings."
 
   # ───────── v1.10: US regime expert + hindcast harness ─────────
   INV-GS-132:
