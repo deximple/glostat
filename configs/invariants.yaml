@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 58
+total: 59
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -13,6 +13,7 @@ v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v
 v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
 v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
 v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
+v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -470,6 +471,24 @@ invariants:
       - predictor.composite._calendar_sigma_multiplier
     note: "Reflects the well-documented increase in option-implied volatility approaching scheduled events (BoK rate decisions, OPEC meetings, KR earnings deadlines). Multiplier applied AFTER the active-signal-count sigma scaling, so the calendar signal stacks rather than replaces. CI widening is presentation-honest only (does not change p_up); coupled with INV-GS-113 'CI 1-sigma' label so user sees the wider band."
 
+  # ───────── v1.6.1: Option A wave 1 — E_PEAD_KR hindcast ─────────
+  INV-GS-122:
+    summary: "kr-hindcast now wires E_PEAD_KR via evaluate_pead_kr point-in-time evaluator: for each (ticker, day) sample, computes most-recent expected KIFRS earnings filing date (Q-end + 45d), then measures OHLCV drift in T+5..T+30 window. Output report ingested by calibration._PHASE_SOURCES → real AUC replaces n=0 bootstrap."
+    enforcement: hindcast_wiring
+    source: docs/V16_CALENDAR.md (v1.6 P5) + Cross-Stock Acid Test 2026-05-02 finding (n=0 → weight=0 → no impact on p_up)
+    active_in: [v1.6.1]
+    enforce_at:
+      - replay.phase_kr_eval.evaluate_pead_kr
+      - replay.phase_kr_eval._measure_pead_drift
+      - replay.phase_kr_eval._close_on_or_after
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastConfig.horizon_pead
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.pead_kr
+      - replay.phase_kr_hindcast._process_one_ticker
+      - replay.phase_kr_report.persist_phase_kr_reports
+      - predictor.calibration._PHASE_SOURCES
+    note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -532,6 +551,10 @@ v1_6_active:
   - INV-GS-119    # kr_calendar_client (DART earnings + BoK + auto OPEC)
   - INV-GS-120    # next_triggers populated with concrete D-day countdowns
   - INV-GS-121    # CI sigma calendar widening (D < 7 → ×1.5; D < 3 → ×2.0)
+
+# v1.6.1 active set (Option A wave 1 — E_PEAD_KR hindcast wiring):
+v1_6_1_active:
+  - INV-GS-122    # kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

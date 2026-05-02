@@ -55,12 +55,32 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.6 — P5 Event-Driven panel absorption (calendar awareness).**
-> Previous: v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
+> **STATUS: ACTIVE v1.6.1 — Option A wave 1: E_PEAD_KR hindcast wired (real calibration).**
+> Previous: v1.6 — P5 Event-Driven panel absorption (calendar awareness);
+> v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
 > (P8+P10 panel synthesis); v1.4 — N1+N2+N3+N4 (KR multi-source + experts +
 > sizing + confidence); v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR
 > calibration (L1) + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200)
 > production support; v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.6.1 delta (Option A wave 1 — INV-GS-122):
+> - **evaluate_pead_kr** in `phase_kr_eval.py` — point-in-time T+5..T+30
+>   OHLCV drift evaluator for E_PEAD_KR. For each (ticker, day) sample,
+>   computes most-recent expected KIFRS earnings filing (Q-end + 45d),
+>   measures drift, records signal with forward_return. Skip cleanly when
+>   days_since < 30 or OHLCV bars missing.
+> - **phase_kr_hindcast** wired: 4-thesis run (was 3) — adds pead_kr field
+>   to Result + horizon_pead to Config + accumulator + report build.
+> - **persist_phase_kr_reports** + **render_phase_kr_comparison** — 4-column
+>   comparison MD; 4 thesis JSONs.
+> - **calibration._PHASE_SOURCES** — adds E_PEAD_KR loader so the next
+>   `glostat predict` after running `glostat kr-hindcast` lifts E_PEAD_KR
+>   from n=0 bootstrap to real measured AUC/Sharpe.
+> - **17 new + updated tests**; full suite 1067 pass.
+> - Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) + commodity-momentum
+>   (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — needs historical
+>   commodity OHLCV with point-in-time semantics (commodity_client cache key
+>   needs (key, as_of) tuple, not just key).
+> v1.6 delta (P5 calendar absorption — INV-GS-119/120/121):
 > v1.6 delta (P5 calendar absorption — INV-GS-119/120/121):
 > - **kr_calendar_client.py** (~250 lines) — surfaces upcoming KR-relevant
 >   events: KR earnings (KIFRS Q-end + 45d heuristic), BoK 금통위
@@ -252,6 +272,7 @@ advice.
 | **INV-GS-119**  | **kr_calendar_client surfaces KR earnings (KIFRS heuristic) + BoK 금통위 (hardcoded 2026) + OPEC 장관급 (auto-scrape + fallback) + OPEC JMMC (first-Wed monthly)**            | **active v1.6**                                                  |
 | **INV-GS-120**  | **next_triggers populated with concrete D-day countdowns from calendar; KR ticker only, falls back to auto-derived list otherwise**                                          | **active v1.6**                                                  |
 | **INV-GS-121**  | **CI sigma calendar widening: D-day < 7 → ×1.5σ, D-day < 3 → ×2.0σ; reflects option-implied vol expansion near scheduled events**                                            | **active v1.6**                                                  |
+| **INV-GS-122**  | **kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift; calibration loader picks up the real report so n=0 bootstrap is replaced with measured AUC/Sharpe**     | **active v1.6.1**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

@@ -19,6 +19,7 @@ from glostat.replay.metrics import annualized_sharpe, auc_roc
 from glostat.replay.phase_kr_eval import (
     evaluate_foreign_reversal,
     evaluate_fundamental,
+    evaluate_pead_kr,
     evaluate_time,
 )
 
@@ -45,6 +46,7 @@ _DEFAULT_OUTPUT_DIR: Final[Path] = Path("cache") / "hindcast" / "phase_kr"
 _DEFAULT_HORIZON_FUNDAMENTAL: Final[int] = 30
 _DEFAULT_HORIZON_TIME: Final[int] = 30
 _DEFAULT_HORIZON_REVERSAL: Final[int] = 7
+_DEFAULT_HORIZON_PEAD: Final[int] = 30   # v1.6 P5
 _DEFAULT_SPLIT_RATIO: Final[float] = 0.7
 _DEFAULT_SAMPLE_STRIDE_DAYS: Final[int] = 7
 _DEFAULT_OHLCV_PADDING_DAYS: Final[int] = 14
@@ -232,6 +234,7 @@ class PhaseKrHindcastConfig:
     horizon_fundamental: int = _DEFAULT_HORIZON_FUNDAMENTAL
     horizon_time: int = _DEFAULT_HORIZON_TIME
     horizon_reversal: int = _DEFAULT_HORIZON_REVERSAL
+    horizon_pead: int = _DEFAULT_HORIZON_PEAD   # v1.6 P5
     max_concurrent: int = 5
 
 
@@ -240,6 +243,7 @@ class PhaseKrHindcastResult:
     fundamental_kr: KrThesisReport
     time_kr: KrThesisReport
     foreign_reversal: KrThesisReport
+    pead_kr: KrThesisReport   # v1.6 P5
     skipped_tickers: tuple[str, ...]
 
 
@@ -272,6 +276,9 @@ async def run_phase_kr_hindcast(
     rev_acc = _ThesisAccumulator(
         thesis="E_FOREIGN_REVERSAL", horizon_days=config.horizon_reversal,
     )
+    pead_acc = _ThesisAccumulator(    # v1.6 P5
+        thesis="E_PEAD_KR", horizon_days=config.horizon_pead,
+    )
     skipped_tickers: list[str] = []
 
     sample_days = _sample_days(
@@ -286,10 +293,12 @@ async def run_phase_kr_hindcast(
                 yf=yf, naver=naver,
                 fundamental=fundamental, time_expert=time_expert,
                 fund_acc=fund_acc, time_acc=time_acc, rev_acc=rev_acc,
+                pead_acc=pead_acc,
                 skipped_tickers=skipped_tickers,
                 horizon_fundamental=config.horizon_fundamental,
                 horizon_time=config.horizon_time,
                 horizon_reversal=config.horizon_reversal,
+                horizon_pead=config.horizon_pead,
             )
 
     tasks = [process_ticker(t) for t in config.universe_tickers]
@@ -314,10 +323,17 @@ async def run_phase_kr_hindcast(
         period_start=config.start, period_end=config.end,
         split_ratio=config.split_ratio,
     )
+    pead_report = _build_report(    # v1.6 P5
+        thesis="E_PEAD_KR", accumulator=pead_acc,
+        universe=config.universe_tickers,
+        period_start=config.start, period_end=config.end,
+        split_ratio=config.split_ratio,
+    )
     return PhaseKrHindcastResult(
         fundamental_kr=fund_report,
         time_kr=time_report,
         foreign_reversal=rev_report,
+        pead_kr=pead_report,
         skipped_tickers=tuple(sorted(set(skipped_tickers))),
     )
 
@@ -333,10 +349,12 @@ async def _process_one_ticker(
     fund_acc: _ThesisAccumulator,
     time_acc: _ThesisAccumulator,
     rev_acc: _ThesisAccumulator,
+    pead_acc: _ThesisAccumulator,
     skipped_tickers: list[str],
     horizon_fundamental: int,
     horizon_time: int,
     horizon_reversal: int,
+    horizon_pead: int,
 ) -> None:
     naver_bars: list[KrFlowBar] = []
     try:
@@ -370,6 +388,11 @@ async def _process_one_ticker(
             naver_bars=naver_bars, bars_by_date=bars_by_date,
             code=code, day=day, horizon_days=horizon_reversal,
             accumulator=rev_acc,
+        )
+        # v1.6 P5: KR Post-Earnings Announcement Drift point-in-time hindcast.
+        await evaluate_pead_kr(
+            code=code, day=day, yf=yf,
+            horizon_days=horizon_pead, accumulator=pead_acc,
         )
 
 

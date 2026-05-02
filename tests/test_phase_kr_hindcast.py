@@ -141,18 +141,28 @@ def _make_result(report: KrThesisReport | None = None) -> PhaseKrHindcastResult:
         is_auc=0.51, oos_auc=0.49, overall_auc=0.50,
         is_sharpe=0.0, oos_sharpe=0.0, overall_sharpe=0.0,
     )
+    pead_r = KrThesisReport(    # v1.6 P5
+        thesis="E_PEAD_KR", universe=r.universe,
+        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
+        n_universe=r.n_universe, n_evaluated=200, n_skipped=180,
+        n_actionable=20, n_traded=20,
+        is_auc=0.52, oos_auc=0.49, overall_auc=0.51,
+        is_sharpe=0.1, oos_sharpe=0.05, overall_sharpe=0.075,
+    )
     return PhaseKrHindcastResult(
         fundamental_kr=r, time_kr=time_r,
-        foreign_reversal=rev, skipped_tickers=("099999",),
+        foreign_reversal=rev, pead_kr=pead_r,
+        skipped_tickers=("099999",),
     )
 
 
-def test_persist_writes_three_jsons_and_comparison(tmp_path: Path) -> None:
+def test_persist_writes_four_jsons_and_comparison(tmp_path: Path) -> None:
     res = _make_result()
     paths = persist_phase_kr_reports(result=res, output_dir=tmp_path)
     assert "comparison" in paths
     assert (tmp_path / "phase_kr_comparison.md").exists()
-    for slug in ("e_fundamental_kr", "e_time_kr", "e_foreign_reversal"):
+    # v1.6 P5: 4 thesis JSONs (was 3 before E_PEAD_KR landed).
+    for slug in ("e_fundamental_kr", "e_time_kr", "e_foreign_reversal", "e_pead_kr"):
         path = tmp_path / f"{slug}_report.json"
         assert path.exists(), f"missing {slug}"
         body = json.loads(path.read_text("utf-8"))
@@ -160,11 +170,12 @@ def test_persist_writes_three_jsons_and_comparison(tmp_path: Path) -> None:
         assert body["report"]["expert"]
 
 
-def test_render_comparison_includes_all_three_columns() -> None:
+def test_render_comparison_includes_all_four_columns() -> None:
     md = render_phase_kr_comparison(_make_result())
     assert "E_FUNDAMENTAL_KR" in md
     assert "E_TIME_KR" in md
     assert "E_FOREIGN_REVERSAL" in md
+    assert "E_PEAD_KR" in md   # v1.6 P5
     assert "AUC (overall)" in md
     assert "Sharpe IS" in md
 

@@ -272,6 +272,8 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
     ("E_FUNDAMENTAL_KR",  "hindcast/phase_kr/e_fundamental_kr_report.json",  "phase1b", {}),
     ("E_TIME_KR",         "hindcast/phase_kr/e_time_kr_report.json",         "phase1b", {}),
     ("E_FOREIGN_REVERSAL_KR", "hindcast/phase_kr/e_foreign_reversal_report.json", "phase1b", {}),
+    # v1.6 P5 — KR Post-Earnings Announcement Drift (point-in-time hindcast).
+    ("E_PEAD_KR",            "hindcast/phase_kr/e_pead_kr_report.json",          "phase1b", {}),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.

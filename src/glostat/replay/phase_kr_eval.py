@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
-from typing import Final
+from typing import Any, Final
 
 import structlog
 
@@ -12,6 +12,13 @@ from glostat.data.naver_kr_client import KrFlowBar
 from glostat.data.yfinance_client import YFinanceClient
 from glostat.experts.e_foreign_reversal import score_reversal_at
 from glostat.experts.e_fundamental_kr import EFundamentalKrExpert
+from glostat.experts.e_pead_kr import (
+    _DRIFT_GAIN,
+    _DRIFT_WINDOW_END,
+    _DRIFT_WINDOW_START,
+    _SCORE_CLIP,
+    _last_expected_earnings_date,
+)
 from glostat.experts.e_time import ETimeExpert
 
 # v1.2 L1 — per-thesis evaluation helpers used by phase_kr_hindcast orchestrator.
@@ -167,10 +174,102 @@ def evaluate_foreign_reversal(
     )
 
 
+async def evaluate_pead_kr(
+    *,
+    code: str,
+    day: date,
+    yf: YFinanceClient,
+    horizon_days: int,
+    accumulator: Any,    # _ThesisAccumulator (avoid circular import)
+) -> None:
+    # v1.6 P5 — KR Post-Earnings Announcement Drift point-in-time hindcast.
+    # For each (ticker, day) sample, compute T+5..T+30 OHLCV drift after the
+    # most-recent expected filing date (KIFRS Q-end + 45d) that precedes `day`.
+    # Skip cleanly when day is too close to the last earnings (drift window
+    # not yet observable) or OHLCV bars are missing.
+    accumulator.n_evaluated += 1
+    last_e = _last_expected_earnings_date(day)
+    days_since = (day - last_e).days
+    if days_since < _DRIFT_WINDOW_END:
+        accumulator.record_skip(
+            f"too_close_to_earnings (D+{days_since})"
+        )
+        return
+    drift = await _measure_pead_drift(
+        yf=yf, code=code, day=day, last_e=last_e,
+    )
+    if drift is None:
+        accumulator.record_skip("no_drift_window_data")
+        return
+    raw = max(-_SCORE_CLIP, min(_SCORE_CLIP, drift * _DRIFT_GAIN))
+    direction = (
+        "LONG" if raw > 0.4 else ("SHORT" if raw < -0.4 else "NEUTRAL")
+    )
+    fwd = await forward_return_yfinance(
+        yf, code, day=day, horizon_days=horizon_days,
+    )
+    if fwd is None:
+        accumulator.record_skip("no_forward_return")
+        return
+    accumulator.record_signal(
+        ticker=code, day=day, raw_score=raw,
+        direction=direction, forward_return=fwd,
+    )
+
+
+async def _measure_pead_drift(
+    *,
+    yf: YFinanceClient,
+    code: str,
+    day: date,
+    last_e: date,
+) -> float | None:
+    # Fetch OHLCV from `last_e - padding` to `day` (point-in-time: never use
+    # bars beyond `day` for the drift calculation, only for forward_return).
+    yf_ticker = to_yfinance_kr_ticker(code)
+    start = last_e - timedelta(days=_DEFAULT_OHLCV_PADDING_DAYS)
+    end = day + timedelta(days=1)   # inclusive of `day`
+    try:
+        series = await yf.get_ohlcv(yf_ticker, start=start, end=end)
+    except Exception as exc:
+        log.warning(
+            "phase_kr.pead_kr_yf_fail",
+            ticker=code, day=day.isoformat(), err=str(exc),
+        )
+        return None
+    if not series.bars:
+        return None
+    target_t5 = last_e + timedelta(days=_DRIFT_WINDOW_START)
+    target_t30 = last_e + timedelta(days=_DRIFT_WINDOW_END)
+    close_t5 = _close_on_or_after(series.bars, target_t5)
+    close_t30 = _close_on_or_after(series.bars, target_t30)
+    if close_t5 is None or close_t30 is None or close_t5 == 0:
+        return None
+    return (close_t30 - close_t5) / close_t5
+
+
+def _close_on_or_after(bars: Sequence[object], target: date) -> float | None:
+    for bar in bars:
+        ts = getattr(bar, "ts", None)
+        if ts is None:
+            continue
+        bar_day = ts.date() if hasattr(ts, "date") else ts
+        if not isinstance(bar_day, date):
+            continue
+        if bar_day < target:
+            continue
+        close = getattr(bar, "close", None)
+        if close is None:
+            continue
+        return float(close)
+    return None
+
+
 __all__ = [
     "close_on_or_before",
     "evaluate_foreign_reversal",
     "evaluate_fundamental",
+    "evaluate_pead_kr",
     "evaluate_time",
     "forward_return_yfinance",
     "idx_at_or_before",

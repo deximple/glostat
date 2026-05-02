@@ -28,7 +28,10 @@ def persist_phase_kr_reports(
     out = output_dir or _DEFAULT_OUTPUT_DIR
     out.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
-    for report in (result.fundamental_kr, result.time_kr, result.foreign_reversal):
+    for report in (
+        result.fundamental_kr, result.time_kr,
+        result.foreign_reversal, result.pead_kr,
+    ):
         slug = report.thesis.lower()
         path = out / f"{slug}_report.json"
         path.write_text(
@@ -48,18 +51,20 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         "",
         "Honest measurement of KR-active theses on a real KR universe + window.",
         "",
-        "| metric | E_FUNDAMENTAL_KR | E_TIME_KR | E_FOREIGN_REVERSAL |",
-        "|---|---:|---:|---:|",
+        "| metric | E_FUNDAMENTAL_KR | E_TIME_KR | E_FOREIGN_REVERSAL | E_PEAD_KR |",
+        "|---|---:|---:|---:|---:|",
     ]
     f = result.fundamental_kr
     t = result.time_kr
     r = result.foreign_reversal
-    lines.extend(_render_metric_rows(f=f, t=t, r=r))
+    p = result.pead_kr
+    lines.extend(_render_metric_rows(f=f, t=t, r=r, p=p))
     lines.append("")
     lines.append("## Notes")
     lines.append("")
     for thesis_name, report in (
-        ("E_FUNDAMENTAL_KR", f), ("E_TIME_KR", t), ("E_FOREIGN_REVERSAL", r),
+        ("E_FUNDAMENTAL_KR", f), ("E_TIME_KR", t),
+        ("E_FOREIGN_REVERSAL", r), ("E_PEAD_KR", p),
     ):
         lines.append(f"- {thesis_name}: {', '.join(report.notes)}")
         if report.skip_breakdown:
@@ -83,24 +88,39 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
 
 
 def _render_metric_rows(
-    *, f: KrThesisReport, t: KrThesisReport, r: KrThesisReport,
+    *,
+    f: KrThesisReport,
+    t: KrThesisReport,
+    r: KrThesisReport,
+    p: KrThesisReport,
 ) -> list[str]:
     return [
-        f"| universe size | {f.n_universe} | {t.n_universe} | {r.n_universe} |",
-        f"| evaluated | {f.n_evaluated} | {t.n_evaluated} | {r.n_evaluated} |",
-        f"| skipped | {f.n_skipped} | {t.n_skipped} | {r.n_skipped} |",
-        f"| actionable | {f.n_actionable} | {t.n_actionable} | {r.n_actionable} |",
-        f"| traded (n) | {f.n_traded} | {t.n_traded} | {r.n_traded} |",
+        f"| universe size | {f.n_universe} | {t.n_universe} | "
+        f"{r.n_universe} | {p.n_universe} |",
+        f"| evaluated | {f.n_evaluated} | {t.n_evaluated} | "
+        f"{r.n_evaluated} | {p.n_evaluated} |",
+        f"| skipped | {f.n_skipped} | {t.n_skipped} | "
+        f"{r.n_skipped} | {p.n_skipped} |",
+        f"| actionable | {f.n_actionable} | {t.n_actionable} | "
+        f"{r.n_actionable} | {p.n_actionable} |",
+        f"| traded (n) | {f.n_traded} | {t.n_traded} | "
+        f"{r.n_traded} | {p.n_traded} |",
         f"| **AUC (overall)** | {f.overall_auc:.4f} | {t.overall_auc:.4f} | "
-        f"{r.overall_auc:.4f} |",
-        f"| AUC IS | {f.is_auc:.4f} | {t.is_auc:.4f} | {r.is_auc:.4f} |",
-        f"| AUC OOS | {f.oos_auc:.4f} | {t.oos_auc:.4f} | {r.oos_auc:.4f} |",
-        f"| **Sharpe (overall)** | {f.overall_sharpe:.4f} | {t.overall_sharpe:.4f} | "
-        f"{r.overall_sharpe:.4f} |",
-        f"| Sharpe IS | {f.is_sharpe:.4f} | {t.is_sharpe:.4f} | {r.is_sharpe:.4f} |",
-        f"| Sharpe OOS | {f.oos_sharpe:.4f} | {t.oos_sharpe:.4f} | {r.oos_sharpe:.4f} |",
-        f"| OOS degradation | {f.oos_degradation:.2%} | {t.oos_degradation:.2%} | "
-        f"{r.oos_degradation:.2%} |",
+        f"{r.overall_auc:.4f} | {p.overall_auc:.4f} |",
+        f"| AUC IS | {f.is_auc:.4f} | {t.is_auc:.4f} | "
+        f"{r.is_auc:.4f} | {p.is_auc:.4f} |",
+        f"| AUC OOS | {f.oos_auc:.4f} | {t.oos_auc:.4f} | "
+        f"{r.oos_auc:.4f} | {p.oos_auc:.4f} |",
+        f"| **Sharpe (overall)** | {f.overall_sharpe:.4f} | "
+        f"{t.overall_sharpe:.4f} | "
+        f"{r.overall_sharpe:.4f} | {p.overall_sharpe:.4f} |",
+        f"| Sharpe IS | {f.is_sharpe:.4f} | {t.is_sharpe:.4f} | "
+        f"{r.is_sharpe:.4f} | {p.is_sharpe:.4f} |",
+        f"| Sharpe OOS | {f.oos_sharpe:.4f} | {t.oos_sharpe:.4f} | "
+        f"{r.oos_sharpe:.4f} | {p.oos_sharpe:.4f} |",
+        f"| OOS degradation | {f.oos_degradation:.2%} | "
+        f"{t.oos_degradation:.2%} | "
+        f"{r.oos_degradation:.2%} | {p.oos_degradation:.2%} |",
     ]
 
 
