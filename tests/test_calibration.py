@@ -58,6 +58,37 @@ def test_directional_bias_at_random() -> None:
     assert _make_thesis(auc=0.5).directional_bias == 0
 
 
+# ── calibration_status (v1.10) ───────────────────────────────────────────
+
+
+def test_calibration_status_bootstrap_for_n_zero() -> None:
+    t = _make_thesis(auc=0.5, n=0)
+    assert t.calibration_status == "bootstrap"
+
+
+def test_calibration_status_underfit_for_small_n() -> None:
+    # n in (0, 50) is too few samples for the AUC to be trusted.
+    t = _make_thesis(auc=0.6, n=20)
+    assert t.calibration_status == "underfit"
+
+
+def test_calibration_status_near_random_for_meaningful_n_but_no_edge() -> None:
+    t = _make_thesis(auc=0.51, n=200)
+    assert t.calibration_status == "near_random"
+
+
+def test_calibration_status_measured_for_real_edge() -> None:
+    t = _make_thesis(auc=0.586, n=298)
+    assert t.calibration_status == "measured"
+
+
+def test_calibration_status_measured_for_under_random_edge() -> None:
+    # AUC 0.339 (E_INSIDER_CLUSTER style) — informative once flipped via
+    # directional_bias = -1, so still "measured", not "near_random".
+    t = _make_thesis(auc=0.339, n=200)
+    assert t.calibration_status == "measured"
+
+
 # ── is_active ─────────────────────────────────────────────────────────────
 
 

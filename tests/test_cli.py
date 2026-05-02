@@ -186,11 +186,21 @@ def test_predict_inv_gs_008_metadata_visible_in_json(workdir: Path) -> None:
 # ── Sprint 1 PR #3: E_FUND_FLOW Expert (legacy verdict) ───────────────────
 
 
-def test_predict_expert_fund_flow_only_skips_in_mock(workdir: Path) -> None:
-    # Sprint 5 PR #1: E_FUND_FLOW alone in fresh-broker mock mode skips
-    # (no prior snapshot) so build_verdict raises and the CLI exits non-zero.
-    r = _run("verdict", "AAPL", "--mock", "--expert", "fund_flow", cwd=workdir)
-    assert r.returncode != 0
+def test_predict_expert_fund_flow_only_emits_neutral_in_mock(
+    workdir: Path,
+) -> None:
+    # v1.0 reframe behavior: E_FUND_FLOW in fresh-broker mock mode now emits
+    # a NEUTRAL signal from the bundled holders fixture (no prior snapshot
+    # required). build_verdict accepts the NEUTRAL signal and returns HOLD,
+    # so the deprecated `verdict` CLI exits 0. The original Sprint 5 assertion
+    # ("skips → non-zero exit") is no longer reachable — the holders fixture
+    # populated in v1.1 paved that branch.
+    r = _run(
+        "verdict", "AAPL", "--mock", "--expert", "fund_flow", cwd=workdir,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "E_FUND_FLOW" in r.stdout
+    assert "HOLD" in r.stdout
 
 
 def test_predict_all_experts_includes_at_least_two(workdir: Path) -> None:

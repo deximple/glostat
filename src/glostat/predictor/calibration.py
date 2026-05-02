@@ -53,6 +53,31 @@ class ThesisCalibration:
             return -1
         return 0
 
+    @property
+    def calibration_status(self) -> str:
+        # v1.10 honesty: distinguish bootstrap (n=0, awaiting hindcast) from
+        # measured-near-random (n≥50, AUC ≈ 0.5) from measured-edge so the
+        # `glostat calibrate` and `glostat predict` outputs no longer treat
+        # both as identical "auc=0.50, n=0".
+        if self.n_samples == 0:
+            return "bootstrap"
+        if self.n_samples < _DEFAULT_MIN_SAMPLES:
+            return "underfit"
+        if abs(self.auc - 0.5) < _DEFAULT_AUC_DELTA:
+            return "near_random"
+        return "measured"
+
+
+def _bootstrap_entry(name: str) -> ThesisCalibration:
+    # WHY: thesis registration before its hindcast lands. n=0 ⇒ is_active()
+    # returns False ⇒ composite weight = 0 (INV-GS-103 safe). Callers should
+    # replace with a real ThesisCalibration once the hindcast wave runs.
+    return ThesisCalibration(
+        name=name, auc=_RANDOM_AUC, sharpe=0.0, n_samples=0,
+        oos_degradation=0.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    )
+
 
 @dataclass(slots=True)
 class CalibrationTable:
@@ -62,17 +87,9 @@ class CalibrationTable:
     def get(self, name: str) -> ThesisCalibration:
         if name in self.entries:
             return self.entries[name]
-        # WHY: fall back to a "random" calibration so a freshly-added thesis
-        # without cached hindcast still serializes. is_active() will return False.
-        return ThesisCalibration(
-            name=name,
-            auc=_RANDOM_AUC,
-            sharpe=0.0,
-            n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START,
-            period_end=_DEFAULT_PERIOD_END,
-        )
+        # Fall back to a "random" calibration so a freshly-added thesis
+        # without cached hindcast still serializes. is_active() returns False.
+        return _bootstrap_entry(name)
 
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(self.entries.keys()))
@@ -291,6 +308,12 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
         "hindcast/phase_kr/e_insider_velocity_kr_report.json",
         "phase1b", {},
     ),
+    # v1.10 — US regime hindcast (VIX term + UST curve, basket-mode).
+    (
+        "E_REGIME_US",
+        "hindcast/phase_us_regime/e_regime_us_report.json",
+        "phase1b", {},
+    ),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.
@@ -349,162 +372,99 @@ def _backfill_from_synthetic(table: CalibrationTable) -> None:
             table.entries[name] = cal
 
 
+# v1.10 cleanup — measured theses live in a small declarative table and the
+# 12+ n=0 bootstrap entries are a single tuple. Replaces the ~120-line
+# repetitive synthetic_calibration_for_mock body. Behavior is unchanged.
+_MEASURED_SYNTHETIC: Final[tuple[ThesisCalibration, ...]] = (
+    ThesisCalibration(
+        "E_FUNDAMENTAL", auc=0.55, sharpe=0.40, n_samples=120,
+        oos_degradation=0.20,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_TIME", auc=0.52, sharpe=0.30, n_samples=200,
+        oos_degradation=0.15,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_FUND_FLOW", auc=0.48, sharpe=-0.10, n_samples=80,
+        oos_degradation=0.50,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_SECTOR_ROTATION", auc=0.470, sharpe=-0.478, n_samples=174,
+        oos_degradation=1.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_PEAD", auc=0.586, sharpe=0.629, n_samples=298,
+        oos_degradation=1.156,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_FOMC_DRIFT", auc=0.357, sharpe=-1.340, n_samples=135,
+        oos_degradation=1.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_INSIDER_CLUSTER", auc=0.339, sharpe=0.782, n_samples=11,
+        oos_degradation=0.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_COMMODITY_TS", auc=0.489, sharpe=0.139, n_samples=517,
+        oos_degradation=1.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_FX_CARRY", auc=0.400, sharpe=-1.533, n_samples=135,
+        oos_degradation=1.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    ThesisCalibration(
+        "E_FUNDING_CARRY", auc=0.5052, sharpe=-0.2314, n_samples=2921,
+        oos_degradation=4.5741,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+    # v1.1 K1 — Phase 1D live hindcast. AUC < 0.5 → directional_bias=-1;
+    # composite flips the score.
+    ThesisCalibration(
+        "E_FOREIGN_REVERSAL", auc=0.4667, sharpe=0.5834, n_samples=424,
+        oos_degradation=0.0,
+        period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+    ),
+)
+
+# Theses registered in the framework but awaiting their hindcast wave. All
+# bootstrap to AUC=0.50 / n=0 / weight=0 via _bootstrap_entry. The composite
+# predictor surfaces these in contributing_signals (raw_score, basis) so the
+# user sees the picture even when weight=0.
+_BOOTSTRAP_THESES: Final[tuple[str, ...]] = (
+    "E_FUNDAMENTAL_KR",          # v1.1 K1 — KR fundamentals
+    "E_TIME_KR",                 # v1.2 L1 — KR-specific E_TIME
+    "E_INSIDER_KR",              # v1.2 L2 — KR insider cluster (DART)
+    "E_MACRO_KR",                # v1.3 M2 — KR macro (ECOS)
+    "E_SHORT_SELLING_KR",        # v1.4 N2 — KR short-selling (KRX)
+    "E_INTRADAY_FLOW_KR",        # v1.4 N2 — KR intraday flow (Naver+KIS)
+    "E_FUNDAMENTAL_KR_CYCLICAL", # v1.5 P6 — cyclical EV/EBITDA + cycle
+    "E_COMMODITY_INDEX_KR",      # v1.5 P6 — refining momentum
+    "E_PEAD_KR",                 # v1.6 P5 — KR PEAD
+    "E_INSIDER_VELOCITY_KR",     # v1.7.0 — first-derivative DART signal
+    "E_ANALYST_REVISION",        # v1.8.0 — yfinance revisions
+    "E_REGIME_US",               # v1.10 — VIX term + UST curve
+)
+
+
 def synthetic_calibration_for_mock() -> CalibrationTable:
     # WHY: --mock CLI runs need a deterministic calibration table even when
-    # cache/ is empty. Mirrors the actual archived numbers so the printed output
-    # looks like the real thing.
+    # cache/ is empty. Mirrors the actual archived numbers so printed output
+    # looks like the real thing. Live hindcast reports will replace bootstrap
+    # entries through load_calibration → _backfill_from_synthetic.
     table = CalibrationTable()
-    table.entries.update({
-        "E_FUNDAMENTAL": ThesisCalibration(
-            "E_FUNDAMENTAL", auc=0.55, sharpe=0.40, n_samples=120,
-            oos_degradation=0.20,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.1 K1 — KR fundamentals bootstrapped at AUC=0.5, n=0 (no hindcast yet).
-        # Composite weight = 0 until calibration table is rebuilt.
-        "E_FUNDAMENTAL_KR": ThesisCalibration(
-            "E_FUNDAMENTAL_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_TIME": ThesisCalibration(
-            "E_TIME", auc=0.52, sharpe=0.30, n_samples=200,
-            oos_degradation=0.15,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_FUND_FLOW": ThesisCalibration(
-            "E_FUND_FLOW", auc=0.48, sharpe=-0.10, n_samples=80,
-            oos_degradation=0.50,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_SECTOR_ROTATION": ThesisCalibration(
-            "E_SECTOR_ROTATION", auc=0.470, sharpe=-0.478, n_samples=174,
-            oos_degradation=1.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_PEAD": ThesisCalibration(
-            "E_PEAD", auc=0.586, sharpe=0.629, n_samples=298,
-            oos_degradation=1.156,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_FOMC_DRIFT": ThesisCalibration(
-            "E_FOMC_DRIFT", auc=0.357, sharpe=-1.340, n_samples=135,
-            oos_degradation=1.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_INSIDER_CLUSTER": ThesisCalibration(
-            "E_INSIDER_CLUSTER", auc=0.339, sharpe=0.782, n_samples=11,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_COMMODITY_TS": ThesisCalibration(
-            "E_COMMODITY_TS", auc=0.489, sharpe=0.139, n_samples=517,
-            oos_degradation=1.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_FX_CARRY": ThesisCalibration(
-            "E_FX_CARRY", auc=0.400, sharpe=-1.533, n_samples=135,
-            oos_degradation=1.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        "E_FUNDING_CARRY": ThesisCalibration(
-            "E_FUNDING_CARRY", auc=0.5052, sharpe=-0.2314, n_samples=2921,
-            oos_degradation=4.5741,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.1 K1 — Phase 1D live hindcast (n=424, AUC=0.4667, Sharpe=0.5834).
-        # AUC < 0.5 → directional_bias=-1; composite flips the score.
-        "E_FOREIGN_REVERSAL": ThesisCalibration(
-            "E_FOREIGN_REVERSAL", auc=0.4667, sharpe=0.5834, n_samples=424,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.2 L1 — KR-specific E_TIME calibration. Bootstrapped at AUC=0.5,
-        # n=0 so the composite weight=0 until a phase_kr hindcast lands.
-        # Distinct from US E_TIME (AUC=0.52) so the predictor can look up the
-        # right cell when scoring KR tickers.
-        "E_TIME_KR": ThesisCalibration(
-            "E_TIME_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.2 L2 — KR insider cluster (DART elestock). n=0 placeholder until
-        # a KR insider hindcast measures AUC. Composite weight = 0 until then.
-        "E_INSIDER_KR": ThesisCalibration(
-            "E_INSIDER_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.3 M2 — KR macro (ECOS BoK). n=0 placeholder until a KR macro
-        # hindcast that includes E_MACRO_KR runs. Composite weight = 0 until
-        # then; the signal still surfaces in contributing_signals so the user
-        # sees the macro picture (raw_score, basis), just with weight=0.
-        "E_MACRO_KR": ThesisCalibration(
-            "E_MACRO_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.4 N2 — KR short-selling (KRX). n=0 placeholder; weight=0 until a
-        # dedicated short-selling hindcast runs. Surfaces in contributing
-        # signals so the user sees the short-balance picture.
-        "E_SHORT_SELLING_KR": ThesisCalibration(
-            "E_SHORT_SELLING_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.4 N2 — KR intraday flow (Naver + KIS overlay). n=0 placeholder.
-        "E_INTRADAY_FLOW_KR": ThesisCalibration(
-            "E_INTRADAY_FLOW_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.5 P6 — KR cyclical-sector fundamentals (EV/EBITDA + commodity
-        # cycle). n=0 placeholder; weight=0 until a phase_kr_cyclical hindcast
-        # measures predictive AUC for cyclical universe.
-        "E_FUNDAMENTAL_KR_CYCLICAL": ThesisCalibration(
-            "E_FUNDAMENTAL_KR_CYCLICAL", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.5 P6 — KR refining commodity-momentum (WTI + crack spread).
-        # Refining-universe-only; n=0 placeholder.
-        "E_COMMODITY_INDEX_KR": ThesisCalibration(
-            "E_COMMODITY_INDEX_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.6 P5 — KR Post-Earnings Announcement Drift. n=0 bootstrap until
-        # a dedicated KR PEAD hindcast measures predictive AUC.
-        "E_PEAD_KR": ThesisCalibration(
-            "E_PEAD_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.7.0 — KR Insider Velocity (skeleton). DART-derived first-derivative
-        # of E_INSIDER_KR cluster signal. Requires GLOSTAT_DART_API_KEY for
-        # live activation. v1.7.1 added kr-hindcast wiring.
-        "E_INSIDER_VELOCITY_KR": ThesisCalibration(
-            "E_INSIDER_VELOCITY_KR", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.8.0 — Sell-side analyst revision drift. yfinance recommendations
-        # API; coverage best in US large/mid-cap (Russell 2000+). KR megacap
-        # has partial coverage. n=0 bootstrap; weight=0 until live hindcast.
-        "E_ANALYST_REVISION": ThesisCalibration(
-            "E_ANALYST_REVISION", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-        # v1.10 — US regime expert (VIX term + UST 3m-10y curve, yfinance free).
-        # Closes the documented US peer of E_MACRO_KR. n=0 bootstrap; weight=0
-        # until a dedicated US-regime hindcast measures predictive AUC.
-        "E_REGIME_US": ThesisCalibration(
-            "E_REGIME_US", auc=0.50, sharpe=0.0, n_samples=0,
-            oos_degradation=0.0,
-            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
-        ),
-    })
+    for cal in _MEASURED_SYNTHETIC:
+        table.entries[cal.name] = cal
+    for name in _BOOTSTRAP_THESES:
+        table.entries[name] = _bootstrap_entry(name)
     return table
 
 

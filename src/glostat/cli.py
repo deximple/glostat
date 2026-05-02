@@ -33,6 +33,10 @@ from glostat.cli_universe import (
     cmd_screen,
     cmd_universe,
 )
+from glostat.cli_us_regime_hindcast import (
+    add_us_regime_hindcast_subparser,
+    cmd_us_regime_hindcast,
+)
 from glostat.cli_verdict import (
     _load_fixture,
     _load_market_meta,
@@ -69,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         "screen":      cmd_screen,
         "hindcast":    cmd_hindcast,
         "kr-hindcast": cmd_kr_hindcast,
+        "us-regime-hindcast": cmd_us_regime_hindcast,
         "gate-status": cmd_gate_status,
     }[args.command]
     try:
@@ -110,6 +115,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_screen_subparser(sub)
     add_hindcast_subparser(sub)
     add_kr_hindcast_subparser(sub)
+    add_us_regime_hindcast_subparser(sub)
     add_gate_status_subparser(sub)
 
     return p
