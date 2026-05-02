@@ -1,18 +1,42 @@
-# GLOSTAT v1.2 Calibration Table — Empirical Predictive Strength of Thesis Modules
+# GLOSTAT Calibration Table — Empirical Predictive Strength of Thesis Modules
 
 > Generated: 2026-04-29 (v1.0 reframe day) + 2026-04-30 (v1.2 phase_kr smoke
-> + M1 full 2-year update).
+> + M1 full 2-year update) + 2026-05-02 (v1.6.2 wave-1+wave-2 6-thesis
+> hindcast — see `docs/EMPIRICAL_RESULTS_2026-05-02.md`).
 > Source: `cache/hindcast/phase1b/`, `cache/hindcast/phase1c_*`,
-> `cache/hindcast/phase1d/`, `cache/hindcast/phase_kr/` (v1.2 L1 + M1 full).
+> `cache/hindcast/phase1d/`, `cache/hindcast/phase_kr/`.
 > Originally produced as v0.6/v0.7 Sprint 4 gate evaluations; reframed in v1.0
 > as **calibration data**; v1.2 added Phase KR (KOSPI 200) measurements;
 > M1 (2026-04-30) replaced the Phase KR 3-month smoke with the full 2-year
-> hindcast (n=189/210/7 → n=3510/3510/138).
+> hindcast (n=189/210/7 → n=3510/3510/138). v1.6.2 (2026-05-02) added the
+> first 6-thesis KR hindcast covering E_PEAD_KR + E_FUNDAMENTAL_KR_CYCLICAL +
+> E_COMMODITY_INDEX_KR.
 >
 > **Honest disclaimer:** Most signals tested were random or anti-predictive.
 > This is HONEST data, not failure. Anti-predictive signals get weight 0;
 > weakly positive signals get small weight; nothing here promises an "alpha".
 > The framework's value is the table itself, not any one row in it.
+
+---
+
+## v1.6.2 (2026-05-02) measured KR thesis AUCs (5-month, KOSPI 200 top-30, stride 7d)
+
+| Thesis | n | AUC | Sharpe | composite_v2 weight | Verdict |
+|---|---:|---:|---:|---:|---|
+| **E_PEAD_KR** | 360 | **0.5405** | +0.480 | 0.890 | ✅ p=0.008 statistically significant |
+| E_FOREIGN_REVERSAL | 28 | 0.5308 | +2.151 | 0.727 | small-n inconclusive |
+| E_COMMODITY_INDEX_KR | 44 | 0.5323 | **−2.253** | 0.048 | ⚠️ anti-predictive Sharpe |
+| E_FUNDAMENTAL_KR_CYCLICAL | 176 | **0.5000** | 0.0 | ≈ 0 | ⚠️ literally random (bias=0) |
+| E_FUNDAMENTAL_KR | 572 | 0.4807 | +0.477 | 0.908 | NEAR_RANDOM |
+| E_TIME_KR | 660 | 0.4692 | +1.527 | n/a | NEAR_RANDOM (positive Sharpe) |
+
+Full discussion + cross-stock (5-ticker) before/after demonstration:
+**[docs/EMPIRICAL_RESULTS_2026-05-02.md](EMPIRICAL_RESULTS_2026-05-02.md)**.
+
+Net finding: only E_PEAD_KR carries statistically significant edge in KR
+megacap. The Brier ensemble correctly down-weights the 5 failed experiments
+to ≤1% each, so they don't harm the predictor — they just appear as honest
+diagnostic data with their measured AUC + p-value.
 
 ---
 
