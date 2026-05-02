@@ -164,6 +164,22 @@ async def wrap_commodity_index_kr(
     )
 
 
+async def wrap_pead_kr(
+    expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
+) -> SignalContribution:
+    # v1.6 P5 — KR Post-Earnings Announcement Drift. Universe = KOSPI 200
+    # (liquidity needed for the T+5..T+30 drift to be measurable).
+    if not is_kr_ticker(ticker):
+        return _skip("E_PEAD_KR", "ticker not KR equity", cal_table)
+    if not is_kospi200(ticker):
+        return _skip(
+            "E_PEAD_KR",
+            f"ticker {kr_canonical(ticker)} not in KOSPI 200 universe",
+            cal_table,
+        )
+    return await _wrap_expert_compute("E_PEAD_KR", expert, ticker, ts, cal_table)
+
+
 async def wrap_foreign_reversal_live(
     expert: Any, ticker: str, ts: datetime, cal_table: CalibrationTable
 ) -> SignalContribution:
@@ -275,6 +291,7 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     intraday_flow_kr_expert: Any | None = None,       # v1.4 N2 (KIS+Naver)
     fundamental_kr_cyclical_expert: Any | None = None,# v1.5 P6 (sector cycle)
     commodity_index_kr_expert: Any | None = None,     # v1.5 P6 (WTI + crack)
+    pead_kr_expert: Any | None = None,                # v1.6 P5 (post-earnings drift)
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -393,6 +410,17 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
         out.append(_skip(
             "E_COMMODITY_INDEX_KR", "ticker not KR equity", cal_table,
         ))
+    # v1.6 P5: KR Post-Earnings Announcement Drift expert.
+    if pead_kr_expert is not None:
+        out.append(await wrap_pead_kr(pead_kr_expert, ticker, ts, cal_table))
+    elif is_kr_ticker(ticker):
+        out.append(_skip(
+            "E_PEAD_KR",
+            "calendar client not wired (post-earnings drift)",
+            cal_table,
+        ))
+    else:
+        out.append(_skip("E_PEAD_KR", "ticker not KR equity", cal_table))
     return tuple(out)
 
 
@@ -414,6 +442,7 @@ __all__ = [
     "wrap_insider_kr",
     "wrap_intraday_flow_kr",
     "wrap_macro_kr",
+    "wrap_pead_kr",
     "wrap_pead_static",
     "wrap_sector_rotation_static",
     "wrap_short_selling_kr",

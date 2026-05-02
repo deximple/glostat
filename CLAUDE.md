@@ -55,12 +55,31 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.5 — P6 KR Market Specialist absorption (sector-aware cyclicals).**
-> Previous: v1.4.1 — X+W honesty patch (P8+P10 panel synthesis);
-> v1.4 — N1+N2+N3+N4 (KR multi-source + experts + sizing + confidence);
-> v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
-> + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200) production support;
-> v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> **STATUS: ACTIVE v1.6 — P5 Event-Driven panel absorption (calendar awareness).**
+> Previous: v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
+> (P8+P10 panel synthesis); v1.4 — N1+N2+N3+N4 (KR multi-source + experts +
+> sizing + confidence); v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR
+> calibration (L1) + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200)
+> production support; v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.6 delta (P5 calendar absorption — INV-GS-119/120/121):
+> - **kr_calendar_client.py** (~250 lines) — surfaces upcoming KR-relevant
+>   events: KR earnings (KIFRS Q-end + 45d heuristic), BoK 금통위
+>   (hardcoded 2026 schedule, 8 meetings), OPEC 장관급 (auto-scrape
+>   opec.org/40.htm with 30d cache + hardcoded 2026 fallback), OPEC JMMC
+>   (first-Wednesday monthly heuristic). Snapshot writes mandatory.
+> - **E_PEAD_KR** (~250 lines) — KR Post-Earnings Announcement Drift.
+>   Computes T+5 → T+30 OHLCV drift after most-recent expected filing
+>   date (Q-end + 45d). archetype=continuation. KOSPI 200 universe gate.
+>   Bootstrap n=0; weight=0 until KR PEAD hindcast measures real AUC.
+> - **composite CI calendar widening** — `predict()` accepts
+>   `days_to_imminent_event`; sigma scales ×1.5 (D-day < 7) or ×2.0
+>   (D-day < 3). Reflects option-implied vol expansion approaching
+>   scheduled events.
+> - **next_triggers populated from calendar** — concrete D-day countdowns
+>   ("BoK 금통위 2026-05-30 (D-28)") replace generic
+>   "horizon expires in ~30 days". KR ticker only; non-KR falls back to
+>   the original auto-derived list.
+> - 34 new tests; full suite green.
 > v1.5 delta (P6 sector cycle absorption — INV-GS-115/116/117/118):
 > - **commodity_client.py** (~200 lines) — wraps yfinance commodity futures
 >   (CL=F WTI, BZ=F Brent, RB=F gasoline, TIO=F iron ore, HG=F copper, BDRY)
@@ -230,6 +249,9 @@ advice.
 | **INV-GS-116**  | **sector_classifier_kr maps KOSPI 200 → KrSector + CycleClass; hard-coded ~40 cyclical/defensive/growth roster**                                                            | **active v1.5**                                                  |
 | **INV-GS-117**  | **E_FUNDAMENTAL_KR_CYCLICAL gates to cyclical sectors; EV/EBITDA z-score + commodity-cycle term where trough → LONG (contrarian)**                                          | **active v1.5**                                                  |
 | **INV-GS-118**  | **E_COMMODITY_INDEX_KR gates to refining tickers; 30d WTI + crack spread momentum (continuation)**                                                                          | **active v1.5**                                                  |
+| **INV-GS-119**  | **kr_calendar_client surfaces KR earnings (KIFRS heuristic) + BoK 금통위 (hardcoded 2026) + OPEC 장관급 (auto-scrape + fallback) + OPEC JMMC (first-Wed monthly)**            | **active v1.6**                                                  |
+| **INV-GS-120**  | **next_triggers populated with concrete D-day countdowns from calendar; KR ticker only, falls back to auto-derived list otherwise**                                          | **active v1.6**                                                  |
+| **INV-GS-121**  | **CI sigma calendar widening: D-day < 7 → ×1.5σ, D-day < 3 → ×2.0σ; reflects option-implied vol expansion near scheduled events**                                            | **active v1.6**                                                  |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

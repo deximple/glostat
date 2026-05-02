@@ -176,6 +176,8 @@ def _blend_with_baseline(
 def _expected_return_and_sigma(
     rows: list[tuple[SignalContribution, float, int]],
     cal_table: CalibrationTable,
+    *,
+    days_to_imminent_event: int | None = None,
 ) -> tuple[float, float]:
     contribs_bps: list[float] = []
     total_weight = 0.0
@@ -199,7 +201,20 @@ def _expected_return_and_sigma(
         mean = expected
         variance = sum((c - mean) ** 2 for c in contribs_bps) / max(1, len(contribs_bps) - 1)
         sigma = math.sqrt(variance) * math.sqrt(len(contribs_bps))
+    # v1.6 P5 (INV-GS-121): widen sigma when an imminent calendar event drives
+    # additional uncertainty. <3d → ×2.0, <7d → ×1.5, otherwise unchanged.
+    sigma *= _calendar_sigma_multiplier(days_to_imminent_event)
     return (expected, sigma)
+
+
+def _calendar_sigma_multiplier(days_to_event: int | None) -> float:
+    if days_to_event is None or days_to_event < 0:
+        return 1.0
+    if days_to_event < 3:
+        return 2.0
+    if days_to_event < 7:
+        return 1.5
+    return 1.0
 
 
 def _evidence_hash(contributions: Iterable[SignalContribution]) -> str:
@@ -298,7 +313,12 @@ def predict(
     issued_at: datetime | None = None,
     base_rate_up: float | None = None,
     market: str = "XNAS",
+    next_triggers: tuple[str, ...] | None = None,
+    days_to_imminent_event: int | None = None,
 ) -> Prediction:
+    # v1.6 P5: optional `next_triggers` overrides the auto-derived list (used
+    # by callers that consult kr_calendar_client). `days_to_imminent_event`
+    # widens CI sigma when an event is < 7 days out (INV-GS-121).
     table = cal_table or load_calibration()
     ts = issued_at or datetime.now(tz=UTC)
     base = base_rate_up if base_rate_up is not None else _HORIZON_BASE_RATES.get(
@@ -325,7 +345,9 @@ def predict(
         p_neutral = _blend_with_baseline(norm_neutral, total_w, baseline_neutral)
         p_up, p_down, p_neutral = _normalize_three(p_up, p_down, p_neutral)
     p_up, p_down, p_neutral = _ensure_neutral_floor(p_up, p_down, p_neutral)
-    expected_bps, sigma_bps = _expected_return_and_sigma(rows, table)
+    expected_bps, sigma_bps = _expected_return_and_sigma(
+        rows, table, days_to_imminent_event=days_to_imminent_event,
+    )
     edge_pp = (p_up - base) * 100.0
     # v1.4 N4: enrich contributions with per-thesis confidence_v2 breakdown.
     enriched = _attach_confidence_v2(contributions, table)
@@ -341,7 +363,10 @@ def predict(
         base_rate_up=base,
         edge_over_baseline_pp=edge_pp,
         contributing_signals=enriched,
-        next_triggers=_next_triggers(contributions, horizon),
+        next_triggers=(
+            next_triggers if next_triggers is not None
+            else _next_triggers(contributions, horizon)
+        ),
         evidence_hash=_evidence_hash(contributions),
         prompt_versions=_prompt_versions(contributions),
         disclaimer=default_disclaimer(),

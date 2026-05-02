@@ -14,6 +14,7 @@ from glostat.cli_predict_print import print_prediction
 from glostat.data.commodity_client import CommodityClient
 from glostat.data.data_router import DataRouter, is_kr_ticker
 from glostat.data.kis_client import KisClient, is_kis_configured
+from glostat.data.kr_calendar_client import KrCalendarClient
 from glostat.data.krx_short_client import KrxShortClient
 from glostat.data.naver_kr_client import NaverKrClient
 from glostat.data.sec_edgar_client import SecEdgarClient
@@ -30,6 +31,7 @@ from glostat.experts import (
     EInsiderKrExpert,
     EIntradayFlowKrExpert,
     EMacroKrExpert,
+    EPeadKrExpert,
     EShortSellingKrExpert,
     ETimeExpert,
 )
@@ -181,6 +183,9 @@ async def _predict_live(
     commodity_index_kr = ECommodityIndexKrExpert(
         commodity_client=commodity_client,
     )
+    # v1.6 P5 — wire calendar client + KR PEAD expert.
+    calendar_client = KrCalendarClient(snapshot_broker=broker)
+    pead_kr = EPeadKrExpert(router=router, calendar=calendar_client)
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
@@ -196,6 +201,7 @@ async def _predict_live(
             intraday_flow_kr_expert=intraday_flow_kr,
             fundamental_kr_cyclical_expert=fundamental_kr_cyclical,
             commodity_index_kr_expert=commodity_index_kr,
+            pead_kr_expert=pead_kr,
         )
     finally:
         await sec_client.aclose()
@@ -210,10 +216,36 @@ async def _predict_live(
                 await kis_client.aclose()
         with contextlib.suppress(Exception):
             await krx_short_client.aclose()
+    # v1.6 P5 (INV-GS-120, INV-GS-121): pull upcoming events for next_triggers
+    # and CI calendar widening. Failures degrade gracefully to the original
+    # auto-derived next_triggers.
+    next_triggers, days_to_imminent = await _build_calendar_overlay(
+        calendar_client, is_kr=is_kr_ticker(ticker),
+    )
     return predict(
         ticker=ticker, horizon=horizon, contributions=contribs,
         cal_table=cal_table, issued_at=ts, market=market,
+        next_triggers=next_triggers,
+        days_to_imminent_event=days_to_imminent,
     )
+
+
+async def _build_calendar_overlay(
+    calendar: KrCalendarClient, *, is_kr: bool,
+) -> tuple[tuple[str, ...] | None, int | None]:
+    if not is_kr:
+        return None, None
+    try:
+        events = await calendar.next_events()
+    except Exception:
+        return None, None
+    if not events:
+        return None, None
+    triggers = tuple(
+        f"{e.label} (D-{e.days_to})" for e in events
+    )
+    days_to_imminent = events[0].days_to
+    return triggers, days_to_imminent
 
 
 async def _predict_mock(

@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 55
+total: 58
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -12,6 +12,7 @@ v1_3_active_count: 1   # INV-GS-108 (ECOS)
 v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v2)
 v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
 v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
+v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -434,6 +435,41 @@ invariants:
       - predictor.thesis_wrappers.wrap_commodity_index_kr
     note: "Refining-only gate keeps oil-sensitive momentum from spuriously firing on non-refining cyclicals (where commodity dynamics differ). raw = 0.5 * wti_signal + 0.5 * crack_signal where each sub_signal = clamp(momentum_30d * 5.0, ±1.5). +20% commodity move → +1.0 sub-signal. Direction threshold 0.3."
 
+  # ───────── v1.6: P5 Event-Driven absorption — calendar awareness ─────────
+  INV-GS-119:
+    summary: "kr_calendar_client surfaces upcoming KR earnings (KIFRS Q-end + 45d heuristic), BoK 금통위 (hardcoded 2026 schedule, 8 meetings), OPEC 장관급 (auto-scrape opec.org/40.htm with 30d cache, falls back to hardcoded 2026 dates), and OPEC JMMC (first-Wednesday monthly heuristic)."
+    enforcement: event_calendar_client
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - data.kr_calendar_client.KrCalendarClient.next_events
+      - data.kr_calendar_client._next_kr_earnings
+      - data.kr_calendar_client._next_bok_rate
+      - data.kr_calendar_client._next_opec_jmmc
+      - data.kr_calendar_client._scrape_opec
+    note: "KR has no public earnings-calendar API; KIFRS deadline (Q-end + 45d) is a deterministic heuristic. BoK schedule is published annually but no API — hardcoded; refresh quarterly. OPEC ministerial dates scraped from opec.org with regex parser (constraint: same paragraph as 'Ministerial' or 'Conference'); fallback ensures graceful degradation when scrape fails."
+
+  INV-GS-120:
+    summary: "next_triggers field populated from kr_calendar_client when ticker is KR; concrete D-day countdowns ('BoK 금통위 2026-05-30 (D-28)') replace the generic 'horizon expires in ~30 days' message."
+    enforcement: presentation_layer
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - cli_predictor._build_calendar_overlay
+      - predictor.composite.predict
+    note: "When calendar fetch fails or ticker is non-KR, falls back to the original auto-derived next_triggers (predictor.composite._next_triggers). User always sees ≥ horizon-expiration trigger so the field is never empty."
+
+  INV-GS-121:
+    summary: "Composite CI sigma widens when an imminent calendar event drives additional uncertainty: D-day < 3 → ×2.0 sigma, D-day < 7 → ×1.5 sigma, otherwise unchanged."
+    enforcement: ci_widening
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - predictor.composite.predict
+      - predictor.composite._expected_return_and_sigma
+      - predictor.composite._calendar_sigma_multiplier
+    note: "Reflects the well-documented increase in option-implied volatility approaching scheduled events (BoK rate decisions, OPEC meetings, KR earnings deadlines). Multiplier applied AFTER the active-signal-count sigma scaling, so the calendar signal stacks rather than replaces. CI widening is presentation-honest only (does not change p_up); coupled with INV-GS-113 'CI 1-sigma' label so user sees the wider band."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -490,6 +526,12 @@ v1_5_active:
   - INV-GS-116    # sector_classifier_kr (KOSPI 200 cyclical/defensive/growth)
   - INV-GS-117    # E_FUNDAMENTAL_KR_CYCLICAL (EV/EBITDA + sector cycle, contrarian)
   - INV-GS-118    # E_COMMODITY_INDEX_KR (WTI + crack momentum, refining gate, continuation)
+
+# v1.6 active set (P5 Event-Driven panel absorption — calendar awareness):
+v1_6_active:
+  - INV-GS-119    # kr_calendar_client (DART earnings + BoK + auto OPEC)
+  - INV-GS-120    # next_triggers populated with concrete D-day countdowns
+  - INV-GS-121    # CI sigma calendar widening (D < 7 → ×1.5; D < 3 → ×2.0)
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

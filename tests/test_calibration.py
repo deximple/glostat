@@ -110,10 +110,10 @@ def test_calibration_table_names() -> None:
 # ── synthetic_calibration_for_mock — covers all 11 theses ────────────────
 
 
-def test_synthetic_calibration_has_nineteen_theses() -> None:
-    # v1.5 P6: 17 prior + E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR = 19.
+def test_synthetic_calibration_has_twenty_theses() -> None:
+    # v1.6 P5: 19 prior + E_PEAD_KR = 20.
     table = synthetic_calibration_for_mock()
-    assert len(table.entries) == 19
+    assert len(table.entries) == 20
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -122,6 +122,7 @@ def test_synthetic_calibration_has_nineteen_theses() -> None:
     assert "E_INTRADAY_FLOW_KR" in table.entries
     assert "E_FUNDAMENTAL_KR_CYCLICAL" in table.entries
     assert "E_COMMODITY_INDEX_KR" in table.entries
+    assert "E_PEAD_KR" in table.entries
 
 
 def test_synthetic_includes_phase1b_theses() -> None:
@@ -158,10 +159,9 @@ def test_synthetic_pead_matches_archived_metrics() -> None:
 
 
 def test_load_calibration_empty_cache(tmp_path: Path) -> None:
-    # v1.5 P6: 19 entries = 17 prior + E_FUNDAMENTAL_KR_CYCLICAL +
-    # E_COMMODITY_INDEX_KR (cyclical-sector P6 absorption).
+    # v1.6 P5: 20 entries = 19 prior + E_PEAD_KR (post-earnings drift).
     table = load_calibration(cache_dir=tmp_path)
-    assert len(table.entries) == 19
+    assert len(table.entries) == 20
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
@@ -170,6 +170,7 @@ def test_load_calibration_empty_cache(tmp_path: Path) -> None:
     assert "E_INTRADAY_FLOW_KR" in table.entries
     assert "E_FUNDAMENTAL_KR_CYCLICAL" in table.entries
     assert "E_COMMODITY_INDEX_KR" in table.entries
+    assert "E_PEAD_KR" in table.entries
 
 
 def test_load_calibration_reads_phase1b_report(tmp_path: Path) -> None:
@@ -247,7 +248,7 @@ def test_calibration_table_writes_parquet_or_json(tmp_path: Path) -> None:
 def test_calibration_table_to_records_round_trip() -> None:
     table = synthetic_calibration_for_mock()
     records = table.to_records()
-    # v1.5 P6: 17 prior + E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR = 19.
-    assert len(records) == 19
+    # v1.6 P5: 19 prior + E_PEAD_KR = 20.
+    assert len(records) == 20
     assert all("brier_score" in r for r in records)
     assert all("auc" in r for r in records)

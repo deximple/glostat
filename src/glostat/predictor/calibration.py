@@ -454,6 +454,13 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),
+        # v1.6 P5 — KR Post-Earnings Announcement Drift. n=0 bootstrap until
+        # a dedicated KR PEAD hindcast measures predictive AUC.
+        "E_PEAD_KR": ThesisCalibration(
+            "E_PEAD_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
     })
     return table
 
