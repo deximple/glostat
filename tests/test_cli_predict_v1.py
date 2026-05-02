@@ -54,7 +54,9 @@ def test_predict_v1_prints_expected_return_with_ci(workdir: Path) -> None:
     r = _run("predict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0
     assert "expected return" in r.stdout
-    assert "CI:" in r.stdout
+    # v1.4.1 (X1): CI label now clarifies it is the 1-sigma (~68%) interval
+    # rather than the conventional 95% read.
+    assert "CI 1-sigma (68%)" in r.stdout
     assert "bps" in r.stdout
 
 

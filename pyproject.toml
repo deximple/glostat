@@ -1,6 +1,6 @@
 [project]
 name = "glostat"
-version = "1.4.0"
+version = "1.4.1"
 description = "GLOSTAT — Evidence-based probability predictor for global equities (개선된 TITAN의 open-source 진화형). Brier-calibrated multi-thesis ensemble. Information tool, not investment advice."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -104,7 +104,7 @@ disallow_untyped_decorators = true
 files = ["src/glostat"]
 
 [[tool.mypy.overrides]]
-module = ["polars.*", "pyarrow.*", "structlog.*"]
+module = ["polars.*", "pyarrow.*", "structlog.*", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

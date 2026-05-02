@@ -55,10 +55,34 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.4 — N1 + N2 + N3 + N4 landing (KR multi-source + experts + sizing + confidence).**
-> Previous: v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
+> **STATUS: ACTIVE v1.4.1 — X+W honesty patch (P8 Statistician + P10 Contrarian Veteran panel synthesis).**
+> Previous: v1.4 — N1+N2+N3+N4 (KR multi-source + experts + sizing + confidence);
+> v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
 > + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200) production support;
 > v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.4.1 delta (X+W honesty patch — INV-GS-113 + INV-GS-114):
+> - **X1 — CI 1-sigma label clarity.** `confidence_interval_bps` is a 1-sigma
+>   (~68%) interval, not 95%. Output now reads `CI 1-sigma (68%): ...`.
+> - **X2 — CI-includes-0 visual flag.** When low <= 0 <= high, output appends
+>   `*** includes 0 -> no clear direction`.
+> - **X3 — AUC z-score / p-value annotation.** Each active signal line carries
+>   a `p=X, n.s.` or `p<0.001` tag computed via SE ≈ 1/sqrt(12·n).
+> - **X4 — Round-trip cost subtraction.** `expected return` line now shows
+>   gross AND net (after `round_trip_bps(market)` cost from markets.yaml).
+>   KR: ~23 bps round-trip, US: ~1.4 bps.
+> - **X5 — n=0 thesis 'no data' explicit display.** Replaces the silent
+>   `+0.00` contribution with `no data (n=0, weight=0)`.
+> - **X6 — Statistical-significance composite disclaimer.** When every active
+>   signal has p > 0.05, surface "*** Statistical note: every active signal's
+>   AUC is statistically indistinguishable from random...".
+> - **W1 — KR megacap universe-specific honesty footer.** XKRX/XKOS markets
+>   emit a Phase-KR-M1-derived disclosure: "AUC <= 0.51 on n=3,510 KOSPI 200
+>   samples — discrimination is at the edge of statistical noise".
+> - All changes are **presentation-layer only** — composite predictor logic,
+>   Brier weights, confidence_v2, and DCA sizing are unchanged. New module
+>   `predictor.honesty` (~150 lines) carries the math; `cli_predict_print`
+>   wires it into the rendered output.
+> v1.4 delta:
 > v1.4 delta:
 > - **N1 — KR 3-source investor flows.** New `kis_client.KisClient` (KIS Open
 >   API read-only paths, 20 req/sec, OAuth token managed; order-execution
@@ -177,6 +201,8 @@ advice.
 | **INV-GS-108**  | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory**          | **active v1.3**                                                   |
 | **INV-GS-111**  | **Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved** | **active v1.4**                                                   |
 | **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
+| **INV-GS-113**  | **Output honesty: CI label = '1-sigma (~68%)'; CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer** | **active v1.4.1**                                                |
+| **INV-GS-114**  | **Universe-specific honesty: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure footer**                                              | **active v1.4.1**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

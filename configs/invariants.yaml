@@ -3,13 +3,14 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 49
+total: 51
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
 v1_2_active_count: 1   # INV-GS-107 (DART)
 v1_3_active_count: 1   # INV-GS-108 (ECOS)
 v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v2)
+v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
@@ -360,6 +361,34 @@ invariants:
       - predictor.composite._attach_confidence_v2
     note: "Components: sample_quality = log(min(n, 1000))/log(1000), effective_size_factor = sqrt(n/(n+50)), score_stability = 1 - std/mean of rolling AUCs, return_consistency = 1 - |IS - OOS|/max(|IS|, 0.1), recency_quality = exp(-days/90). composite = (c1·c2·c3·c4·c5)^(1/5). Geometric mean gives weakest-link behaviour: a single weak component (e.g. n=0 or stale calibration) collapses composite confidence to ~0, so brier_weight × confidence_v2_factor ≈ 0 and the composite predictor falls back to the base rate prior."
 
+  # ───────── v1.4.1: X+W honesty patch (P8 Statistician + P10 Contrarian) ─────────
+  INV-GS-113:
+    summary: "Output honesty: CI label clarifies 1-sigma (~68%); CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer."
+    enforcement: presentation_layer
+    source: docs/post_mortem/V141_HONESTY_PATCH.md (P8 Statistician panel)
+    active_in: [v1.4.1]
+    enforce_at:
+      - predictor.honesty.auc_z_score
+      - predictor.honesty.auc_p_value
+      - predictor.honesty.is_statistically_significant
+      - predictor.honesty.format_significance
+      - predictor.honesty.ci_includes_zero
+      - predictor.honesty.all_active_signals_are_noise
+      - cli_predict_print.print_prediction
+      - cli_predict_print._print_signal_line
+      - cli_predict_print._maybe_print_significance_disclaimer
+    note: "Presentation-only — composite predictor logic unchanged. AUC SE ≈ 1/sqrt(12·n) under H0; two-tailed p via erf-based normal CDF. When every active signal has p > 0.05, surface 'statistically indistinguishable from base rate' disclaimer so the user reads the +/- edge in the right context. Round-trip transaction cost subtracted from expected_return for human-facing line."
+
+  INV-GS-114:
+    summary: "Universe-specific honesty footer: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure so the user reads the probability output as a screening prior."
+    enforcement: presentation_layer
+    source: docs/post_mortem/V141_HONESTY_PATCH.md (P10 Contrarian Veteran panel)
+    active_in: [v1.4.1]
+    enforce_at:
+      - predictor.honesty.kr_megacap_honesty_note
+      - cli_predict_print._maybe_print_universe_note
+    note: "Phase KR M1 hindcast measured E_FUNDAMENTAL_KR AUC=0.495 (n=3510), E_TIME_KR AUC=0.483 — both statistically indistinguishable from random. Honest disclosure gives the user the full context for any KR megacap probability output. Non-KR markets (XNAS/XNYS) emit no extra footer. Future v1.5+ work (sector-aware E_FUNDAMENTAL_KR_CYCLICAL, E_PEAD_KR event calendar) will reduce the KR megacap honesty footer's necessity once new experts pass the same statistical test."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -404,6 +433,11 @@ v1_4_active:
   - INV-GS-110    # KRX short-selling universe + scrape-fail skip
   - INV-GS-111    # dca_sizing INFORMATION ONLY (TITAN W-value) — INV-GS-101 preserved
   - INV-GS-112    # confidence_v2 (5-component geometric mean) modulates Brier weight
+
+# v1.4.1 active set (X+W honesty patch — 16-panel synthesis):
+v1_4_1_active:
+  - INV-GS-113    # Statistical-significance disclosure (CI 1-sigma, p-value, all-noise flag)
+  - INV-GS-114    # KR megacap universe-specific honesty footer
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:
