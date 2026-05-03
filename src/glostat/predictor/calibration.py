@@ -34,6 +34,12 @@ class ThesisCalibration:
     oos_degradation: float
     period_start: date
     period_end: date
+    # v1.10.12 — explicit retirement marker. When set, calibration_status
+    # returns "retired" and the composite predictor treats the thesis as
+    # inactive regardless of AUC/n. Use the version string (e.g. "v1.10.12")
+    # plus a brief reason for forensic traceability. None = active spec.
+    retired_in: str | None = None
+    retired_reason: str | None = None
 
     @property
     def brier_score(self) -> float:
@@ -54,11 +60,19 @@ class ThesisCalibration:
         return 0
 
     @property
+    def is_retired(self) -> bool:
+        return self.retired_in is not None
+
+    @property
     def calibration_status(self) -> str:
         # v1.10 honesty: distinguish bootstrap (n=0, awaiting hindcast) from
         # measured-near-random (n≥50, AUC ≈ 0.5) from measured-edge so the
         # `glostat calibrate` and `glostat predict` outputs no longer treat
         # both as identical "auc=0.50, n=0".
+        # v1.10.12: "retired" supersedes all other status when set so
+        # operators see the explicit retirement marker.
+        if self.is_retired:
+            return "retired"
         if self.n_samples == 0:
             return "bootstrap"
         if self.n_samples < _DEFAULT_MIN_SAMPLES:
@@ -105,6 +119,9 @@ class CalibrationTable:
                 "period_start": cal.period_start.isoformat(),
                 "period_end": cal.period_end.isoformat(),
                 "brier_score": cal.brier_score,
+                "calibration_status": cal.calibration_status,
+                "retired_in": cal.retired_in or "",
+                "retired_reason": cal.retired_reason or "",
             }
             for cal in self.entries.values()
         ]
@@ -133,6 +150,10 @@ def is_active(
 ) -> bool:
     # WHY: "auc meaningfully above random" + "sample size sufficient" — keeps
     # tiny-n theses from steering composite even if Sharpe looks great.
+    # v1.10.12: explicit retirement marker (retired_in set) overrides AUC/n
+    # — operator decision to stop trusting the thesis takes priority.
+    if cal.is_retired:
+        return False
     if cal.n_samples < min_samples:
         return False
     return abs(cal.auc - 0.5) > auc_delta
@@ -393,9 +414,23 @@ _MEASURED_SYNTHETIC: Final[tuple[ThesisCalibration, ...]] = (
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
     ),
     ThesisCalibration(
+        # v1.10.12 — RETIRED. Measured n=80 with AUC=0.48 (|edge|=0.02
+        # which is exactly the noise threshold, so brier_to_weight collapses
+        # to 0 anyway). Sharpe=-0.10 confirms no PnL. The 2026-05-02
+        # calibration audit identified this as the top retirement candidate.
+        # Retirement is a documentation move — composite weight was already
+        # 0 due to brier collapse. Kept in the table for forensic
+        # traceability of the original measurement.
         "E_FUND_FLOW", auc=0.48, sharpe=-0.10, n_samples=80,
         oos_degradation=0.50,
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        retired_in="v1.10.12",
+        retired_reason=(
+            "measured no edge (n=80, AUC=0.48 = noise threshold, "
+            "Sharpe=-0.10); brier weight already 0 via INV-GS-103 — "
+            "retirement formalises operator decision per "
+            "docs/CALIBRATION_AUDIT_2026-05-02.md"
+        ),
     ),
     ThesisCalibration(
         "E_SECTOR_ROTATION", auc=0.470, sharpe=-0.478, n_samples=174,

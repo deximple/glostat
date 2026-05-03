@@ -437,3 +437,89 @@ stable-edge 케이스 (E_FOREIGN_REVERSAL, E_FUNDAMENTAL)는 거의 영향
 근거 — 향후 weight 변경 제안 검토 시 reference numbers로 활용 가능.
 
 스크립트 + JSON 결과: `scripts/measure_oos_factor_impact.py` (재실행 가능).
+
+## v1.10.12 update: E_PEAD 재측정 + E_FUND_FLOW retirement
+
+### Task 1 — E_PEAD OOS_deg 재측정 (가설 반증)
+
+**가설**: E_PEAD의 합성 baseline (auc=0.586, sharpe=0.629, n=298,
+oos_degradation=1.156)은 v0.6 시절 phase1b 측정. 데이터 품질 문제일
+가능성 → 재측정으로 OOS_deg 감소 + weight 10x 회복 (0.017 → 0.17) 가능.
+
+**검증 방법**: `scripts/rerun_pead_hindcast.py` (S&P500 top50 universe,
+2024-01-02..2026-03-29, lxml 의존성 추가 후 실행).
+
+**결과**:
+
+| 메트릭 | 합성 (v0.6) | 재측정 (v1.10.12) | 변화 |
+|---|---:|---:|---:|
+| n_signals | 298 | 298 | 0 |
+| AUC overall | 0.586 | **0.5807** | -0.5pp |
+| AUC IS | — | 0.6288 | — |
+| AUC OOS | — | 0.5154 | — |
+| Sharpe IS | — | +0.9824 | — |
+| Sharpe OOS | — | -0.1720 | — |
+| Sharpe overall | 0.629 | +0.6210 | -0.008 |
+| **OOS_deg** | **1.156** | **1.1751** | **+0.019** |
+
+**가설 반증**: 재측정으로 OOS_deg가 줄어들 것이라는 가설은 **틀림**.
+v0.6 측정이 정확했고, IS edge (Sharpe=+0.98)가 OOS에서 반전 (-0.17)
+되는 패턴은 안정적으로 재현됨. 이는:
+
+- 데이터 품질 문제 아님
+- 진짜 알파 decay 또는 PEAD 구조적 특성 (earnings drift는 시장 효율화로
+  shrink하는 알려진 패턴)
+- INV-GS-133 OOS factor가 옳게 작동 — weight 0.0172 유지가 정확
+
+**ROI 결론**: E_PEAD weight 10x 회복 path는 spec 변경 (universe 확대,
+horizon 변경, feature 추가) 없이 **불가능**. 별도 wave 작업으로 deferred.
+
+**사이드 효과 — calibration loader**: 새 e_pead_report.json이 cache에
+저장됨. `synthetic_calibration_for_mock`의 hardcoded 값 (auc=0.586)은
+이제 fallback일 뿐. 다음 `glostat predict` 실행은 재측정 값 (auc=0.5807)
+을 사용. composite weight에는 미세한 차이 (brier 변화 < 1bp).
+
+### Task 2 — E_FUND_FLOW retirement (정식)
+
+**컨텍스트**: 2026-05-02 audit이 E_FUND_FLOW를 top retirement
+candidate로 식별. measured (n=80) but no edge:
+
+- AUC=0.48 (|edge|=0.02 = 정확히 _DEFAULT_AUC_DELTA 노이즈 임계값)
+- Sharpe=-0.10 (미세 음수 → no PnL)
+- brier_score=0.25 (random) → brier_to_weight=0
+- 즉 composite weight는 이미 INV-GS-103로 0
+
+**구현**: `ThesisCalibration`에 `retired_in: str | None = None` +
+`retired_reason: str | None = None` 필드 추가:
+
+- `is_retired` property: `retired_in is not None`
+- `calibration_status`: retired marker가 다른 status 위에 우선
+- `is_active()`: `cal.is_retired → False` 추가 가드
+
+E_FUND_FLOW 엔트리에 `retired_in="v1.10.12"` 마킹.
+
+**Composite 행동 변화**: **없음**. weight는 이미 0이었으므로 prediction
+output에 변화 없음. 변화는 **운영자 가시성**:
+
+| Surface | Before | After |
+|---|---|---|
+| `glostat calibrate --mock` row | `near_random` | `retired` |
+| Audit doc | "candidate for retirement" | "retired in v1.10.12" |
+| `is_active()` | False (n=80, |edge|=0.02 < threshold) | False (retired) |
+
+**의도**: 운영자가 "이 thesis는 시도해봤고 알파 없다고 판단" 명시. 향후
+누군가 재시도하기 전에 retired_reason을 읽고 결정.
+
+**테스트** (4개 신규):
+- `test_default_thesis_is_not_retired`
+- `test_retired_thesis_status_is_retired`
+- `test_retired_thesis_is_inactive_regardless_of_auc_n`
+  — strong AUC + large n + retired_in 모두 있어도 is_active=False
+- `test_e_fund_flow_synthetic_is_retired`
+  — synthetic table에서 E_FUND_FLOW 마킹 확인
+
+### Polish-bias 체크
+
+v1.10.12: 측정 (PEAD 재측정 가설 반증) + cleanup (E_FUND_FLOW retirement)
+= **분석/정리 축**. 6번 wave에 걸쳐 시그널/데이터/통합/분석/검증/측정/정리
+모두 다양화 유지.

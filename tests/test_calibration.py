@@ -89,6 +89,50 @@ def test_calibration_status_measured_for_under_random_edge() -> None:
     assert t.calibration_status == "measured"
 
 
+# ── retirement marker (v1.10.12) ─────────────────────────────────────────
+
+
+def test_default_thesis_is_not_retired() -> None:
+    t = _make_thesis(auc=0.55, n=100)
+    assert t.is_retired is False
+    assert t.retired_in is None
+    assert t.retired_reason is None
+
+
+def test_retired_thesis_status_is_retired() -> None:
+    t = ThesisCalibration(
+        name="E_X", auc=0.55, sharpe=0.4, n_samples=200,
+        oos_degradation=0.1,
+        period_start=date(2024, 1, 1), period_end=date(2026, 3, 31),
+        retired_in="v1.10.12", retired_reason="test",
+    )
+    assert t.is_retired is True
+    # retired status overrides measured/underfit/etc.
+    assert t.calibration_status == "retired"
+
+
+def test_retired_thesis_is_inactive_regardless_of_auc_n() -> None:
+    # Even with strong measured AUC + large n, retired_in marker forces
+    # is_active() False — operator decision overrides automated gate.
+    t = ThesisCalibration(
+        name="E_X", auc=0.70, sharpe=1.5, n_samples=1000,
+        oos_degradation=0.0,
+        period_start=date(2024, 1, 1), period_end=date(2026, 3, 31),
+        retired_in="v1.10.12", retired_reason="operator decision",
+    )
+    assert is_active(t) is False
+
+
+def test_e_fund_flow_synthetic_is_retired() -> None:
+    # v1.10.12 marked E_FUND_FLOW retired in synthetic_calibration_for_mock.
+    table = synthetic_calibration_for_mock()
+    ff = table.entries["E_FUND_FLOW"]
+    assert ff.is_retired is True
+    assert ff.retired_in == "v1.10.12"
+    assert ff.calibration_status == "retired"
+    assert is_active(ff) is False
+
+
 # ── is_active ─────────────────────────────────────────────────────────────
 
 
