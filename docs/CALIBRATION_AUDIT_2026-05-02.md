@@ -858,3 +858,110 @@ v1.10.15: 새 하네스 + 측정 (시그널 측정 축). v1.10.6 이래 11번째
 시그널 측정-heavy 단계 지속. 다음 wave는 다른 축 권고:
 - **infra**: glostat scan에 calibration_status 필터 추가
 - **UX**: 운영자 대시보드 (composite weight breakdown 시각화)
+
+## v1.10.16: Composite quality 실측 — v1.10.3 vs v1.10.15 비교
+
+### 질문
+
+INV-GS-133 OOS factor (v1.10.4) + retirement (v1.10.12-13) + KR
+bootstrap 측정 (v1.10.14-15) 도입 후 실제 composite prediction 품질이
+개선됐나?
+
+### 측정 방법
+
+`scripts/measure_composite_oos_quality.py`. 각 measured thesis의:
+- **Effective OOS Sharpe** = sharpe × max(-1, 1 - oos_deg)
+  - oos_deg=0: 그대로 사용
+  - oos_deg=1: IS edge 완전 wipe → 0
+  - oos_deg=2+: sign reverse
+- **Weighted contribution** = weight × effective_oos_sharpe
+- 합산 = composite의 "예상 OOS performance"
+
+v1.10.3 (no OOS factor, no retirement): weight = brier_to_weight × is_active_filter
+v1.10.15 (current): weight = _weight_for(cal) (brier × OOS factor + retirement)
+
+### 결과 — 정량 개선 입증
+
+| 메트릭 | v1.10.3 | v1.10.15 | 변화 |
+|---|---:|---:|---:|
+| **Total weight** | 1.0531 | 0.2079 | **−80.3%** |
+| **Theses steering (weight ≥ 0.001)** | 9 | 9 | 0 |
+| **Weighted OOS contribution** | +0.0243 | **+0.0333** | **+37.0%** |
+| **Stable dominance (OOS_deg<50%)** | 13.3% | **56.1%** | **4.2x** |
+
+### Per-thesis weight × effective OOS Sharpe
+
+| thesis | OOS_deg | overall Sharpe | eff. OOS Sharpe | w_v3 contribution | w_v15 contribution |
+|---|---:|---:|---:|---:|---:|
+| `E_FUNDAMENTAL` | 20% | +0.40 | **+0.320** | +0.0320 | +0.0262 |
+| `E_TIME` | 15% | +0.30 | **+0.255** | +0.0102 | +0.0088 |
+| `E_PEAD` | 117% | +0.62 | **−0.108** | **−0.0176** | −0.0018 |
+| `E_FOMC_DRIFT` | 100% | −1.34 | 0.000 | 0.0000 | 0.0000 |
+| `E_FX_CARRY` | 100% | −1.53 | 0.000 | 0.0000 | 0.0000 |
+| `E_ANALYST_REVISION` | 316% | +0.004 | **−0.009** | −0.0004 | 0.0000 |
+| `E_COMMODITY_INDEX_KR` | 100% | −0.84 | 0.000 | 0.0000 | 0.0000 |
+| `E_SECTOR_ROTATION` | 100% | −0.48 | 0.000 | 0.0000 | 0.0000 |
+| `E_PEAD_KR` | 100% | −0.05 | 0.000 | 0.0000 | 0.0000 |
+
+**핵심 통찰**:
+
+1. **E_PEAD**가 v1.10.3에서 가장 큰 negative contribution (−0.0176): IS
+   Sharpe +0.62 좋아 보이지만 OOS에서 117% degradation으로 effective는
+   −0.108. weight 0.16으로 곱해 −0.018이 composite에 leak. v1.10.15는
+   weight 0.016으로 차감 → −0.0018로 90% 줄임.
+
+2. **E_FUNDAMENTAL**이 양 체계에서 dominant: OOS_deg=20%로 stable, eff
+   OOS Sharpe +0.32. weight v3=0.10 / v15=0.082 → contribution v3=0.032 /
+   v15=0.026. v15가 약간 작아진 건 mild OOS factor (0.82) 때문이지만
+   여전히 composite의 main driver.
+
+3. **E_ANALYST_REVISION** (v1.10.15 신규 measured): weight 0.0084로
+   contribution -0.0000 — 거의 noise. INV-GS-133 floor가 알파 decay된
+   thesis가 composite를 흔들지 않게 차단.
+
+4. **E_FOMC_DRIFT, E_FX_CARRY** (각 weight 0.286, 0.200 in v1.10.3):
+   eff OOS Sharpe = 0.000 (완전 OOS_deg 100% wipe + IS edge 강함이라
+   Sharpe overall이 음수지만 directional flip 후 neutral). v1.10.15는
+   90% 차감해서 영향 거의 0.
+
+### 운영자 함의
+
+- **Less is more 입증**: weight 80% 감소했지만 OOS-effective contribution
+  37% 증가. 이는 v1.10.3 시절 87% weight가 IS-only edge에 갔고 OOS에서
+  대부분 wash 또는 negative였음을 의미.
+- **Stable dominance 4.2x 향상**: composite이 안정적인 thesis (E_FUNDAMENTAL,
+  E_TIME 등 OOS_deg<50%) 위주로 결정 → 운영자에게 honest signal.
+- **Active set 증가에도 quality 향상**: v1.10.3은 9 thesis steering, v1.10.15
+  도 9개. 같은 다양성으로 더 honest한 결과.
+
+### Caveat
+
+이 측정은 **historical OOS Sharpe**를 ground truth로 사용. 그 자체가 in-
+sample fit (각 thesis hindcast의 OOS split). 진짜 "production accuracy"는
+실시간 prediction을 미래와 비교해야 함 — 본 측정은 가능한 가장 가까운
+proxy.
+
+또한 **weight × oos_sharpe linearity 가정**: composite predict는 nonlinear
+softmax + Brier 가중이라 정확한 score는 아님. 그러나 weight가 작은 thesis
+의 contribution에 대한 정성적 비교에는 valid.
+
+### 결론
+
+**v1.10.15가 v1.10.3보다 정량적으로 우수한 composite**:
+- 가짜 confidence (IS-only edge) 80% 감소
+- 진짜 stable contribution 37% 증가
+- Stable thesis weight 비중 4.2x 향상
+
+**INV-GS-133 OOS factor + retirement 도입은 옳은 결정**. 측정으로 확인됨.
+
+### Files
+
+- `scripts/measure_composite_oos_quality.py` (new, ~165 lines)
+    재현 가능한 측정 스크립트. v1.10.3과 v1.10.15 weighting을 동일
+    calibration table에 적용해서 비교.
+
+### Polish-bias 체크
+
+v1.10.16: 측정 + 검증 (시그널/측정 축, 코드 변경 없음). v1.10.6 이래
+12번째 wave. 이전 측정 (v1.10.11)과 차별점: 이번엔 hypothesis test
+형태 — "v1.10.4-15 변화가 진짜 quality 개선했나?"의 정량 답.
