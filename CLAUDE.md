@@ -55,7 +55,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.10.11 — Calibration Honesty Sprint (E_REGIME_US + E_VKOSPI_MOOD_KR thesis + INV-GS-133 OOS-stability factor + v1.10.11 정량 측정: mixed scenario p_up shift +0.0128, CI 87% narrowing).**
+> **STATUS: ACTIVE v1.10.15 — Calibration Landscape Mapping (KR bootstrap thesis 5개 measured 승격 v1.10.14 + E_FOREIGN_REVERSAL 강등 분석 + 25개 thesis landscape 매트릭스 + E_ANALYST_REVISION 신규 하네스 → measured-active. 현재 active 9개, stable-2 (E_FUNDAMENTAL+E_TIME) dominant).**
+> v1.10.13 — E_COMMODITY_TS + E_FUNDING_CARRY retirement (0 numerical impact);
+> v1.10.12 — E_PEAD 재측정 가설 반증 + E_FUND_FLOW retirement;
+> v1.10.11 — INV-GS-133 OOS factor before/after 정량 측정 (mixed p_up +0.0128, CI 87% 축소);
 > Previous: v1.10.0-10 — VKOSPI mood thesis + CSV provider + hindcast harness + E_INSIDER_CLUSTER 승격 보류 + OOS factor before/after measurement;
 > v1.9.0 — Alpha Discovery Sprint (scan command + cross-universe empirical: thesis × universe interaction confirmed);
 > v1.8.0 — Multi-stream thesis pipeline (insider velocity hindcast + analyst revision expert);
