@@ -341,6 +341,13 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
         "hindcast/phase_kr_vkospi_mood/e_vkospi_mood_kr_report.json",
         "phase1b", {},
     ),
+    # v1.10.15 — E_ANALYST_REVISION hindcast (yfinance recommendations,
+    # SP500 top50, point-in-time event filtering).
+    (
+        "E_ANALYST_REVISION",
+        "hindcast/phase_us_analyst_revision/e_analyst_revision_report.json",
+        "phase1b", {},
+    ),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.

@@ -704,3 +704,157 @@ ECOS/DART hindcast harness 구축) 권고.
    증가 → 진짜 alpha 측정 가능.
 3. **stable-2 (E_FUNDAMENTAL + E_TIME) 분기 재측정**: composite의
    실질적 output이 이 2개로 결정되므로 안정성 검증 필수.
+
+## v1.10.15: E_FOREIGN_REVERSAL 강등 상세 분석
+
+### 두 measurement 비교
+
+| 메트릭 | v0.6 Phase 1D | v1.10.14 phase_kr | 변화 |
+|---|---:|---:|---:|
+| Universe | 광범위 KR (Phase 1D) | KR_KOSPI200_TOP30 | **narrowed** |
+| Window | 2024-2026 (Phase 1D 시기) | 2024-01-02..2026-03-29 | 유사 |
+| n | 424 | **127** | -70% |
+| AUC overall | 0.4667 | **0.4939** | random 가까이 |
+| AUC IS / OOS | (단일값) | 0.5062 / 0.4429 | OOS 약화 |
+| \|edge\| | 0.0333 | **0.0061** | -82% |
+| Sharpe overall | +0.5834 | **+1.2951** | +122% |
+| Sharpe IS / OOS | (단일값) | +0.7381 / +3.1918 | **OOS +332%** |
+| OOS_deg | 0.0 | 0.0 | 같음 |
+| brier_score | 0.2334 | 0.2469 | random 가까이 |
+| brier_weight | 0.0666 | **0.0124** | -81% |
+| OOS factor | 1.00 | 1.00 | 같음 |
+| **final weight** | **0.0666** | **0.0000** | **stable→0** |
+| calibration_status | measured | **near_random** | 강등 |
+
+### 외관상 모순 — AUC↓ + Sharpe↑
+
+**AUC OOS=0.443 < IS=0.506**: directional discrimination은 OOS에서 약화
+**Sharpe OOS=+3.19 > IS=+0.74**: 그러나 PnL은 OOS에서 4배 강함
+
+해석: 작은 n (OOS 38건)에서 **소수 outlier trade가 PnL 지배**. AUC는
+모든 trade의 ranking을 평가하므로 dispersion이 크면 약해지지만, Sharpe는
+수익률의 누적이라 큰 winners가 평균을 끌어올릴 수 있음.
+
+이것이 **stable signal 아님을 의미**:
+1. n=127은 measured 임계 (50)는 통과하지만 OOS=38은 통계적으로 fragile
+2. 큰 Sharpe는 outlier trade dependency = 재현성 의심
+3. AUC 약화는 directional 신뢰도 떨어짐의 직접 증거
+
+### Universe-specificity 효과
+
+핵심 가설: **megacap universe에서는 외국인 reversal pattern이 약함**.
+
+| Universe 특성 | 영향 |
+|---|---|
+| Megacap (TOP30) liquidity 높음 | 외국인 single-day flow가 가격에 즉시 반영 → reversal 약함 |
+| Institutional ownership 비중 높음 | 외국인만의 sentiment 신호가 다른 institutional flow에 묻힘 |
+| Index inclusion ETF flows | exogenous flow가 외국인 sentiment를 mask |
+| 분석 커버리지 깊음 | 정보 비대칭성 작음 → reversal 알파 작음 |
+
+vs broader universe (Phase 1D):
+- 중소형주 포함 → 외국인 flow가 상대적으로 큰 영향
+- 분석 커버리지 얕은 종목에서 외국인 정보 비대칭성 알파
+- Reversal 패턴 명확 (n=424로 충분 측정)
+
+**결론**: 두 measurement 모두 honest. KR 예측 시 어느 measurement를 쓸
+지가 운영자 결정. **현재는 KR-specific 우선** (KR ticker 예측에 정확).
+
+### Composite 영향
+
+이전 stable-3 (E_FUNDAMENTAL 0.082 + **E_FOREIGN_REVERSAL 0.067** + E_TIME 0.035 = 0.184)에서 stable-2 (E_FUNDAMENTAL 0.082 + E_TIME 0.035 = 0.117)로 stable weight 36% 감소.
+
+나머지 6개 active는 모두 IS-only-floor (weight 0.005-0.029, 합 0.063).
+**Stable + IS-only-floor 합 = 0.117 + 0.063 = 0.180** → 24개 thesis 중
+8개만 0이 아닌 weight, 나머지 16개는 0.
+
+### 운영자 의사결정 권고
+
+1. **단기**: 현재 KR-specific measurement 그대로 적용 (default cache).
+   composite가 stable-2에 의존하지만 honest reflection.
+2. **중기**: broader universe phase_kr 변형 만들어 두 measurement 병기.
+   `glostat predict --universe-mode broad|kr_specific` flag로 운영자 선택.
+3. **장기**: phase_kr_extended 하네스 (KOSPI200 전체 200종목) 구축. n
+   확장으로 통계적 안정성 확보.
+
+### Polish-bias 체크
+
+v1.10.15: 분석 축 (강등 진단). v1.10.6 이래 10번째 wave. 시그널 측정에
+이어 측정 결과 해석. 코드 변경 없음, 이해 깊이 향상.
+
+## v1.10.15 추가: E_ANALYST_REVISION measured 승격
+
+### 컨텍스트
+
+Bootstrap 7개 잔여 중 외부 API key 없이 실행 가능한 유일한 후보.
+Stickel (1991) + Womack (1996) 학술 prior로 AUC 0.53-0.56 예상.
+v1.10.15에서 신규 하네스 (`scripts/run_analyst_revision_hindcast.py`)
+구축 후 SP500 top50으로 측정.
+
+### 측정 결과 — bootstrap → measured-active
+
+| 메트릭 | Before (bootstrap) | After (v1.10.15) |
+|---|---:|---:|
+| AUC | 0.500 | **0.4582** |
+| AUC IS / OOS | — | 0.4493 / 0.4636 |
+| n_trades | 0 | **662** |
+| Sharpe overall | 0.0 | +0.0045 |
+| Sharpe IS / OOS | — | +0.4239 / **−0.9167** |
+| OOS_deg | 0.0 | **3.1624** |
+| status | bootstrap | **measured** |
+| is_active | False | **True** |
+| brier_weight | 0.0 | 0.0840 |
+| OOS factor | 1.00 | 0.10 |
+| **final weight** | **0.0** | **0.0084** |
+
+### 측정 vs 학술 prior 차이
+
+| | 학술 prior (Stickel/Womack) | v1.10.15 측정 |
+|---|---:|---:|
+| AUC range | 0.53-0.56 | **0.4582** (under-random) |
+| direction | LONG drift after upgrade | **OOS reverses** |
+| Sharpe | positive | IS+0.42 / OOS-0.92 |
+
+학술 prior와 큰 격차. 가능한 해석:
+1. **Alpha decay**: 학술 논문 1991/1996 → 2024-2026 = 30년 격차. 정보
+   효율화로 analyst revision drift 알파 shrink.
+2. **Universe 차이**: 학술 논문은 NYSE/NASDAQ broader universe, 우리는
+   SP500 top50 megacap만. 대형주는 분석 커버리지 깊어 정보 비대칭성 작음.
+3. **Window 특수성**: 2024-2026은 AI/megacap rally, megacap valuations
+   stretched → analyst downgrade가 short-term reverse한 경우 다수.
+
+### Composite 영향
+
+**Active set: 8 → 9** (+1):
+- 신규: E_ANALYST_REVISION (weight 0.0084, IS-only-floor)
+- composite weight 합 0.180 → 0.188
+
+stable-2 (E_FUNDAMENTAL + E_TIME) 여전히 dominant. 새 active 7개는
+모두 IS-only-floor (weight 0.005-0.029).
+
+### Skip breakdown (n_evaluated=5850)
+
+| 카테고리 | 카운트 | 비율 |
+|---|---:|---:|
+| `below_direction_threshold` (\|net_score\|<0.6) | 5027 | 85.9% |
+| `no_recommendations` | 117 | 2.0% |
+| `no_pit_events` | 44 | 0.8% |
+| **actionable** | **662** | **11.3%** |
+
+대부분 (86%)은 직전 60일 net revision이 임계값 (≈3 net) 이하라 trigger
+안 됨. 이는 analyst revision이 sparse signal임을 입증.
+
+### Files
+
+- `scripts/run_analyst_revision_hindcast.py` (~225 lines)
+    신규 하네스: yfinance recommendations + OHLCV 기반 point-in-time
+    측정. SP500 top50, stride=7, horizon=30d.
+
+- `predictor/calibration.py` (+5 lines): _PHASE_SOURCES에 E_ANALYST_REVISION
+    엔트리 추가 (`hindcast/phase_us_analyst_revision/...`).
+
+### Polish-bias 체크
+
+v1.10.15: 새 하네스 + 측정 (시그널 측정 축). v1.10.6 이래 11번째 wave.
+시그널 측정-heavy 단계 지속. 다음 wave는 다른 축 권고:
+- **infra**: glostat scan에 calibration_status 필터 추가
+- **UX**: 운영자 대시보드 (composite weight breakdown 시각화)
