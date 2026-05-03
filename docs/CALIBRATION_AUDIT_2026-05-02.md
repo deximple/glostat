@@ -613,3 +613,94 @@ v1.10.13 정리 (COMMODITY_TS + FUNDING_CARRY). 8축 다양성 유지.
    E_TIME이 진짜 OOS-stable인지 분기 단위 재측정
 3. **bootstrap 12개 KR thesis** 중 하나라도 measured 승격 — 진짜 ROI
    가 가장 큰 후보군 (모두 weight 0인 상태)
+
+## v1.10.14 update: KR bootstrap thesis 5개 measured 승격 (kr-hindcast)
+
+### 컨텍스트
+
+12개 bootstrap thesis 분석 결과 5개가 `kr-hindcast` 단일 실행으로 동시
+측정 가능. 나머지는 외부 의존성 (DART/ECOS API key) 또는 새 하네스
+필요. 실행: `glostat kr-hindcast --start 2024-01-02 --end 2026-03-29
+--stride 7` (KR_KOSPI200_TOP30, ~52분 runtime).
+
+### 측정 결과 — 7개 thesis
+
+| thesis | n | AUC | AUC_IS | AUC_OOS | Sharpe | S_IS | S_OOS | 결과 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `E_FUNDAMENTAL_KR` | 3042 | 0.503 | 0.503 | 0.504 | +0.42 | +0.39 | +0.48 | near_random |
+| `E_TIME_KR` | 3510 | 0.486 | 0.485 | 0.488 | +0.51 | +0.15 | +1.13 | near_random |
+| `E_FOREIGN_REVERSAL` | **127** | **0.494** | 0.506 | 0.443 | **+1.30** | +0.74 | +3.19 | **near_random** ↓ |
+| `E_PEAD_KR` | 1860 | 0.478 | 0.457 | 0.494 | -0.05 | -0.20 | +0.16 | **measured** ↑ |
+| `E_FUNDAMENTAL_KR_CYCLICAL` | 936 | 0.500 | 0.500 | 0.500 | 0.00 | 0.00 | 0.00 | near_random |
+| `E_COMMODITY_INDEX_KR` | 234 | 0.539 | **0.496** | **0.630** | -0.84 | -0.66 | -1.16 | **measured** ↑ |
+| `E_INSIDER_VELOCITY_KR` | 0 | 0.500 | — | — | 0.00 | — | — | bootstrap (DART 없음) |
+
+### Active set 변화: 7 → **8** (+1 net)
+
+**신규 active (2개)**:
+- `E_PEAD_KR`: AUC=0.478 |edge|=0.022 → measured (임계 바로 위), Sharpe -0.05 → directional_bias=-1로 flip 후 weight 0.0043 (INV-GS-133 floor 적용)
+- `E_COMMODITY_INDEX_KR`: AUC=0.539 |edge|=0.039 → measured. **AUC OOS 0.630 > IS 0.496은 흥미로운 패턴** (direction은 OOS에서 강해지지만 Sharpe 음수 = LONG 포지션 진입 시점 문제). weight 0.0079.
+
+**Active 강등 (1개)**:
+- `E_FOREIGN_REVERSAL`: 이전 Phase 1D measurement (n=424, AUC=0.467) → KR-specific phase_kr 새 측정 (n=127, AUC=0.494, |edge|=0.006). |edge|이 0.02 임계값 아래로 떨어져 **stable-3 → near_random 강등**. weight 0.0666 → 0.0000.
+
+이는 v1.0의 "calibration honesty" 원칙의 진짜 결과. 동일 thesis라도 universe/window 차이로 다른 measurement 가능. KR-specific phase_kr는 KR megacap에 정확하게 적용된 측정.
+
+### 잔여 stable-edge: 사실상 2개
+
+| thesis | weight | 비고 |
+|---|---:|---|
+| `E_FUNDAMENTAL` | 0.082 | OOS_deg=20% (mild) |
+| `E_TIME` | 0.035 | OOS_deg=15% (mild) |
+
+이전 stable-3에서 stable-2로. **composite output은 사실상 E_FUNDAMENTAL +
+E_TIME 두 thesis가 주도**. 나머지 6개 active는 모두 IS-only-floor (weight ≈ 0.005-0.029).
+
+### Bootstrap 잔여 (8개)
+
+| thesis | hindcast 상태 |
+|---|---|
+| `E_ANALYST_REVISION` | 새 하네스 필요 |
+| `E_INSIDER_KR` | DART API key 필요 |
+| `E_INSIDER_VELOCITY_KR` | DART API key 필요 (kr-hindcast wired) |
+| `E_INTRADAY_FLOW_KR` | 새 하네스 필요 |
+| `E_MACRO_KR` | ECOS API key 필요 + 새 하네스 |
+| `E_REGIME_US` | 측정됨 (n=45 underfit, v1.10.3) |
+| `E_SHORT_SELLING_KR` | 새 하네스 필요 |
+| `E_VKOSPI_MOOD_KR` | 측정됨 (n=0 universe 협소, v1.10.10) |
+
+### 충격적 sub-finding — E_COMMODITY_INDEX_KR
+
+AUC OOS=0.630 > IS=0.496이라는 패턴은 **OOS에서 directional discrimination이
+훨씬 강해진다**는 의미. 일반적으로 IS > OOS (overfit) 패턴인데 반대.
+
+가능한 해석:
+- IS 윈도우 (2024-01..2025-09)에는 commodity cycle이 random
+- OOS 윈도우 (2025-09..2026-03)에는 cycle 신호가 더 명확 (e.g. 정유주에 oil
+  bull cycle 진행 중)
+- 표본 작음 (n=234) — 통계적 fluke 가능성
+
+하지만 Sharpe IS/OOS 모두 음수 → direction은 맞히지만 LONG 진입 시점이
+잘못. 알파 회수에 추가 작업 (entry timing, sizing) 필요.
+
+### Composite 변화: 측정 가능
+
+`scripts/measure_oos_factor_impact.py` 기반 비교는 synthetic table 사용
+이라 변화 없음. 실제 cache-loaded table 기반 측정은 별도 wave 작업.
+
+### Polish-bias 체크
+
+v1.10.14: bootstrap → measured 승격 (시그널 축 측정 강화). v1.10.6 이래
+9번째 wave. 시그널/데이터/통합/분석/검증/측정/정리/측정/**측정** = 측정-
+heavy 단계. 다음 wave는 다시 다른 축 (UI 가시성, 또는 더 오래 미루어진
+ECOS/DART hindcast harness 구축) 권고.
+
+### 다음 ROI 후보
+
+1. **남은 4개 KR bootstrap thesis 하네스 구축**: E_INSIDER_KR (DART),
+   E_INTRADAY_FLOW_KR (Naver+KIS), E_MACRO_KR (ECOS), E_SHORT_SELLING_KR
+   (KRX). 하네스 자체가 없어 가장 큰 작업 단위.
+2. **E_VKOSPI_MOOD_KR universe 확장**: KOSPI200 30 → 200, 67배 trigger
+   증가 → 진짜 alpha 측정 가능.
+3. **stable-2 (E_FUNDAMENTAL + E_TIME) 분기 재측정**: composite의
+   실질적 output이 이 2개로 결정되므로 안정성 검증 필수.
