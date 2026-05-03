@@ -523,3 +523,93 @@ output에 변화 없음. 변화는 **운영자 가시성**:
 v1.10.12: 측정 (PEAD 재측정 가설 반증) + cleanup (E_FUND_FLOW retirement)
 = **분석/정리 축**. 6번 wave에 걸쳐 시그널/데이터/통합/분석/검증/측정/정리
 모두 다양화 유지.
+
+## v1.10.13 update: E_COMMODITY_TS + E_FUNDING_CARRY retirement
+
+### 컨텍스트
+
+v1.10.12에서 E_FUND_FLOW 정식 retire 완료. 2026-05-02 audit에서 식별한
+나머지 2개 retirement 후보 (E_COMMODITY_TS, E_FUNDING_CARRY) 동시 처리.
+
+### Pre-retirement 상태
+
+| thesis | AUC | n | Sharpe | OOS_deg | brier_w | OOS_f | final | status |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `E_COMMODITY_TS` | 0.489 | 517 | +0.139 | 100% | 0.022 | 0.10 | 0.0022 | near_random |
+| `E_FUNDING_CARRY` | 0.5052 | **2921** | -0.231 | 457% | 0.010 | 0.10 | 0.0010 | near_random |
+
+두 thesis의 공통점:
+- 측정 큰 n (n=517 / 2921 — table에서 가장 큰 표본)
+- |edge| < 0.02 노이즈 임계값 (각각 0.011 / 0.005)
+- composite weight 이미 ≈ 0 (INV-GS-103 게이트로 inactive)
+- Sharpe 미세하거나 음수
+- OOS_deg 100%+ — IS-only 패턴
+
+E_FUNDING_CARRY는 특히 강력한 retirement 케이스: 가장 큰 n에서 가장
+작은 |edge|, 가장 큰 OOS_deg. 진짜 알파 없음 확실.
+
+### Retirement 마킹 (v1.10.12 패턴)
+
+- `retired_in="v1.10.13"`
+- `retired_reason`: 측정 결과 + audit doc 참조 명시
+- `is_retired=True`, `calibration_status="retired"`, `is_active()=False`
+
+### Composite 행동 변화 — 0 numerical impact
+
+`scripts/measure_oos_factor_impact.py` v1.10.12 vs v1.10.13 결과:
+
+| 시나리오 | v1.10.12 p_up | v1.10.13 p_up | Δ |
+|---|---:|---:|---:|
+| bullish | 0.5314 | 0.5314 | 0.0000 |
+| bearish | 0.5031 | 0.5031 | 0.0000 |
+| mixed | 0.4500 | 0.4500 | 0.0000 |
+
+**모든 prediction 출력값 동일** (소수점 4자리 일치). 두 thesis가 이미
+weight ≈ 0이었기 때문 (|edge| < threshold으로 is_active=False). 변화는
+**운영자 가시성**:
+
+| Surface | Before | After |
+|---|---|---|
+| `glostat calibrate` row 분류 | near_random | retired |
+| Active set size | 7 (E_FUND_FLOW 제외) | 7 (변동 없음) |
+| Total retired count | 1 | **3** |
+| Audit doc 분류 | "candidate" | "retired in v1.10.13" |
+
+### Retired 전체 (v1.10.13 시점)
+
+| thesis | retired_in | 이유 요약 |
+|---|---|---|
+| `E_FUND_FLOW` | v1.10.12 | n=80, AUC=0.48 noise floor, Sharpe=-0.10 |
+| `E_COMMODITY_TS` | v1.10.13 | n=517, |edge|=0.011 sub-threshold, IS-only |
+| `E_FUNDING_CARRY` | v1.10.13 | n=2921 largest, |edge|=0.005, OOS_deg=457% |
+
+### 잔여 measured + active (7개)
+
+| thesis | AUC | n | Sharpe | OOS_deg | weight |
+|---|---:|---:|---:|---:|---:|
+| `E_FUNDAMENTAL` | 0.550 | 120 | +0.40 | 20% | 0.082 |
+| `E_FOREIGN_REVERSAL` | 0.467 | 424 | +0.58 | 0% | 0.067 |
+| `E_TIME` | 0.520 | 200 | +0.30 | 15% | 0.035 |
+| `E_FOMC_DRIFT` | 0.357 | 135 | -1.34 | 100% | 0.029 |
+| `E_FX_CARRY` | 0.400 | 135 | -1.53 | 100% | 0.020 |
+| `E_PEAD` | 0.581 | 298 | +0.62 | 117% | 0.017 |
+| `E_SECTOR_ROTATION` | 0.470 | 174 | -0.48 | 100% | 0.006 |
+
+3개 stable (top 3) + 4개 IS-only-suppressed = 7. Composite output은
+사실상 stable 3개가 주도.
+
+### Polish-bias 체크
+
+v1.10.13: cleanup 축 (retirement formalisation, 0 numerical impact).
+v1.10.6 시그널 → v1.10.7 데이터 → v1.10.8 통합 → v1.10.9 분석 →
+v1.10.10 검증 → v1.10.11 측정 → v1.10.12 정리 (PEAD + FUND_FLOW) →
+v1.10.13 정리 (COMMODITY_TS + FUNDING_CARRY). 8축 다양성 유지.
+
+### 다음 ROI 후보
+
+1. **KOSPI200 200종목 + 16년 윈도우** E_VKOSPI_MOOD_KR 재실행 (univ
+   확대로 trigger 이벤트 67배 증가, 진짜 alpha 측정)
+2. **stable-3 thesis 안정화 측정** — E_FUNDAMENTAL, E_FOREIGN_REVERSAL,
+   E_TIME이 진짜 OOS-stable인지 분기 단위 재측정
+3. **bootstrap 12개 KR thesis** 중 하나라도 measured 승격 — 진짜 ROI
+   가 가장 큰 후보군 (모두 weight 0인 상태)

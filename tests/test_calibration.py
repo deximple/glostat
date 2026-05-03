@@ -133,6 +133,47 @@ def test_e_fund_flow_synthetic_is_retired() -> None:
     assert is_active(ff) is False
 
 
+def test_v1_10_13_retired_theses() -> None:
+    # v1.10.13 retired E_COMMODITY_TS and E_FUNDING_CARRY (near_random,
+    # both with weight already ≈ 0 — retirement is operator-visibility
+    # cleanup, not behavioural change).
+    table = synthetic_calibration_for_mock()
+    for name in ("E_COMMODITY_TS", "E_FUNDING_CARRY"):
+        cal = table.entries[name]
+        assert cal.is_retired is True, f"{name} should be retired"
+        assert cal.retired_in == "v1.10.13"
+        assert cal.calibration_status == "retired"
+        assert is_active(cal) is False
+
+
+def test_total_retired_count_equals_three() -> None:
+    # v1.10.12 retired E_FUND_FLOW; v1.10.13 retired E_COMMODITY_TS +
+    # E_FUNDING_CARRY. Total = 3.
+    table = synthetic_calibration_for_mock()
+    retired = [n for n, c in table.entries.items() if c.is_retired]
+    # sorted() is alphabetical: COMMODITY < FUNDING < FUND_FLOW (underscore
+    # sorts after letters in ASCII, but FUND_FLOW > FUNDING because '_'
+    # (0x5F) < lowercase letters (0x6X) — we use upper, '_' (0x5F) > 'D'
+    # (0x44), so FUNDING comes before FUND_FLOW alphabetically).
+    assert sorted(retired) == [
+        "E_COMMODITY_TS", "E_FUNDING_CARRY", "E_FUND_FLOW",
+    ]
+
+
+def test_retirement_does_not_change_active_set_size() -> None:
+    # Before v1.10.13: E_COMMODITY_TS + E_FUNDING_CARRY were already
+    # inactive via |edge| < 0.02 noise threshold. Retirement formalises
+    # the operator decision but does not change is_active() output.
+    # Active set size = 7 (E_FUND_FLOW retired in v1.10.12, the rest pass
+    # the edge + n thresholds).
+    table = synthetic_calibration_for_mock()
+    active = [n for n, c in table.entries.items() if is_active(c)]
+    assert len(active) == 7
+    assert "E_COMMODITY_TS" not in active
+    assert "E_FUNDING_CARRY" not in active
+    assert "E_FUND_FLOW" not in active
+
+
 # ── is_active ─────────────────────────────────────────────────────────────
 
 

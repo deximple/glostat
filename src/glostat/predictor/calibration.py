@@ -452,20 +452,46 @@ _MEASURED_SYNTHETIC: Final[tuple[ThesisCalibration, ...]] = (
         oos_degradation=0.0,
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
     ),
+    # v1.10.13 — RETIRED. n=517 large but AUC=0.489 (|edge|=0.011 below
+    # the 0.02 noise threshold) → near_random. Sharpe +0.139 marginal,
+    # OOS_deg=100% confirms IS-only artifact. brier_to_weight=0.022,
+    # OOS factor 0.10 → final composite weight = 0.0022 (negligible).
+    # 2026-05-02 audit identified as retirement candidate alongside
+    # E_FUND_FLOW. Same pattern: weight already ≈ 0, retirement is
+    # operator-visibility cleanup.
     ThesisCalibration(
         "E_COMMODITY_TS", auc=0.489, sharpe=0.139, n_samples=517,
         oos_degradation=1.0,
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        retired_in="v1.10.13",
+        retired_reason=(
+            "measured near_random (n=517, AUC=0.489 → |edge|=0.011 < 0.02 "
+            "noise threshold); composite weight already ≈ 0 via INV-GS-103/133 "
+            "— retirement formalises per docs/CALIBRATION_AUDIT_2026-05-02.md"
+        ),
     ),
     ThesisCalibration(
         "E_FX_CARRY", auc=0.400, sharpe=-1.533, n_samples=135,
         oos_degradation=1.0,
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
     ),
+    # v1.10.13 — RETIRED. Largest n in table (n=2921) but AUC=0.5052
+    # (|edge|=0.0052 = essentially noise). Sharpe -0.231 negative,
+    # OOS_deg=457% extreme (IS edge fully reversed multiple times OOS).
+    # brier_to_weight=0.010, OOS factor 0.10 → final ≈ 0.001 (negligible).
+    # Strongest retirement case in the table — large n confirms no edge.
     ThesisCalibration(
         "E_FUNDING_CARRY", auc=0.5052, sharpe=-0.2314, n_samples=2921,
         oos_degradation=4.5741,
         period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        retired_in="v1.10.13",
+        retired_reason=(
+            "measured near_random with the largest n in the table (2921 "
+            "samples, AUC=0.5052 → |edge|=0.005 ≈ noise floor); "
+            "Sharpe=-0.23 + OOS_deg=457% confirms no recoverable edge. "
+            "Composite weight already ≈ 0 — retirement formalises per "
+            "docs/CALIBRATION_AUDIT_2026-05-02.md"
+        ),
     ),
     # v1.1 K1 — Phase 1D live hindcast. AUC < 0.5 → directional_bias=-1;
     # composite flips the score.
