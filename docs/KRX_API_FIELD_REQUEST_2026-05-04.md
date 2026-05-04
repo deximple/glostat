@@ -7,58 +7,107 @@ KRX OpenAPI는 endpoint별 사용신청 필요. 본 문서는 GLOSTAT 활용 우
 
 ---
 
-## 우선순위별 신청 리스트
+## 신청 시 검색할 정확한 한글 명칭
+
+KRX OpenAPI 사용신청 페이지에서 **카테고리 → API 명** 트리로 navigate.
+아래는 신청 시 사용할 정확한 한글 명칭 (KRX 공식 catalog 기준).
+
+---
 
 ### Tier 1 — Critical (즉시 신청, Phase 1)
 
-| # | API 명 (한글) | endpoint | 카테고리 | 활용 | 일별 호출 |
-|---|---|---|---|---|---:|
-| 1 | **변동성지수 일별매매정보** | `idx/vol_idx_bydd_trd` | IDX | **E_VKOSPI_MOOD_KR binding constraint 해소** | ~30 |
+| # | 카테고리 | 정확한 한글 API 명 | endpoint path | 활용 |
+|---|---|---|---|---|
+| 1 | **지수** | **변동성지수 시세정보** | `idx/vol_idx_bydd_trd` | E_VKOSPI_MOOD_KR binding constraint 해소 |
 
-**Tier 1만으로도** v1.10.10/17의 binding constraint (synthetic VKOSPI) 해소
-→ E_VKOSPI_MOOD_KR bootstrap → measured 승격 가능.
+**검색 키워드**: "변동성" 또는 "VKOSPI" / 카테고리 path: 지수 (Index) → 변동성지수
 
 ---
 
 ### Tier 2 — 기존 thesis 데이터 보강 (Phase 2)
 
-| # | API 명 | endpoint | 카테고리 | 활용 | 일별 호출 |
-|---|---|---|---|---|---:|
-| 2 | **공매도 일별매매정보** (종목별) | `srt/sht_sell_bydd_trd` | SRT | E_SHORT_SELLING_KR bootstrap 해소 | ~50 |
-| 3 | **공매도 잔고 일별** (종목별) | `srt/sbd_stk` | SRT | E_SHORT_SELLING_KR (잔고 + 거래량 조합) | ~50 |
-| 4 | **투자자별 거래실적** (일별) | `sto/inv_trd_invtr` | STK | E_FOREIGN_REVERSAL_KR Naver 대체 | ~30 |
+| # | 카테고리 | 정확한 한글 API 명 | endpoint path | 활용 |
+|---|---|---|---|---|
+| 2 | **공매도** | **공매도 일별 거래정보 (종목별)** | `srt/sht_sell_bydd_trd` | E_SHORT_SELLING_KR 거래량 |
+| 3 | **공매도** | **공매도 잔고 일별 (종목별)** | `srt/sbd_stk` | E_SHORT_SELLING_KR 잔고 |
+| 4 | **유가증권** | **투자자별 거래실적 (개별종목)** | `sto/inv_trd_invtr` | E_FOREIGN_REVERSAL_KR 외국인/기관 매매 |
 
-**Tier 2 효과**:
-- E_SHORT_SELLING_KR: bootstrap → measured (active 9 → 10)
-- E_FOREIGN_REVERSAL_KR: Naver 데이터 정확도 향상 → v1.10.14 강등 (n=127, AUC 0.49)
-  회복 가능성
+**검색 키워드**:
+- "공매도" → SRT 카테고리 2개 동시 신청
+- "투자자별" 또는 "외국인" → STK 카테고리
+
+**대안 명칭** (KRX UI 표기 변경 가능):
+- (4) "투자자별 거래실적" → "주식 투자자별 매매동향" 또는 "투자자별 매매동향 (종목별)"
 
 ---
 
 ### Tier 3 — 기본 인프라 (모든 hindcast 가속)
 
-| # | API 명 | endpoint | 카테고리 | 활용 | 일별 호출 |
-|---|---|---|---|---|---:|
-| 5 | **유가증권 일별매매정보** (KOSPI) | `sto/stk_bydd_trd` | STK | yfinance OHLCV 대체, KR 정확도 향상 | ~200 |
-| 6 | **코스피 시리즈 일별매매정보** | `idx/kospi_dd_trd` | IDX | KOSPI200 지수 정확 측정 | ~10 |
+| # | 카테고리 | 정확한 한글 API 명 | endpoint path | 활용 |
+|---|---|---|---|---|
+| 5 | **유가증권** | **유가증권 일별매매정보** | `sto/stk_bydd_trd` | KOSPI 일별 OHLCV |
+| 6 | **지수** | **KOSPI 시리즈 일별시세정보** | `idx/kospi_dd_trd` | KOSPI200 지수 정확 측정 |
 
-**Tier 3 효과**:
-- 모든 KR thesis hindcast가 yfinance throttle 8 req/sec 제약에서 해방
-- KRX 직접 데이터 = data lineage 가장 깨끗 (INV-GS-022 강화)
-- 향후 v1.10.14 KOSPI200 hindcast 4시간 → 1시간 미만 단축 가능
+**검색 키워드**:
+- "유가증권" → STK 카테고리
+- "KOSPI 시리즈" 또는 "코스피 시리즈" → IDX 카테고리
+
+**참고 — 동시 신청 가능한 동일 카테고리 endpoint**:
+- "코스닥 일별매매정보" (`sto/ksq_bydd_trd`) — KOSDAQ150 thesis 확장 시
+- "코스닥 시리즈 일별시세정보" (`idx/kosdaq_dd_trd`)
+- "코넥스 일별매매정보" (`sto/knx_bydd_trd`) — 미사용
 
 ---
 
 ### Tier 4 — 신규 thesis (Phase 3, 장기)
 
-| # | API 명 | endpoint | 카테고리 | 활용 | 일별 호출 |
-|---|---|---|---|---|---:|
-| 7 | **옵션 일별매매정보** | `drv/opt_dd_trd` | DRV | E_PCR_KR (Put/Call ratio) 신규 thesis | ~30 |
-| 8 | **선물 일별매매정보** | `drv/fut_dd_trd` | DRV | E_BASIS_KR (현물-선물 베이시스) 신규 | ~10 |
+| # | 카테고리 | 정확한 한글 API 명 | endpoint path | 활용 |
+|---|---|---|---|---|
+| 7 | **파생** | **옵션 일별매매정보** | `drv/opt_dd_trd` | E_PCR_KR Put/Call ratio |
+| 8 | **파생** | **선물 일별매매정보** | `drv/fut_dd_trd` | E_BASIS_KR 현물-선물 베이시스 |
 
-**Tier 4 효과**:
-- 학술 검증된 새 thesis 2개 추가 가능
-- 단 학술적 prior가 약한 KR 시장 특성 검증 필요 (별도 hindcast)
+**검색 키워드**: "옵션" + "선물" / 카테고리 path: 파생상품 (DRV)
+
+---
+
+### 카테고리별 정리 (신청 페이지 navigation 순서)
+
+KRX OpenAPI 신청 페이지는 카테고리 트리 형태. 같은 카테고리의 endpoint를
+한 번에 모두 신청하면 효율적:
+
+#### 지수 (IDX) — 신청 2개
+- 변동성지수 시세정보 (Tier 1)
+- KOSPI 시리즈 일별시세정보 (Tier 3)
+
+#### 유가증권 (STK) — 신청 2개
+- 유가증권 일별매매정보 (Tier 3)
+- 투자자별 거래실적 (개별종목) (Tier 2)
+
+#### 공매도 (SRT) — 신청 2개
+- 공매도 일별 거래정보 (종목별) (Tier 2)
+- 공매도 잔고 일별 (종목별) (Tier 2)
+
+#### 파생상품 (DRV) — 신청 2개
+- 옵션 일별매매정보 (Tier 4)
+- 선물 일별매매정보 (Tier 4)
+
+---
+
+### 참고 — KRX OpenAPI 카테고리 전체 (선택적 확장)
+
+| 카테고리 | 코드 | GLOSTAT 활용 |
+|---|---|---|
+| 유가증권 | STK | ★★★ (Tier 2/3) |
+| 코스닥 | KSQ | ★★ (KOSDAQ thesis 확장 시) |
+| 코넥스 | KNX | ☆ |
+| 지수 | IDX | ★★★★★ (Tier 1/3) |
+| ETF | ETF | ★ |
+| ETN | ETN | ☆ |
+| ELW | ELW | ☆ |
+| 채권 | BND | ☆ |
+| 일반상품 | GEN | ☆ |
+| 파생상품 | DRV | ★★ (Tier 4) |
+| **공매도** | **SRT** | **★★★ (Tier 2)** |
 
 ---
 
