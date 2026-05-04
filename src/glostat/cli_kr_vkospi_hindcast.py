@@ -11,6 +11,7 @@ from glostat.data.snapshot_broker import SnapshotBroker
 from glostat.data.universe import load_universe
 from glostat.data.vkospi_client import VkospiClient
 from glostat.data.vkospi_csv_provider import attach_csv_provider
+from glostat.data.vkospi_parquet_provider import attach_parquet_provider
 from glostat.replay.phase_kr_vkospi_mood_hindcast import (
     PhaseKrVkospiConfig,
     PhaseKrVkospiResult,
@@ -71,6 +72,14 @@ def add_kr_vkospi_hindcast_subparser(sub: Any) -> None:
         ),
     )
     p.add_argument(
+        "--vkospi-parquet", type=Path, default=None,
+        help=(
+            "Path to VKOSPI parquet (MOET KRX Data Marketplace format). "
+            "Overrides --vkospi-csv when set. v1.10.18+: directly references "
+            "/Applications/MOET/data/us_market/vkospi.parquet for live data."
+        ),
+    )
+    p.add_argument(
         "--output-dir", type=Path, default=None,
         help=f"Output dir for reports. Default {_DEFAULT_OUTPUT_DIR}.",
     )
@@ -101,11 +110,20 @@ def cmd_kr_vkospi_hindcast(args: argparse.Namespace) -> int:
         )
         return 2
 
+    parquet_path = Path(args.vkospi_parquet) if args.vkospi_parquet else None
     csv_path = Path(args.vkospi_csv or _DEFAULT_VKOSPI_CSV)
-    if not csv_path.exists():
+    if parquet_path is not None:
+        if not parquet_path.exists():
+            print(
+                f"VKOSPI parquet not found: {parquet_path}",
+                file=sys.stderr,
+            )
+            return 3
+    elif not csv_path.exists():
         print(
             f"VKOSPI history CSV not found: {csv_path}\n"
-            f"See docs/VKOSPI_SETUP.md for KRX export instructions.",
+            f"Use --vkospi-parquet for MOET KRX format, or "
+            f"see docs/VKOSPI_SETUP.md for CSV export.",
             file=sys.stderr,
         )
         return 3
@@ -122,7 +140,10 @@ def cmd_kr_vkospi_hindcast(args: argparse.Namespace) -> int:
     snap_root = Path(args.snapshot_root or _DEFAULT_SNAPSHOT_ROOT)
     broker = SnapshotBroker(root=snap_root)
     vkospi_client = VkospiClient(snapshot_broker=broker)
-    attach_csv_provider(vkospi_client, csv_path)
+    if parquet_path is not None:
+        attach_parquet_provider(vkospi_client, parquet_path)
+    else:
+        attach_csv_provider(vkospi_client, csv_path)
     try:
         result = asyncio.run(run_phase_kr_vkospi_mood_hindcast(
             config=config, vkospi_client=vkospi_client,

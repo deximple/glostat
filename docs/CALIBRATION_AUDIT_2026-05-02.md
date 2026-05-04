@@ -1051,3 +1051,124 @@ snapshots SQLite +40K rows (200 ticker × ~58 sample days × multiple snapshots/
 - 코드 변경 없음 — calibration loader 자동 픽업 (n=3, AUC=0.500 → bootstrap)
 - 신규 보고서: cache/hindcast/phase_kr_vkospi_mood/e_vkospi_mood_kr_report.json
   (gitignored)
+
+## v1.10.18: MOET KRX parquet 통합 + 실측 VKOSPI 측정 + spec patch
+
+### 컨텍스트
+
+MOET 프로젝트의 KRX Data Marketplace fetcher 완성으로 실측 VKOSPI 242일
+(2025-05-07~2026-04-30, mean=33.40, max=80.37, 위기 spike 포함) 사용 가능.
+v1.10.10/17의 binding constraint (synthetic VKOSPI mean reversion만 묘사)
+해소 시도.
+
+### 작업 흐름 (4 steps)
+
+**Step 1**: `vkospi_parquet_provider.py` 작성 (~110 lines)
+- MOET parquet (`/Applications/MOET/data/us_market/vkospi.parquet`) 직접 참조
+- pandas Timestamp → datetime.date 변환 + null 처리
+- `attach_parquet_provider(client, path)` one-liner
+
+**Step 2**: CLI `--vkospi-parquet` 옵션 추가
+- 기존 `--vkospi-csv`와 mutually exclusive
+- 운영자: `glostat kr-vkospi-hindcast --vkospi-parquet /Applications/MOET/.../vkospi.parquet ...`
+
+**Step 3**: 1차 hindcast (실측 데이터) → **n=1 발견**
+
+KOSPI200 200종목 × 11개월 stride=7 → 10,000 cells:
+- below_threshold (|r|<10%): 8,726 (87%)
+- misaligned: 218
+- **actionable: 1**
+
+진단: 실측 VKOSPI 데이터 풍부 (|ΔVKOSPI|>5% 일수 = 69/242, 29%)지만
+**actionable이 1만 발생** = 합성 데이터 한계 가설 일부 틀림.
+
+근본 원인 분석:
+```python
+# v1.10.6 score_vkospi_mood:
+magnitude = max(0, |r_t| - 0.10) * 10
+vol_term = min(0.20, |delta_pct|) * 5
+raw = magnitude * vol_term * (1.5 if small_cap else 1.0)
+direction = LONG iff (aligned and raw > 0.6) else NEUTRAL
+```
+
+|r|=0.20 + |Δ|=0.15 같은 강한 case에서야 raw=0.75 > 0.6 → LONG. 단순
+정렬만으로는 부족. 이는 **paper와 다른 v1.10.6 spec drift** — paper
+Tables 3A/3B는 단순 부호 정렬 + |r|>10% 만, magnitude 곱 임계 없음.
+
+**Step 4**: spec patch + 2차 hindcast
+
+```python
+- _DIRECTION_THRESHOLD: Final[float] = 0.6
++ _DIRECTION_THRESHOLD: Final[float] = 0.05  # paper-aligned
+```
+
+전체 42개 vkospi 관련 tests 통과 (test fixtures가 강한 input 사용해서
+영향 없음).
+
+### 2차 hindcast 결과
+
+| 메트릭 | 1차 (threshold=0.6) | 2차 (threshold=0.05) | 변화 |
+|---|---:|---:|---:|
+| n_signals | 1 | **12** | 12x |
+| n_misaligned | 218 | 109 | -50% (alignment 감지 향상) |
+| AUC overall | 0.500 (n<5 fallback) | 0.389 | -0.111 |
+| Sharpe overall | 0.000 | -0.263 | — |
+| **AUC IS / OOS** | 0.5 / 0.5 | **0.167 / 0.500** | IS contrarian |
+| **Sharpe IS / OOS** | 0 / 0 | **-3.31 / +5.73** | 부호 반전 |
+| OOS_deg | 100% | 100% | 동일 |
+| status | underfit | **underfit** | n<50 |
+| weight | 0.000 | 0.000 | 동일 |
+
+### 핵심 발견
+
+1. **Spec patch가 trigger 12배 증가**: paper와 일치한 단순 부호 정렬
+   trigger로 binding constraint 부분 해소.
+
+2. **그러나 여전히 underfit (n=12 < 50)**:
+   - paper hypothesis (aligned regime → LONG이 forward 기간 양수 return)
+   - 실측: IS 8 trades 중 1.3 only positive → AUC=0.167 → strongly
+     contrarian to paper
+   - OOS 4 trades: AUC=0.500 (random) + Sharpe +5.73 (outlier-driven)
+   - n=12은 통계적으로 fragile (특히 OOS 4건)
+
+3. **paper와 측정 불일치 가능성**:
+   - 11개월 windowing이 너무 짧음 (논문 18년)
+   - 2025-2026은 KR 변동성 폭발 시기 (max VKOSPI 80) — anomalous
+   - 또는 alpha decay (논문 데이터 2022.07까지)
+
+### v1.10.18 시퀀스 정량 비교
+
+| Wave | Universe | VKOSPI source | Window | n_trades | 상태 |
+|---|---|---|---|---:|---|
+| v1.10.10 | TOP30 | synthetic | 27 mo | 0 | bootstrap |
+| v1.10.17 | KOSPI200 | synthetic | 27 mo | 3 | bootstrap |
+| **v1.10.18 (1차)** | KOSPI200 | **MOET parquet** | 11 mo | 1 | bootstrap |
+| **v1.10.18 (2차)** | KOSPI200 | MOET parquet | 11 mo | **12** (spec patch) | **underfit** |
+
+각 wave에서 binding constraint 한 단계씩 해소:
+- v1.10.10/17: universe + synthetic 모두 한계
+- v1.10.18 1차: 실측 데이터로 universe 확장 한계 해소 → 그러나 spec drift 발견
+- v1.10.18 2차: spec patch로 trigger 정상화 → 그러나 진짜 thesis edge 검증
+  은 더 많은 데이터/시간 필요
+
+### 다음 ROI 후보
+
+1. **stride=1 daily sample**: 7배 sample 증가 → n=12 → ~84 (measured 임계
+   통과 가능)
+2. **window 확장**: MOET가 더 많은 historical data 추가 시 (현재 1년만)
+3. **KOSDAQ150 추가 universe**: small-cap effect 측정 (논문 Table 5A 강조)
+4. **paper의 직접 비교 - simple signed alignment Sharpe**: GLOSTAT 내
+   complex scoring을 우회한 paper-fidelity benchmark
+
+### Files
+
+- `src/glostat/data/vkospi_parquet_provider.py` (new, ~110 lines)
+- `src/glostat/cli_kr_vkospi_hindcast.py` (+ `--vkospi-parquet` 옵션)
+- `src/glostat/experts/e_vkospi_mood_kr.py` (`_DIRECTION_THRESHOLD`
+  0.6 → 0.05)
+
+### Polish-bias 체크
+
+v1.10.18: 데이터 통합 + 실측 + spec patch (3축 결합). v1.10.6 이래 14번째
+wave. 진짜 thesis edge 측정 미완 — n=12 underfit. 다음 wave는 sample
+density 증가 (stride=1 또는 universe 확장).

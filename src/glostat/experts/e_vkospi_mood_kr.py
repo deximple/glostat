@@ -113,7 +113,15 @@ from glostat.data.vkospi_client import (
 log: Final = structlog.get_logger(__name__)
 
 _RETURN_THRESHOLD: Final[float] = 0.10
-_DIRECTION_THRESHOLD: Final[float] = 0.6
+_DIRECTION_THRESHOLD: Final[float] = 0.05  # v1.10.18 spec patch: align with paper
+
+# v1.10.6 original: 0.6 — over-engineered, required magnitude*vol_term > 0.6
+# which translated to |r| ≈ 0.20 AND |Δ| ≈ 0.15 simultaneously. paper (Tables
+# 3A/3B) uses simple sign-alignment + |r|>10% trigger. v1.10.18 measurement
+# with real MOET VKOSPI data showed n=1 actionable from 1,051 |r|>10% events
+# (218 misaligned + 1 aligned at threshold 0.6). Lowering to 0.05 lets all
+# aligned events through magnitude-as-weight (still small_cap × magnitude
+# product preserved for composite weighting).
 _HORIZON_DAYS: Final[int] = 20
 _MAGNITUDE_GAIN: Final[float] = 10.0
 _VOL_TERM_GAIN: Final[float] = 5.0
