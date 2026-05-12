@@ -9,7 +9,7 @@ v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
 v1_2_active_count: 1   # INV-GS-107 (DART)
 v1_3_active_count: 1   # INV-GS-108 (ECOS)
-v1_4_active_count: 4   # INV-GS-109 + 110 + 111 (dca_sizing) + 112 (confidence_v2)
+v1_4_active_count: 3   # INV-GS-109 + 110 + 112 (confidence_v2); 111 deprecated in v2.0
 v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
 v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
 v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
@@ -342,18 +342,14 @@ invariants:
       - predictor.thesis_wrappers.wrap_short_selling_kr
     note: "KRX 정보데이터시스템 publishes short balance + volume per KOSPI 200 ticker (free, no API key). Tickers excluded from short selling (e.g., dividend-record uplistings) return empty rows → expert raises ExpertSkipError with universe-aware reason. Wrapper additionally enforces KOSPI 200 membership for liquidity (low-liquidity short-balance changes are noise)."
 
-  # ───────── v1.4: sizing & confidence model — N3/N4 ─────────
+  # ───────── v1.4: confidence model — N4 ─────────
+  # INV-GS-111 deprecated in v2.0: sizing-tier attachment removed from the
+  # predictor surface. The framework now emits probability + CI only.
   INV-GS-111:
-    summary: "Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved."
-    enforcement: information_only_attachment
-    source: docs/DCA_SIZING.md (v1.4 N3 addendum)
-    active_in: [v1.4]
-    enforce_at:
-      - predictor.dca_sizing.SizingRecommendation
-      - predictor.dca_sizing.build_sizing_recommendation
-      - predictor.composite.predict
-      - cli_predict_print.print_prediction
-    note: "SizingRecommendation aggregates R (regime/macro thesis), T (time/convergence thesis), V (fundamental thesis), and S (composite edge) into a single tier ∈ {wait, explore, base, active, aggressive} with disclaimer carrying explicit INFORMATION ONLY language. INV-GS-101 (no BUY/SELL output) preserved — sizing tier is calibration-derived data, not action label. Exact coefficients defined in predictor/dca_sizing.py."
+    summary: "DEPRECATED in v2.0 — sizing-tier attachment removed. Predictor surface is probability + CI only (INV-GS-101 reinforced)."
+    enforcement: removed
+    active_in: []
+    deprecated_in: v2.0
 
   INV-GS-112:
     summary: "confidence_v2 uses 5-component geometric mean; composite weight = brier_weight × confidence_v2_factor."
@@ -651,12 +647,12 @@ v1_2_active:
 v1_3_active:
   - INV-GS-108    # ECOS API key requirement + graceful skip
 
-# v1.4 active set (KR multi-source + short + intraday + sizing + confidence — N1/N2/N3/N4):
+# v1.4 active set (KR multi-source + short + intraday + confidence — N1/N2/N4):
 v1_4_active:
   - INV-GS-109    # 3-source fusion (KIS/Toss/Naver) + disagreement guard
   - INV-GS-110    # KRX short-selling universe + scrape-fail skip
-  - INV-GS-111    # dca_sizing INFORMATION ONLY — INV-GS-101 preserved
   - INV-GS-112    # confidence_v2 (5-component geometric mean) modulates Brier weight
+# INV-GS-111 deprecated in v2.0 (sizing-tier attachment removed from predictor)
 
 # v1.4.1 active set (X+W honesty patch — 16-panel synthesis):
 v1_4_1_active:

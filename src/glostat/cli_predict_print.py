@@ -84,18 +84,6 @@ def print_prediction(p: Prediction) -> None:
     for s in p.contributing_signals:
         _print_signal_line(s)
     print()
-    if p.dca_sizing is not None:
-        s = p.dca_sizing
-        r, t, v, sscore = s.w_components
-        print(
-            f"Sizing tier: {s.tier.upper()} (W={s.w_value:.2f}, "
-            f"suggested {s.suggested_entry_pct:.1f}% if user enters)"
-        )
-        print(
-            f"  W components: R={r:.2f} T={t:.2f} V={v:.2f} S={sscore:.2f}"
-        )
-        print(f"  {s.disclaimer}")
-        print()
     print("Next triggers:")
     for t in p.next_triggers:
         print(f"  - {t}")

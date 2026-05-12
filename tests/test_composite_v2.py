@@ -173,21 +173,6 @@ def test_sk_innovation_mock_high_n_thesis_gets_higher_weight() -> None:
     )
 
 
-def test_dca_sizing_attached_after_predict() -> None:
-    # Composite should attach SizingRecommendation as INFORMATION-only.
-    sig = _signal(name="E_FUNDAMENTAL", direction="up", value=2.0)
-    table = CalibrationTable()
-    table.entries["E_FUNDAMENTAL"] = _cal("E_FUNDAMENTAL")
-    p = predict(
-        ticker="X", horizon="swing_30d",
-        contributions=(sig,), cal_table=table,
-    )
-    assert p.dca_sizing is not None
-    assert p.dca_sizing.tier in {
-        "wait", "explore", "base", "active", "aggressive",
-    }
-
-
 # ── INV-GS-103 + INV-GS-112 interaction ──────────────────────────────────
 
 

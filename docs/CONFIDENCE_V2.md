@@ -80,10 +80,3 @@ v1.5 enhancement), the synthesis becomes lossless.
 - **`is_sharpe ≈ 0`** → denominator floor of 0.1 prevents division blow-up.
 - **Negative `days_since_last_calibration`** → clamped to 0 (no negative age).
 
-## How it interacts with dca_sizing
-
-`Prediction.dca_sizing` (INV-GS-111) is computed from the *post-confidence_v2*
-Prediction, so a thesis with low confidence_v2 already collapses to the base
-rate. The S component of W = 0.30·R + 0.25·T + 0.25·V + 0.20·S is derived
-from `edge_over_baseline_pp`, which is itself confidence_v2-modulated. This
-prevents weak or stale thesis from inflating the sizing tier.

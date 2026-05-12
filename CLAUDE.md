@@ -184,17 +184,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 >   New `EIntradayFlowKrExpert` (Naver baseline + KIS
 >   overlay, foreign-flow acceleration). Both bootstrapped at AUC=0.50, n=0;
 >   weight=0 until a dedicated KR hindcast measures predictive strength.
-> - **N3 + N4** — sizing & confidence: new `predictor.dca_sizing`
->   module providing 4-component sizing aggregation as INFORMATION ONLY
->   per INV-GS-111; new `predictor.confidence_v2`
+> - **N4** — confidence: new `predictor.confidence_v2`
 >   module implementing a 5-component confidence model (sample_
 >   quality, effective_size_factor, score_stability, return_consistency,
 >   recency_quality), used as a Brier-weight modulator in
 >   `predictor.composite._compute_masses`.
 > - New invariants `INV-GS-109` (3-source fusion + disagreement guard),
 >   `INV-GS-110` (short-selling expert universe + scrape-fail skip),
->   `INV-GS-111` (dca_sizing INFORMATION ONLY), `INV-GS-112` (confidence_v2
->   weight modulation).
+>   `INV-GS-112` (confidence_v2 weight modulation).
+> - **v2.0**: INV-GS-111 (sizing-tier attachment) deprecated; the
+>   predictor surface is now strictly probability + CI (no sizing field).
 > v1.3 delta (M2): new `ecos_client.EcosClient` (한국은행 OpenAPI; free 10k/day)
 > + new `EMacroKrExpert` aggregating BoK base rate Δ, KRW/USD trend, CPI
 > surprise, KOSPI momentum into a single KR macro signal; gracefully skipped
@@ -285,7 +284,7 @@ advice.
 | **INV-GS-106**  | **KR tickers normalize to 6-digit format internally; yfinance fetch auto-appends .KS suffix**                                     | **active v1.1**                                                   |
 | **INV-GS-107**  | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly**                                          | **active v1.2**                                                   |
 | **INV-GS-108**  | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory**          | **active v1.3**                                                   |
-| **INV-GS-111**  | **Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved** | **active v1.4**                                                   |
+| INV-GS-111      | DEPRECATED in v2.0 (sizing-tier attachment removed; predictor surface = probability + CI only)                                    | **deprecated v2.0**                                               |
 | **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean; composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
 | **INV-GS-113**  | **Output honesty: CI label = '1-sigma (~68%)'; CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer** | **active v1.4.1**                                                |
 | **INV-GS-114**  | **Universe-specific honesty: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure footer**                                              | **active v1.4.1**                                                |
