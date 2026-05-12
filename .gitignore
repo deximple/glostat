@@ -32,6 +32,10 @@ secrets/
 *.swo
 .DS_Store
 
+# Auto-generated session transcripts (must not ship in PyPI sdist)
+.bs_docs/
+.claude/
+
 # GLOSTAT runtime artefacts (Sprint 0)
 cache/
 snapshots/

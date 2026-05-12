@@ -15,7 +15,7 @@ from glostat.experts.ichimoku import (
     find_anchor_lows,
 )
 
-# E_TIME — TITAN B2 일목 기본수치 + earnings calendar Expert.
+# E_TIME — Ichimoku 일목 기본수치 + earnings calendar Expert.
 # Inputs:
 #   yfinance OHLCV (last ~300 trading days; covers 257-day base safely)
 #   yfinance earnings calendar (next event + recent history)

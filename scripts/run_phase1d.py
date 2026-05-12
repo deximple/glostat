@@ -78,7 +78,7 @@ async def main_async() -> int:
     print(f"\n[saved → {e7_path}]\n")
 
     # -- Thesis E9 KR 외인 Reversal --------------------------------------
-    print("\n=== Phase 1D Thesis E9: KR 외인 Reversal (TITAN B4) ===\n")
+    print("\n=== Phase 1D Thesis E9: KR 외인 Reversal ===\n")
     e9_report = await hindcast_foreign_reversal(
         codes=_KOSPI200_SAMPLE,
         start=date(2024, 1, 1),
@@ -144,31 +144,17 @@ def _comparison_md(e7, e9) -> str:
     for n in e9.notes:
         lines.append(f"- E9: {n}")
     lines.append("")
-    lines.append("## TITAN B4 Confirmation Test")
+    lines.append("## REVERSAL_BUY Hit Rate")
     lines.append("")
     e9_b4_hr = e9.pattern_hit_rates.get("REVERSAL_BUY")
     if e9_b4_hr is None:
-        lines.append("- E9 produced no REVERSAL_BUY post-cost-gate trades; cannot confirm 60.3%.")
+        lines.append("- E9 produced no REVERSAL_BUY post-cost-gate trades.")
     else:
-        delta = (e9_b4_hr - 0.603) * 100
-        lines.append(
-            "- TITAN B4 historical: 60.3% (58 events, KR universe, 2025.06–2026.03)"
-        )
         lines.append(
             f"- Phase 1D live hindcast: **{e9_b4_hr:.1%}** "
             f"({e9.pattern_breakdown.get('REVERSAL_BUY', 0)} events, "
             f"2024.01–2026.03)"
         )
-        lines.append(f"- Δ vs TITAN: {delta:+.1f} pp")
-        if abs(delta) < 5.0:
-            lines.append("- **CONFIRMED** (within ±5pp tolerance)")
-        elif delta > 0:
-            lines.append(f"- **EXCEEDED** TITAN baseline by {delta:.1f}pp")
-        else:
-            lines.append(
-                f"- **UNDERPERFORMED** TITAN baseline by {abs(delta):.1f}pp — "
-                "TITAN's 60.3% may not generalize to longer history / wider universe"
-            )
     lines.append("")
     return "\n".join(lines)
 

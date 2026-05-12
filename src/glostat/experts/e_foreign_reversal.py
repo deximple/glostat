@@ -13,12 +13,12 @@ from glostat.data.naver_kr_client import KrFlowBar
 
 log: Final = structlog.get_logger(__name__)
 
-# E_FOREIGN_REVERSAL (Phase 1D Thesis E9) — port of TITAN B4 REVERSAL_BUY pattern.
+# E_FOREIGN_REVERSAL (Phase 1D Thesis E9) — KR foreign-investor reversal pattern.
 # Universe: KOSPI 200 (top liquidity).
 # Pattern: 외국인 (foreign) 4 consecutive trading days of NET SELL,
 #          followed by Day D+1 first NET BUY → LONG.
 # Confirmation: 기관 (institutional) also NET BUY same day → confidence × 1.3.
-# Validated by TITAN news_engine.py: 60.3% hit rate on 58 events (2025.06–2026.03).
+# Calibration via Phase 1D / Phase KR hindcasts; see docs/CALIBRATION.md.
 
 _REQUIRED_PRIOR_SELL_DAYS: Final[int] = 4
 _PATTERN_NET_SCORE: Final[float] = 2.0  # base LONG score for REVERSAL_BUY
@@ -49,7 +49,7 @@ def score_reversal_at(
     current_idx: int,
     required_prior: int = _REQUIRED_PRIOR_SELL_DAYS,
 ) -> ForeignReversalScore:
-    """Score TITAN B4 REVERSAL_BUY at bars[current_idx].
+    """Score REVERSAL_BUY pattern at bars[current_idx].
 
     Pattern triggers when:
       - bars[current_idx].foreign_net > 0 (today is buy day)

@@ -96,7 +96,7 @@ uv run glostat calibrate --thesis E_PEAD --universe us_sp100_50 --horizon 30d
 | Field | Value |
 |-------|-------|
 | Universe | KR 20 (KOSPI200 top mega) |
-| Horizon | 5d (TITAN-style) |
+| Horizon | 5d |
 | Calibration window | 2024-01-01 → 2026-03-29 |
 | n_samples | 424 |
 | AUC | 0.467 (overall) — IS 0.466 / OOS 0.477 |
@@ -106,15 +106,15 @@ uv run glostat calibrate --thesis E_PEAD --universe us_sp100_50 --horizon 30d
 | Composite weight | **0.14** |
 
 **What this signal predicts:** Korean foreign-investor net-buy reversals as
-a forward-direction cue, originally TITAN's B4 historical signal (60.3% on
-n=58, 2025.06–2026.03).
+a forward-direction cue. Pattern: persistent foreign net-sell streak followed
+by a single-day net-buy day → forward 5d positive return tilt.
 
 **How strongly:** the 2024–2026 generalization gave 52.2% hit rate (424
-events) — **8.1pp below the original B4 result**. AUC sits below 0.5 (so the
-score-rank flips slightly), but Sharpe is positive and OOS-stable. This is
-the signature of a regime-dependent signal that nevertheless carries useful
-direction in the reframe-and-aggregate context. v1.0 weight 0.14 acknowledges
-the TITAN-vs-GLOSTAT gap while preserving the sign of the contribution.
+events). AUC sits below 0.5 (so the score-rank flips slightly), but Sharpe is
+positive and OOS-stable. This is the signature of a regime-dependent signal
+that nevertheless carries useful direction in the reframe-and-aggregate
+context. v1.0 weight 0.14 reflects the measured generalization while
+preserving the sign of the contribution.
 
 **Re-run:**
 ```bash
@@ -357,7 +357,7 @@ is the honest, regularized number.
 
 ### Phase 1D legacy → Phase KR override
 
-The earlier Phase 1D (TITAN heritage) E_FOREIGN_REVERSAL calibration shipped
+The earlier Phase 1D E_FOREIGN_REVERSAL calibration shipped
 n=424, AUC 0.467, Sharpe +0.583, OOS deg 0%. Phase KR M1 (n=138, Sharpe
 +0.170, OOS deg 100%) replaces it: KR-specific, recent 2-year window, real
 TOP30 pattern frequency. The Brier-derived weight will drop from ≈0.14

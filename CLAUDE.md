@@ -174,20 +174,20 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 > - **N1 — KR 3-source investor flows.** New `kis_client.KisClient` (KIS Open
 >   API read-only paths, 20 req/sec, OAuth token managed; order-execution
 >   endpoints intentionally NOT wrapped per INV-GS-101). New
->   `toss_client.TossClient` (TITAN local-parquet pattern, no live API). New
+>   `toss_client.TossClient` (local-parquet pattern, no live API). New
 >   `fuse_three_source_flows()` helper (KIS + Toss + Naver merged by date,
 >   median when ≥ 2 sources agree, warn on > 50% disagreement).
 >   `EForeignReversalExpert` consumes 3-source provenance.
 > - **N2 — KR 공매도 + intraday flow experts.** New `krx_short_client.KrxShortClient`
 >   (free public KRX AJAX endpoint, 5 req/sec). New `EShortSellingKrExpert`
->   (TITAN E5++ port — short-balance change + squeeze candidate detection).
->   New `EIntradayFlowKrExpert` (TITAN E5+ port — Naver baseline + KIS
+>   (short-balance change + squeeze candidate detection).
+>   New `EIntradayFlowKrExpert` (Naver baseline + KIS
 >   overlay, foreign-flow acceleration). Both bootstrapped at AUC=0.50, n=0;
 >   weight=0 until a dedicated KR hindcast measures predictive strength.
-> - **N3 + N4** — TITAN-derived sizing & confidence: new `predictor.dca_sizing`
->   module porting TITAN L4 W = 0.30·R + 0.25·T + 0.25·V + 0.20·S to GLOSTAT
->   prediction-tool framing as INFORMATION ONLY; new `predictor.confidence_v2`
->   module implementing TITAN chart_pattern.py 5-component confidence (sample_
+> - **N3 + N4** — sizing & confidence: new `predictor.dca_sizing`
+>   module providing 4-component sizing aggregation as INFORMATION ONLY
+>   per INV-GS-111; new `predictor.confidence_v2`
+>   module implementing a 5-component confidence model (sample_
 >   quality, effective_size_factor, score_stability, return_consistency,
 >   recency_quality), used as a Brier-weight modulator in
 >   `predictor.composite._compute_masses`.
@@ -222,8 +222,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## What this is (v1.0 — one paragraph)
 
 GLOSTAT v1.0 is an **open-source, evidence-based probability predictor** for
-global equities (US + KR + FX + commodities + crypto), framed as the open-source
-evolution of TITAN (KR-only 7-engine verdict orchestrator). It does **not**
+global equities (US + KR + FX + commodities + crypto). It does **not**
 output BUY / SELL actions; it outputs a `Prediction` containing `p_up` (forward
 probability of positive return), a 90% confidence interval, a per-thesis
 contribution table with **Brier-weighted** ensemble weights, calibration window
@@ -287,7 +286,7 @@ advice.
 | **INV-GS-107**  | **DART API key required for KR insider/fundamentals enhancement; absence skips cleanly**                                          | **active v1.2**                                                   |
 | **INV-GS-108**  | **ECOS API key required for KR macro signal (E_MACRO_KR); 10 req/sec rate limit; Snapshot Broker integration mandatory**          | **active v1.3**                                                   |
 | **INV-GS-111**  | **Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved** | **active v1.4**                                                   |
-| **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
+| **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean; composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
 | **INV-GS-113**  | **Output honesty: CI label = '1-sigma (~68%)'; CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer** | **active v1.4.1**                                                |
 | **INV-GS-114**  | **Universe-specific honesty: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure footer**                                              | **active v1.4.1**                                                |
 | **INV-GS-115**  | **commodity_client wraps yfinance commodity futures with cycle-percentile + 30d-momentum metrics; mandatory snapshot writes**                                               | **active v1.5**                                                  |

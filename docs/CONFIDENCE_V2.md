@@ -1,9 +1,8 @@
 # confidence_v2 — INV-GS-112 (v1.4 N4)
 
-> **STATUS: ACTIVE v1.4.** TITAN chart_pattern.py `_compute_confidence`
-> 5-component confidence model adapted to GLOSTAT's `ThesisCalibration` shape
-> and used as a Brier-weight modulator (INV-GS-112). Composite uses geometric
-> mean (weakest-link semantics).
+> **STATUS: ACTIVE v1.4.** 5-component confidence model adapted to GLOSTAT's
+> `ThesisCalibration` shape and used as a Brier-weight modulator
+> (INV-GS-112). Composite uses geometric mean (weakest-link semantics).
 
 ## Why a second confidence layer?
 

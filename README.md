@@ -1,6 +1,6 @@
 # GLOSTAT — Evidence-based Probability Predictor for Global Equities
 
-> **개선된 TITAN의 open-source 진화형 / Calibrated multi-horizon predictions with evidence chains.**
+> **Calibrated multi-horizon predictions with evidence chains.**
 >
 > Information tool. Not investment advice. Past calibration ≠ future performance.
 
@@ -69,26 +69,6 @@
 
 ---
 
-## If you used TITAN, GLOSTAT v1.0 is its open-source global evolution
-
-| Dimension | TITAN | GLOSTAT v1.0 |
-|-----------|-------|--------------|
-| Markets | KR (KOSPI/KOSDAQ) only | Global (US, KR, FX, commodities, crypto) |
-| Output | `STRONG_BUY..STRONG_SELL` action + directive + target/stop | `Prediction(p_up, CI, contributing, evidence_hash)` |
-| Compliance | Telegram bot historically active | `broadcast_telegram` raises (INV-GS-024); per-prediction disclaimer (INV-GS-104) |
-| Reproducibility | Local cache | Snapshot Broker (Merkle leaf + parquet shard + SQLite) |
-| Calibration | Single B4 historical run (60.3% hit) | Quarterly recalibration → `calibration_table.parquet` |
-| Weights | Heuristic engine ratios | Brier-score sigmoid weighting (sample-size aware) |
-| Distribution | Private repo | MIT open-source |
-| Honesty | "PEAD 60%" | "PEAD AUC 0.587, n=298, weight 0.18" |
-| Scope discipline | All 9 engines on | Weak thesis auto-weight 0 |
-
-GLOSTAT v1.0 inherits TITAN's engine-ensemble pattern and hindcast-first
-discipline, then layers on global coverage, calibrated probability output,
-formal reproducibility, and a hard compliance gate.
-
----
-
 ## Supported markets (v1.1)
 
 | Market | MIC | Status | Universe | Data sources |
@@ -100,8 +80,8 @@ formal reproducibility, and a hard compliance gate.
 | FX/Commodity ETFs | NYSE/CBOE | partial | (per-thesis) | yfinance + CFTC |
 
 KR predictions use **E_FUNDAMENTAL_KR** (yfinance .KS PER/ROE/dividend yield)
-+ **E_FOREIGN_REVERSAL** (Naver Finance 외인/기관 4-day reversal pattern,
-TITAN B4 port) + **E_TIME** (Ichimoku — universe-agnostic). See
++ **E_FOREIGN_REVERSAL** (Naver Finance 외인/기관 4-day reversal pattern)
++ **E_TIME** (Ichimoku — universe-agnostic). See
 [`docs/KR_SUPPORT.md`](docs/KR_SUPPORT.md) for the full guide.
 
 ```bash

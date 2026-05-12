@@ -9,7 +9,7 @@ import structlog
 
 # v1.4 N1 — Toss Securities investor-trend cache reader (local parquet only).
 #
-# WHY: TITAN's pattern — Toss does not expose a stable public REST API for
+# WHY: Toss does not expose a stable public REST API for
 # investor flows. Instead operators export Toss app data into local parquet
 # shards (cache/toss/{code}.parquet) which this reader consumes. No live HTTP.
 #
