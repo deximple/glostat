@@ -5,7 +5,6 @@ import hashlib
 import math
 import subprocess
 from collections.abc import Iterable
-from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Final
 
@@ -21,7 +20,6 @@ from glostat.predictor.confidence_v2 import (
     ConfidenceV2,
     confidence_v2_from_calibration,
 )
-from glostat.predictor.dca_sizing import build_sizing_recommendation
 from glostat.predictor.types import (
     Direction,
     Horizon,
@@ -40,7 +38,6 @@ from glostat.predictor.types import (
 #   3. p_up = base_rate · (1 - α) + mass · α, α = total_w / (total_w + 1)
 #   4. expected_return_bps from signed value × _SCORE_TO_BPS × weight
 #   5. sigma_bps = stdev × sqrt(active_count)
-#   6. v1.4 (INV-GS-111): SizingRecommendation attached as INFORMATION-only.
 
 log: Final = structlog.get_logger(__name__)
 
@@ -349,8 +346,7 @@ def predict(
         git_commit=_git_commit(),
         market=market,
     )
-    # v1.4 N3 (INV-GS-111): attach DCA sizing as INFORMATION-only metadata.
-    return replace(pred, dca_sizing=build_sizing_recommendation(pred))
+    return pred
 
 
 def _calibration_period_from_table(table: CalibrationTable) -> tuple[date, date]:
