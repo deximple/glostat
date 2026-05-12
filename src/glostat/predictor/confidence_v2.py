@@ -9,12 +9,8 @@ if TYPE_CHECKING:
     from glostat.predictor.calibration import ThesisCalibration
 
 # 5-component confidence model — N4.
-# TITAN chart_pattern.py _compute_confidence(...) inspired, adapted to our
-# per-thesis ThesisCalibration shape. Composite is a geometric mean of the 5
-# components so a single weak component can pull the overall confidence down
-# (TITAN's arithmetic 0.25/0.20/0.20/0.20/0.15 weighting was chosen for
-# heuristic balance; geometric mean is the user-requested behaviour here and
-# more closely mirrors a "weakest-link" intuition).
+# Aggregates standard statistical confidence signals into a single
+# weakest-link composite, used as a Brier-weight modulator (INV-GS-112).
 #
 # Component inventory (each ∈ [0, 1]):
 #   1. sample_quality       = log(min(n, 1000)) / log(1000)
@@ -28,7 +24,8 @@ if TYPE_CHECKING:
 #   5. recency_quality      = exp(-days_since_last_calibration / 90)
 #                             half-life ~ 62 days.
 #
-# composite = (c1 · c2 · c3 · c4 · c5) ** (1 / 5)  (geometric mean)
+# composite = (c1 · c2 · c3 · c4 · c5) ** (1 / 5)  (geometric mean —
+# a single weak component pulls overall confidence down toward 0).
 
 _FLOOR: Final[float] = 1e-6
 _RECENCY_HALF_LIFE_DAYS: Final[float] = 90.0

@@ -87,7 +87,7 @@ class ComposedSignal:
 class Verdict:
     ticker: str                                  # bare ticker (US only, MVP)
     action: Action                               # 5단계 → 3단계 (E1 horizon discipline)
-    conviction_w: float                          # [0, 3.5] TITAN W값
+    conviction_w: float                          # [0, 3.5] conviction weight
     target_price: float | None
     stop_price: float | None
     suggested_size_pct: float

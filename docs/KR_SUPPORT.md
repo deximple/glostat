@@ -12,24 +12,22 @@
 
 ## What changed in v1.4
 
-v1.4 absorbs TITAN's deep KR practitioner capabilities while keeping the
-prediction-tool framing (INV-GS-101 — no BUY/SELL output):
+v1.4 deepens KR practitioner capabilities while keeping the prediction-tool
+framing (INV-GS-101 — no BUY/SELL output):
 
 1. **N1 — KR 3-source investor flows**: new `KisClient` (real-time intraday,
-   read-only KIS Open API), new `TossClient` (local-parquet cache reader,
-   TITAN pattern), and a `fuse_three_source_flows()` helper in
-   `naver_kr_client` that median-merges Naver + Toss + KIS daily summaries
-   per date. When ≥ 2 sources disagree by > 50%, a warning is logged and
-   the median takes over so a single bad scrape can't poison
-   `E_FOREIGN_REVERSAL`. Source priority: KIS (real-time) > Toss (cache) >
-   Naver (scrape, always available).
+   read-only KIS Open API), new `TossClient` (local-parquet cache reader),
+   and a `fuse_three_source_flows()` helper in `naver_kr_client` that
+   median-merges Naver + Toss + KIS daily summaries per date. When ≥ 2
+   sources disagree by > 50%, a warning is logged and the median takes over
+   so a single bad scrape can't poison `E_FOREIGN_REVERSAL`. Source priority:
+   KIS (real-time) > Toss (cache) > Naver (scrape, always available).
 2. **N2 — KR 공매도 + intraday flow experts**: new `KrxShortClient` (free
-   public KRX AJAX endpoint), new `EShortSellingKrExpert` (TITAN E5++
-   inspired — short balance change + squeeze candidate detection), new
-   `EIntradayFlowKrExpert` (TITAN E5+ inspired — Naver baseline + KIS
-   overlay, foreign-flow acceleration). Both are bootstrapped at AUC=0.50
-   / n=0 in the calibration table; weight=0 until a dedicated KR hindcast
-   measures predictive strength.
+   public KRX AJAX endpoint), new `EShortSellingKrExpert` (short balance
+   change + squeeze candidate detection), new `EIntradayFlowKrExpert` (Naver
+   baseline + KIS overlay, foreign-flow acceleration). Both are bootstrapped
+   at AUC=0.50 / n=0 in the calibration table; weight=0 until a dedicated
+   KR hindcast measures predictive strength.
 
 KR predictions now have up to **7 active signal slots** (was 5):
 `E_FUNDAMENTAL_KR`, `E_TIME`, `E_FOREIGN_REVERSAL` (3-source-aware),
@@ -72,7 +70,7 @@ v1.0 US predictions (AAPL, MSFT, etc.) are unaffected.
 | Surface | v1.0 behavior | v1.1 behavior | v1.2 delta |
 |---------|---------------|---------------|------------|
 | `glostat predict 096770` | baseline fallback (52% / +0bps, 0 active signals) | 3+ active signals, signal-driven edge | +1 slot (E_INSIDER_KR), real KR calibration |
-| `E_FOREIGN_REVERSAL` | static neutral=0 wrapper | live Naver-backed expert (TITAN B4 port) | calibration measured via Phase KR hindcast |
+| `E_FOREIGN_REVERSAL` | static neutral=0 wrapper | live Naver-backed expert | calibration measured via Phase KR hindcast |
 | `E_FUNDAMENTAL_KR` | did not exist | new expert (yfinance .KS PER/ROE/dividend) | DART overlay when key configured |
 | `E_TIME` | US-only gate | universe-agnostic (Ichimoku — works for any equity OHLCV) | distinct E_TIME_KR calibration cell |
 | `E_INSIDER_KR` | did not exist | did not exist | DART elestock cluster (graceful skip if no key) |
@@ -210,13 +208,12 @@ endpoints intentionally NOT wrapped** — INV-GS-101 forbids action output.
 
 Setup: `docs/KIS_API_SETUP.md` (free portal registration).
 
-### Toss local cache (TITAN pattern, optional)
+### Toss local cache (optional)
 
 `src/glostat/data/toss_client.py` reads pre-exported Toss app data from
 `cache/toss/{code}.parquet`. Schema: `(bar_date, ticker, foreign_net_won,
 institutional_net_won, retail_net_won, source="toss")`. No live API —
-operators populate the cache manually (mirrors TITAN's pattern). Skip
-silently when files are absent.
+operators populate the cache manually. Skip silently when files are absent.
 
 ### 3-source fusion
 
@@ -246,7 +243,7 @@ endpoint (https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd) for:
 5 req/sec self-throttle (no published rate limit, but KRX is regulator-
 run; keep load low). Snapshot Broker integration. **Free, no API key.**
 
-`src/glostat/experts/e_short_selling_kr.py` (TITAN E5++ inspired):
+`src/glostat/experts/e_short_selling_kr.py`:
 
 | Component | Threshold | Score | Direction |
 |-----------|-----------|------:|-----------|
@@ -262,7 +259,7 @@ until a dedicated KR short-selling hindcast runs.
 
 ### E_INTRADAY_FLOW_KR (Naver baseline + KIS overlay)
 
-`src/glostat/experts/e_intraday_flow_kr.py` (TITAN E5+ inspired):
+`src/glostat/experts/e_intraday_flow_kr.py`:
 
 - Compute trailing 5-day foreign-flow average from Naver bars
 - Compute foreign-flow acceleration (recent half vs earlier half)
@@ -285,7 +282,7 @@ Calibration: bootstrapped at AUC=0.500, n=0 (weight=0).
 
 ## E_FOREIGN_REVERSAL (live Naver wiring + 3-source aware in v1.4 N1)
 
-Direct port of TITAN B4 REVERSAL_BUY pattern:
+Foreign-investor reversal pattern detector:
 
 - Day t-4 .. t-1: foreign net SELL (4 consecutive days)
 - Day t: foreign net BUY → REVERSAL_BUY → LONG
@@ -295,8 +292,7 @@ Calibration: Phase 1D live hindcast over 2024-01 .. 2026-03:
 - n_actionable = 424 events (KOSPI 20 megacap subset)
 - AUC = 0.467 (under 0.5 → directional_bias = -1; composite flips score)
 - Sharpe = +0.58 overall (IS +0.18 / OOS +1.46 — pattern stable OOS)
-- TITAN B4 historical: 60.3% hit (n=58); v1.1 generalization: 52.2% (n=424,
-  -8.1pp gap)
+- Measured hit rate 52.2% over the n=424 generalization window.
 
 Source code: `src/glostat/experts/e_foreign_reversal.py:EForeignReversalExpert`.
 

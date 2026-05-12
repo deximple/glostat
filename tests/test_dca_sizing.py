@@ -41,7 +41,7 @@ def _cal(
     )
 
 
-# ── tier mapping (TITAN parity) ───────────────────────────────────────────
+# ── tier mapping ──────────────────────────────────────────────────────────
 
 
 def test_tier_wait_below_threshold() -> None:

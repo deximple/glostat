@@ -17,8 +17,7 @@ from glostat.data.krx_short_client import (
     KrxShortVolumeBar,
 )
 
-# v1.4 N2 — KR short-selling expert. Inspired by TITAN E5++ (short_selling.py)
-# but trimmed to free public KRX data only (no Toss reverse-engineering).
+# v1.4 N2 — KR short-selling expert. Free public KRX data only.
 #
 # Direction signals:
 #   - balance increase (3-day rolling) above 80th percentile → bearish pressure

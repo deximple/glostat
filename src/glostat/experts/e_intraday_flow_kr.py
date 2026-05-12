@@ -13,8 +13,7 @@ from glostat.data.data_router import is_kr_ticker, normalize_kr_ticker
 from glostat.data.kis_client import KisApiError, KisClient, KisIntradayFlow
 from glostat.data.naver_kr_client import KrFlowBar, NaverKrClient
 
-# v1.4 N2 — KR intraday investor-flow expert. Inspired by TITAN E5+
-# (intraday_flow.py), reframed as a free-stack prediction signal.
+# v1.4 N2 — KR intraday investor-flow expert. Free-stack prediction signal.
 #
 # Signal logic:
 #   - Compute per-day cumulative flow from Naver bars (most recent N days).

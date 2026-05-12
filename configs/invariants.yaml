@@ -51,7 +51,7 @@ invariants:
   INV-GS-008:
     summary: "T값 ≥ 1.5 + V값 ≥ 1.0 → conviction_w 1.2× 보너스"
     enforcement: time_bonus
-    source: TITAN B2
+    source: PLAN_v0.1
   INV-GS-009:
     summary: "bigdata_search 결과는 14일 내 + sentiment 양극단만 채택"
     enforcement: data_filter
@@ -228,7 +228,7 @@ invariants:
     sprint: 0
     mvp_status: active
 
-  # ───────── v1.0: Prediction Tool Reframe (101-105) — 개선된 TITAN ─────────
+  # ───────── v1.0: Prediction Tool Reframe (101-105) ─────────
   INV-GS-101:
     summary: "Output is probability distribution + confidence interval. BUY/SELL action output forbidden."
     enforcement: type_gate
@@ -335,23 +335,23 @@ invariants:
       - predictor.thesis_wrappers.wrap_short_selling_kr
     note: "KRX 정보데이터시스템 publishes short balance + volume per KOSPI 200 ticker (free, no API key). Tickers excluded from short selling (e.g., dividend-record uplistings) return empty rows → expert raises ExpertSkipError with universe-aware reason. Wrapper additionally enforces KOSPI 200 membership for liquidity (low-liquidity short-balance changes are noise)."
 
-  # ───────── v1.4: TITAN-derived sizing & confidence model — N3/N4 ─────────
+  # ───────── v1.4: sizing & confidence model — N3/N4 ─────────
   INV-GS-111:
     summary: "Prediction.dca_sizing field is INFORMATION ONLY (calibration-derived sizing tier %); does NOT constitute a BUY/SELL recommendation. INV-GS-101 preserved."
     enforcement: information_only_attachment
-    source: docs/DCA_SIZING.md (v1.4 N3 addendum) + TITAN L4 W-value §6
+    source: docs/DCA_SIZING.md (v1.4 N3 addendum)
     active_in: [v1.4]
     enforce_at:
       - predictor.dca_sizing.SizingRecommendation
       - predictor.dca_sizing.build_sizing_recommendation
       - predictor.composite.predict
       - cli_predict_print.print_prediction
-    note: "TITAN L4 W = 0.30·R + 0.25·T + 0.25·V + 0.20·S (cap 3.5) is reframed for prediction-tool use: R from regime/macro thesis, T from time/convergence thesis, V from fundamental thesis, S from composite edge. SizingRecommendation.tier ∈ {wait, explore, base, active, aggressive} and disclaimer carries explicit INFORMATION ONLY language. INV-GS-101 (no BUY/SELL output) preserved — sizing tier is calibration-derived data, not action label."
+    note: "SizingRecommendation aggregates R (regime/macro thesis), T (time/convergence thesis), V (fundamental thesis), and S (composite edge) into a single tier ∈ {wait, explore, base, active, aggressive} with disclaimer carrying explicit INFORMATION ONLY language. INV-GS-101 (no BUY/SELL output) preserved — sizing tier is calibration-derived data, not action label. Exact coefficients defined in predictor/dca_sizing.py."
 
   INV-GS-112:
-    summary: "confidence_v2 uses 5-component geometric mean (TITAN chart_pattern pattern); composite weight = brier_weight × confidence_v2_factor."
+    summary: "confidence_v2 uses 5-component geometric mean; composite weight = brier_weight × confidence_v2_factor."
     enforcement: weighting_modifier
-    source: docs/CONFIDENCE_V2.md (v1.4 N4 addendum) + TITAN chart_pattern.py _compute_confidence
+    source: docs/CONFIDENCE_V2.md (v1.4 N4 addendum)
     active_in: [v1.4]
     enforce_at:
       - predictor.confidence_v2.compute_confidence_v2
@@ -431,7 +431,7 @@ v1_3_active:
 v1_4_active:
   - INV-GS-109    # 3-source fusion (KIS/Toss/Naver) + disagreement guard
   - INV-GS-110    # KRX short-selling universe + scrape-fail skip
-  - INV-GS-111    # dca_sizing INFORMATION ONLY (TITAN W-value) — INV-GS-101 preserved
+  - INV-GS-111    # dca_sizing INFORMATION ONLY — INV-GS-101 preserved
   - INV-GS-112    # confidence_v2 (5-component geometric mean) modulates Brier weight
 
 # v1.4.1 active set (X+W honesty patch — 16-panel synthesis):

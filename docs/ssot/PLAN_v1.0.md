@@ -1,5 +1,4 @@
 # GLOSTAT v1.0 — Evidence-based Probability Predictor for Global Equities
-## (개선된 TITAN의 open-source 진화형)
 
 > **Status:** ACTIVE — Canonical SSOT as of 2026-04-29.
 > Supersedes the v0.6 decision-engine framing (archived per Sprint 5 FAIL).
@@ -43,7 +42,7 @@ v0.6 framing은 위의 분포를 "8/8 FAIL"이라 봤다. v1.0 framing은 같은
 | v0.5 | 2026-04-27 | Bigdata MCP cost gate 추가 | 과도 의존 인지 |
 | v0.6 | 2026-04-28 | Free-stack first, MVP $0, Bigdata Phase 2+ | 제약 명확화 |
 | v0.7 | 2026-04-29 | (drafted) 9-thesis screening on infra | 8 FAIL → archive |
-| **v1.0** | **2026-04-29** | **Prediction tool reframe (개선된 TITAN)** | **active** |
+| **v1.0** | **2026-04-29** | **Prediction tool reframe** | **active** |
 
 ### 0.3 What v1.0 changes vs v0.6/v0.7
 
@@ -61,44 +60,27 @@ v0.6 framing은 위의 분포를 "8/8 FAIL"이라 봤다. v1.0 framing은 같은
 
 ---
 
-## 1. TITAN과의 비교 + GLOSTAT v1.0가 TITAN을 어떻게 개선하는지
+## 1. GLOSTAT v1.0 framework principles
 
-### 1.1 출발선: TITAN
+GLOSTAT v1.0 is built around five non-negotiable design principles:
 
-TITAN (`/Applications/Titan/titan/`)은 KR 시장 단독, 7-engine integrated verdict
-오케스트레이터다. 핵심 구조:
+1. **Engine ensemble**: multiple per-thesis sub-signals aggregated with
+   Brier-score sigmoid weighting (INV-GS-103). No single thesis dominates.
+2. **Hindcast-first validation**: every new thesis ships with a calibration
+   row (n ≥ 50, AUC, Sharpe, OOS deg) before it can carry weight ≥ 0.5
+   (INV-GS-026).
+3. **Probability output only**: the Prediction dataclass deliberately omits
+   any field that prescribes action (no BUY/SELL, no target/stop, no
+   suggested size — INV-GS-101).
+4. **Compliance gate hard-coded**: `broadcast_telegram` and `mass_email`
+   are inert sentinels that always raise `ComplianceError` (INV-GS-024 +
+   INV-GS-104).
+5. **Reproducibility**: Snapshot Broker (Merkle leaf + parquet shard +
+   SQLite index) lets any prediction be replayed bit-for-bit months later
+   (INV-GS-022).
 
-- 7 engine (chart pattern × 4, news/flow, fx-valuation 1, regime 1) 수직 결합
-- Verdict는 STRONG_BUY..STRONG_SELL 5단 + directive + target/stop
-- 운영: `Verdict().analyze("005930")` → text summary
-- 데이터: Naver/ThinkPool/Toss(KR), 부분 LLM (news 감성)
-- 배포: 개인 사용 + (역사적으로) Telegram bot
-
-### 1.2 GLOSTAT v1.0가 상속하는 것
-
-- **Engine ensemble 패턴** — 다중 sub-signal을 weighted aggregation
-- **Hindcast-first 검증** — TITAN B4 historical (60.3%, 58 events) 같은 사후검증 사이클
-- **Personal-use disclaimer** — 광고/공시 의무 회피
-- **Reasoning 필드** — 왜 그 verdict인지 자연어 설명
-
-### 1.3 GLOSTAT v1.0가 개선하는 것
-
-| 항목 | TITAN | GLOSTAT v1.0 |
-|------|-------|-------------|
-| 시장 | KR 전용 | Global (US, KR, FX, commodities, crypto) |
-| 데이터 source | 비공식 scraper (Naver/ThinkPool/Toss) | 공식 API (yfinance, SEC EDGAR, CFTC, CCXT) + phase-gated 유료 |
-| 출력 | action (BUY/SELL) | **probability + CI + evidence** |
-| Compliance | Telegram bot 활성 (광고 risk) | **broadcast 영구 차단** (`ComplianceError`) |
-| 보정 | hindcast 단발성 | **분기별 재calibration** (calibration_table.parquet) |
-| Reproducibility | 로컬 캐시 | **Snapshot Broker** (Merkle leaf + parquet shard + SQLite index) |
-| 가중치 결정 | 휴리스틱 비율 | **Brier-score 기반 sigmoid weighting** |
-| 배포 | private repo | **MIT open-source** |
-| Scope discipline | 9 engine 모두 ON | 약한 thesis는 weight=0 (자동) |
-| Honesty | "PEAD 60%" | "PEAD AUC 0.586, n=298, weight 0.18" |
-| Multi-horizon | Swing (5d) hard-coded | per-thesis horizon (1d~30d) 명시 |
-
-GLOSTAT v1.0 = "TITAN을 cross-market + open-source + calibrated + multi-horizon으로
-확장한 것 + 정직성 게이트(broadcast 금지, per-prediction disclaimer)를 코드 레벨에 박은 것."
+The framework is global (US + KR + FX + commodities + crypto), open-source
+(MIT), and quarterly-recalibrated (INV-GS-105).
 
 ---
 
@@ -123,7 +105,7 @@ Project archived per INV-GS-033
 | Thesis | n_samples | AUC | Sharpe | OOS deg | v0.6 verdict | v1.0 weight* | v1.0 interpretation |
 |--------|----------:|----:|-------:|--------:|--------------|-------------:|---------------------|
 | E_PEAD | 298 | 0.587 | +0.63 | 116% | FAIL | 0.18 | weak positive predictor (post-earnings drift exists, OOS unstable) |
-| E_FOREIGN_REVERSAL | 424 | 0.467 | +0.58 | 0% | FAIL | 0.14 | KR-specific reversal pattern (TITAN B4와 -8pp gap) |
+| E_FOREIGN_REVERSAL | 424 | 0.467 | +0.58 | 0% | FAIL | 0.14 | KR-specific foreign-investor reversal pattern |
 | E_INSIDER_CLUSTER | 11 | 0.339 | +0.78 | 0% | FAIL | 0.05 | n too low — directional but underpowered |
 | E_COMMODITY_TS | 517 | 0.489 | +0.14 | 100% | FAIL | 0.06 | barely above chance, dominated by ETF contango |
 | E_SECTOR_ROTATION | 174 | 0.470 | -0.48 | 100% | FAIL | 0.00 | anti-predictor (weight clamped to 0) |
@@ -547,7 +529,3 @@ v1.0의 kill criterion은 **계산 신뢰성 + compliance 위반**만:
 
 ---
 
-## Appendix C — TITAN reference
-
-- `/Applications/Titan/titan/verdict.py` — TITAN VerdictResult (5단 action + 7 engine fields). v1.0이 개선하는 출발점.
-- TITAN B4 historical (60.3% hit rate, 58 KR events, 2025.06–2026.03) → GLOSTAT Phase 1D live hindcast (52.2%, 424 events) — generalization gap이 calibration의 핵심 데이터.

@@ -14,7 +14,7 @@ import structlog
 # Source: https://finance.naver.com/item/frgn.naver?code={code}&page={page}
 # Each page returns ~20 trading days; pagination walks back ~25 pages → ~500 days.
 # Output per row: date, close, organ_net, foreign_net, foreign_holdings, foreign_hold_pct.
-# Self-throttle: 1 req/sec to be polite (no published rate limit, but TITAN convention).
+# Self-throttle: 1 req/sec to be polite (no published rate limit; conservative default).
 
 log: Final = structlog.get_logger(__name__)
 

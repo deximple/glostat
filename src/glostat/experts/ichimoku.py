@@ -6,10 +6,10 @@ from typing import Final
 
 import pandas as pd
 
-# TITAN B2 일목 기본수치 — Ichimoku base numbers in TRADING days (not calendar).
+# Ichimoku 일목 기본수치 — base numbers in TRADING days (not calendar).
 # Convention: a base number n hits today if today == anchor + n trading days, ±window.
-# Source: PR #2 description; reflects original Ichimoku "kihon-suchi" theory.
-# Multi-anchor model: TITAN counts convergence as the UNION of base hits across the
+# Source: original Ichimoku "kihon-suchi" theory (Hosoda 1969, public).
+# Multi-anchor model: convergence is counted as the UNION of base hits across the
 # K most recent significant lows (typical K=3). A single-anchor projection can only
 # ever hit 1 base because BASE diffs exceed the 3-trading-day window.
 
@@ -104,7 +104,7 @@ def find_anchor_lows(
     k: int = ANCHOR_K,
     min_gap_bdays: int = ANCHOR_MIN_GAP_BDAYS,
 ) -> list[date]:
-    # WHY: TITAN convergence model uses K most recent local lows separated by
+    # WHY: convergence model uses K most recent local lows separated by
     # min_gap_bdays so a single grinding low doesn't dominate.
     if not bars_with_dates:
         return []

@@ -20,10 +20,11 @@ from glostat.data.data_router import normalize_kr_ticker
 
 # v1.2 L2 — KR equivalent of E_INSIDER_CLUSTER (Form 4 → DART elestock).
 #
-# WHY: TITAN B4-style cluster signal — 3+ executives buying within 14 days
-# is a known KR insider conviction pattern. Until now GLOSTAT had no KR
-# insider signal because there was no free + structured KR equivalent of SEC
-# Form 4. DART elestock.json fills that gap.
+# WHY: insider cluster signal — 3+ executives buying within 14 days is a
+# documented KR insider conviction pattern (academic literature on insider
+# herding). Until now GLOSTAT had no KR insider signal because there was no
+# free + structured KR equivalent of SEC Form 4. DART elestock.json fills
+# that gap.
 #
 # Skip behaviour: graceful + universe-aware. If GLOSTAT_DART_API_KEY is unset,
 # the expert raises ExpertSkipError with a clear pointer to docs/DART_API_SETUP.md.
