@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import threading
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -150,6 +151,56 @@ def test_inv_gs_022_payload_change_changes_leaf(tmp_path: Path) -> None:
     rec2 = broker.save_snapshot(key, {"per": 28.5})
     assert rec1.leaf.leaf_hash != rec2.leaf.leaf_hash
     broker.close()
+
+
+@pytest.mark.invariant
+def test_inv_gs_022_busy_timeout_and_wal_pragmas(tmp_path: Path) -> None:
+    """Every broker connection must set busy_timeout and WAL — without these,
+    parallel `glostat predict` runs sharing cache/snapshots/ raise
+    sqlite3.OperationalError('database is locked') on the writer lock."""
+    broker = SnapshotBroker(root=tmp_path / "pragma")
+    timeout_ms = broker._db.execute("PRAGMA busy_timeout").fetchone()[0]
+    journal = broker._db.execute("PRAGMA journal_mode").fetchone()[0]
+    broker.close()
+    assert timeout_ms >= 1000, f"busy_timeout must be >= 1000ms, got {timeout_ms}"
+    assert journal.lower() == "wal", f"journal_mode must be wal, got {journal!r}"
+
+
+@pytest.mark.invariant
+def test_inv_gs_022_concurrent_brokers_share_directory(tmp_path: Path) -> None:
+    """Three brokers in three threads sharing the same root must not raise
+    'database is locked'. Reproduces the failure mode of N parallel
+    `glostat predict` runs hitting the same cache/snapshots/ directory."""
+    root = tmp_path / "shared"
+    barrier = threading.Barrier(3)
+    errors: list[BaseException] = []
+    errors_lock = threading.Lock()
+
+    def worker(idx: int) -> None:
+        try:
+            broker = SnapshotBroker(root=root)
+            barrier.wait(timeout=10)
+            for j in range(25):
+                key = SnapshotKey(
+                    uaid=f"XNAS.AAPL.{idx}.{j}",
+                    edge_type="tearsheet",
+                    ts_utc=datetime(2026, 4, 28, 12, 0, tzinfo=UTC),
+                    tool="bigdata_company_tearsheet",
+                    params_canon=f'{{"i":{idx},"j":{j}}}',
+                )
+                broker.save_snapshot(key, {"i": idx, "j": j, "data": "x" * 256})
+            broker.close()
+        except BaseException as exc:
+            with errors_lock:
+                errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=20)
+
+    assert errors == [], f"concurrent brokers raised: {errors!r}"
 
 
 # ── INV-GS-024: Compliance — broadcast prohibition ─────────────────────────

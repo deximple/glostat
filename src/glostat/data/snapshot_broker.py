@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import time
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -17,6 +18,13 @@ import structlog
 # E5 Snapshot Broker (INV-GS-022): all Bigdata MCP responses persisted; replay reads
 # snapshot first. Local-only Sprint 0 backend (SQLite index + parquet shards). The S3
 # layer is optional and lands in Phase 2 — production swap is a path-prefix change.
+#
+# Concurrency: multiple processes/threads may construct SnapshotBroker against the
+# same root directory (e.g. parallel `glostat predict` runs sharing
+# cache/snapshots/). WAL journal mode permits one writer plus many readers, and
+# every connection sets busy_timeout so a contending writer waits for the lock
+# instead of raising sqlite3.OperationalError("database is locked"). Each broker
+# owns its own sqlite connection — share the root directory, not the instance.
 
 log: Final = structlog.get_logger(__name__)
 
@@ -116,7 +124,13 @@ class SnapshotBroker:
         (self.root / "verdicts").mkdir(exist_ok=True)
         self._db = sqlite3.connect(self.root / "index.sqlite", isolation_level=None)
         self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA journal_mode = WAL")
+        # Make the writer-lock wait explicit; matches sqlite3.connect's
+        # default but survives any future change.
+        self._db.execute("PRAGMA busy_timeout = 5000")
+        # The very first WAL transition is not subject to busy_timeout, so
+        # parallel brokers initializing the same DB must retry on lock.
+        # Once the DB is in WAL, this pragma is a noop and does not race.
+        _enable_wal(self._db)
         self._db.execute("PRAGMA synchronous = NORMAL")
         self._db.executescript(_DDL)
 
@@ -344,3 +358,23 @@ def _with_payload_sha(leaf: MerkleLeaf, shard: Path) -> MerkleLeaf:
 
 def _utcnow() -> datetime:
     return datetime.now(tz=UTC)
+
+
+def _enable_wal(
+    conn: sqlite3.Connection, *, max_attempts: int = 50, delay_s: float = 0.1
+) -> None:
+    last_exc: BaseException | None = None
+    for _ in range(max_attempts):
+        try:
+            row = conn.execute("PRAGMA journal_mode = WAL").fetchone()
+            if row and str(row[0]).lower() == "wal":
+                return
+            last_exc = RuntimeError(f"unexpected journal_mode response: {row!r}")
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower():
+                raise
+            last_exc = exc
+        time.sleep(delay_s)
+    raise RuntimeError(
+        f"could not enable WAL after {max_attempts} attempts: {last_exc}"
+    )
