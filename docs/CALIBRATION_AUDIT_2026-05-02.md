@@ -1172,3 +1172,83 @@ Tables 3A/3B는 단순 부호 정렬 + |r|>10% 만, magnitude 곱 임계 없음.
 v1.10.18: 데이터 통합 + 실측 + spec patch (3축 결합). v1.10.6 이래 14번째
 wave. 진짜 thesis edge 측정 미완 — n=12 underfit. 다음 wave는 sample
 density 증가 (stride=1 또는 universe 확장).
+
+---
+
+## Wave 15 — Plugin-Augmented Audit (v1.10.19, 2026-05-09)
+
+**Source**: Anthropic Financial-Services 플러그인 (`/comps`, `/earnings`, `/screen`) 활용 후 native 실행 (paid MCP fallback to free yfinance/SEC EDGAR per INV-GS-036).
+
+### Task A — `/comps` peer EV/EBITDA 교차검증
+
+| Group | Primary | Peer Median EV/EBITDA | Spread | 함의 |
+|---|---|---:|---:|---|
+| US tech | AAPL 27.0x | 19.4x (MSFT/GOOGL/META/AMZN) | **+39%** | E_FUNDAMENTAL이 valuation 외 quality factor 의존 — audit 필요 |
+| KR refining | S-Oil 18.9x | 19.9x (SK이노/HD현대/롯데화학) | -5.2% | E_FUND_KR_CYCLICAL cycle assumption 합리적 |
+| KR refining | SK이노 20.9x | 19.9x | +5.2% | cycle term이 valuation premium 흡수 |
+| **anomaly** | **HD현대 5.7x** | 19.9x | **-71%** | **GLOSTAT가 -1.6pp negative edge 부여 — 모순. sector_classifier_kr.py audit 필요** |
+
+**핵심 발견**:
+- AAPL +39% premium에도 #1 picks → E_FUNDAMENTAL.score 공식이 EV/EBITDA z-score만이 아닌 quality factor (margin, ROE) 가중치 → 형식 audit 후보
+- HD현대 EV/EBITDA가 sector cheapest이지만 negative edge → sector classifier가 정유로 미분류했거나 yfinance earnings 데이터 결손이 score chain 무력화
+
+### Task B — `/earnings` E_PEAD_KR 휴리스틱 정확도 측정
+
+237 KR 메가캡 earnings events 측정:
+
+| 지표 | 값 |
+|---|---:|
+| Mean error | +3.2 days |
+| Median error | 0.0 days |
+| Stdev | 14.9 days |
+| ±15d 적중률 | 65.0% |
+| ±30d 적중률 | 92.4% |
+| Min/Max | -23d / +46d |
+
+**결정적 발견 — Q1 systematic bias**:
+
+3월 발표 (Q4 결과) 휴리스틱이 +21~46일 늦게 매칭. Q-end + 45d (= 02-14)이지만 실제 KIFRS 연결 audit으로 03-08~03-31 발표.
+
+| Quarter | 휴리스틱 정확도 |
+|---|:---|
+| Q1/Q2/Q3 결산 | +45d 정확 (90%+ 적중) |
+| **Q4 결산 (3월 발표)** | **+45d 부정확 (~25% sample miss)** — 실제는 +75~90d |
+
+**E_PEAD_KR n=1860 중 ~25% Q1 sample이 timing miss → noise화**. 이것이 AUC 0.478의 **binding constraint 후보** (현재 measured-no-edge → near-random에 더 가까움).
+
+### Task C — `/screen` 새 KR thesis 후보 (ROI ranked)
+
+| # | Candidate | ROI | Type | Status |
+|---|---|---:|---|---|
+| 1 | **E_PEAD_KR_FIXED** | 5.0 | REPAIR | Task B 직접 적용 — Q-end+90d adaptive (Q4) |
+| 2 | E_NORTHBOUND_LAG_KR | 4.5 | NEW | Shanghai/HSI 1d lag → KOSPI200, free data, Bae 2014 prior |
+| 3 | **E_HD_REFINING_FIX** | 4.5 | REPAIR | sector_classifier_kr.py audit + HD현대 분류 검증 |
+| 4 | E_CHAEBOL_PAIR_SPREAD_KR | 4.0 | NEW | 삼성전자/SDI 등 pair mean-reversion |
+| 5 | E_KRW_EXPORT_LAG_KR | 3.5 | NEW | USDKRW lag → 수출주 outperform |
+| 6 | E_KOSPI200_REBALANCE_KR | 3.0 | NEW | gated on KRX API Tier 3 |
+| 7 | E_DIVIDEND_RECORD_KR | 2.5 | NEW | 12월 배당락 only window |
+
+### 다음 wave priorities (ROI+ ordered)
+
+**Repair-first** (architecture risk 0, immediate measurable):
+1. **E_PEAD_KR_FIXED** — adaptive Q-end heuristic (Q4=+90d, others=+45d). 기대 효과: AUC 0.478 → 0.50-0.52 (Q1 noise 25% 제거 시), n=1860 그대로 유지
+2. **E_HD_REFINING_FIX** — `sector_classifier_kr.py` HD현대 분류 audit + EV/EBITDA outlier handler
+
+**New thesis** (Repair 완료 후, 별도 hindcast wave):
+3. E_NORTHBOUND_LAG_KR — free data 즉시 가능, calibration n 빠르게 확보
+4. E_CHAEBOL_PAIR_SPREAD_KR — governance 새 axis
+
+### Cap 검증
+
+- **INV-GS-036** (free-stack): 모든 plugin 산출물이 yfinance + SEC EDGAR로 fallback. paid MCP 미사용 ✓
+- **INV-GS-101** (no action output): plugin이 생성하는 "rating / price target" component drop, data input only ✓
+- **ATLAS free-stack cap**: 유지 ✓
+
+### Files generated
+
+- `cache/plugin_audit/task_a_comps.json` (peer EV/EBITDA matrix)
+- `docs/CALIBRATION_AUDIT_2026-05-02.md` (Wave 15 — this section)
+
+### Polish-bias 체크
+
+Wave 15: 측정 only (코드 수정 0). v1.10.6 이래 15번째 wave. **다음 wave는 첫 번째 코드 변경**: E_PEAD_KR adaptive heuristic patch + hindcast 재실행.
