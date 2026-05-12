@@ -40,7 +40,7 @@ def _emit_deprecation_once() -> None:
 # Sprint 1 PR #2: multi-Expert composition (confidence-weighted) + agreement_weight
 #   semantics matching INV-GS-029 ("disagreement_weight" in Verdict, but stored as
 #   AGREEMENT — 1.0 = consensus, 0.0 = total split). UX warns when < 0.5.
-# Sprint 1 PR #5: replace simple weighted-avg with Gating composer (MOET A1+A2+A3).
+# Sprint 1 PR #5: replace simple weighted-avg with Gating composer.
 #   INV-GS-005 anti-herd visible in Verdict.next_trigger / metadata; INV-GS-001
 #   cost-gate now applies AFTER the composer derives aggregated_score → edge_bps.
 

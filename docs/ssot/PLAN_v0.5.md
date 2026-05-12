@@ -254,7 +254,7 @@ Sprint 1 cost audit (D6 첫 단계) 결과 다음 중 하나에 해당 시 D6 �
 src/glostat/
 ├── __init__.py (7)
 ├── core/
-│   ├── seeded_rng.py (73) — MOET A7
+│   ├── seeded_rng.py (73) — deterministic seeding
 │   └── types.py (200) — Verdict v1, ExpertSignal, MarketMeta
 ├── data/
 │   ├── bigdata_client.py (212) — 6 MCP tools (S0 stubs)

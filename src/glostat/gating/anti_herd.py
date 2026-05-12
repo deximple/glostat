@@ -6,7 +6,7 @@ from typing import Final
 
 from glostat.core.types import ExpertSignal
 
-# MOET A2 — anti-herd discount (INV-GS-005).
+# Anti-herd discount (INV-GS-005).
 # When ≥ N experts agree on the same direction, we apply a multiplicative
 # discount to *every* signal's weight: over-consensus is itself a signal of
 # noise (correlation collapse), not conviction.

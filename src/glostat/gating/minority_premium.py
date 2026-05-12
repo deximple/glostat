@@ -6,7 +6,7 @@ from typing import Final
 
 from glostat.core.types import ExpertSignal
 
-# MOET A3 — minority premium + Meta-adjudicator (PLAN_v0.4 §0.3).
+# Minority premium + Meta-adjudicator (PLAN_v0.4 §0.3).
 # When a single dissenting Expert disagrees with the herd, its signal gets a
 # 1.15× boost IFF the Meta-adjudicator approves. MVP: approve_callback defaults
 # to always-True (no LLM cost). Phase 2 will plug an LLM here that vetoes

@@ -1,5 +1,5 @@
 # GLOSTAT v0.6 — Gating Network configuration
-# MOET A1 (IC-softmax) + A2 (anti-herd) + A3 (minority premium + Meta-adjudicator).
+# Gating composer (IC-softmax + anti-herd + minority premium + Meta-adjudicator).
 # Source: docs/ssot/PLAN_v0.1.md §1, PLAN_v0.4.md §0.3, PLAN_v0.6.md §1.1.
 #
 # Sprint 1 PR #5 (FINAL) — 3 active experts; phase_2 entries are placeholders
@@ -32,7 +32,7 @@ weight_caps:
 
 softmax:
   temperature: 1.0      # T = 1 → standard softmax
-  entropy_lambda: 0.10  # MOET A1 — KL-from-uniform regularizer to prevent collapse
+  entropy_lambda: 0.10  # IC-softmax: KL-from-uniform regularizer to prevent collapse
 
 anti_herd:
   trigger_threshold: 4    # ≥ N experts agreeing → discount fires (INV-GS-005)
@@ -40,7 +40,7 @@ anti_herd:
 
 minority_premium:
   enabled: true
-  boost_factor: 1.15                       # MOET A3
+  boost_factor: 1.15                       # minority-premium boost
   meta_adjudicator: deferred_to_phase_2_llm
   default_approval: true                   # MVP: auto-approve (no LLM cost)
 

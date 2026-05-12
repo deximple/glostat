@@ -266,7 +266,7 @@ advice.
 | INV-GS-028      | expected_pnl_bps = upside − current_loss                                                                                          | deferred (decision-engine artifact)                               |
 | INV-GS-029      | Verdict.disagreement_weight required; < 0.5 → UX warn                                                                             | superseded by Prediction CI                                       |
 | INV-GS-030      | E_NARRATIVE: 60d lookback + crystallization + contrarian                                                                          | deferred phase 2                                                  |
-| INV-GS-031      | BETASTRIKE inherited calibration weight ≤ 10%                                                                                     | deferred                                                          |
+| INV-GS-031      | Inherited calibration weight ≤ 10%                                                                                                | deferred                                                          |
 | INV-GS-032      | Edge multipliers must be validated; "never tested" → weight=0                                                                     | active (now Brier-derived)                                        |
 | INV-GS-033      | Sprint 4 gate FAIL → automatic shutdown (no override)                                                                             | **DEPRECATED v1.0** (project not bound to per-thesis Sharpe gate) |
 | INV-GS-034      | Cascade Graph isolated to research/; zero impact on production                                                                    | deferred phase 3                                                  |
@@ -461,22 +461,3 @@ Live in v0.6 (kept):
 - **Never weaken INV-GS-024 / INV-GS-104** — broadcast permanently forbidden, disclaimer permanently required.
 - **Never re-introduce action output (BUY/SELL/target/stop)** — INV-GS-101 violation.
 - Every new thesis PR must include calibration data (n ≥ 50, AUC, Sharpe, OOS deg) and a `calibration_table.parquet` row.
-
----
-
-## Workspace Capability Atlas — portfolio boundaries
-
-<!-- atlas-rules-ref:start -->
-This workspace operates within a multi-project portfolio managed by the
-Workspace Capability Atlas (`/Applications/ATLAS/`). The atlas auto-generates
-`.atlas-rules.md` in this workspace's root on every regen, expressing:
-
-- **Caps** — DO NOT EXCEED by design (e.g., GLOSTAT `exec ≤ 2` per INV-GS-024/104)
-- **Active gaps** — focus axes ranked by size
-- **Borrow opportunities** — other workspaces ahead on uncapped axes
-
-If a request implies exceeding a cap, raise the conflict explicitly rather than
-complying silently. Treat caps as architecture, not as goals.
-
-@.atlas-rules.md
-<!-- atlas-rules-ref:end -->

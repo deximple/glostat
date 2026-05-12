@@ -75,7 +75,7 @@ AUC = ∫[0,1] TPR(FPR) d(FPR)
 - ROC 곡선: FPR(false positive rate) vs TPR(true positive rate)
 
 **목표**:
-- BETASTRIKE baseline: AUC ≥ 0.61
+- Inherited baseline: AUC ≥ 0.61
 - GLOSTAT 최소: AUC ≥ 0.60 (동등 이상)
 
 ---

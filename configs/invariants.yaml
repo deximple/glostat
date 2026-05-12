@@ -24,7 +24,7 @@ invariants:
   INV-GS-001:
     summary: "edge_bps ≥ 1.5 × all_in_bps 미충족 시 BUY/STRONG_BUY → HOLD 강등"
     enforcement: hard_gate
-    source: MOET A4, PLAN_v0.1
+    source: PLAN_v0.1
     deprecated: true
     deprecated_in: v1.0
     deprecated_note: "v0.6 decision-engine artifact. v1.0은 BUY 출력 자체가 없으므로 cost gate 의미 상실. 무력화 (계산 자체는 hindcast 손익 실현 시 cost mask로만 사용)."
@@ -43,18 +43,18 @@ invariants:
   INV-GS-005:
     summary: "4 Expert 이상 동방향 시 가중치 0.80× 할인 (anti-herd)"
     enforcement: gating_post
-    source: MOET A2
+    source: PLAN_v0.1
     deprecated: true
     deprecated_in: v1.0
     deprecated_note: "v0.6 decision-engine artifact. Brier-weighted ensemble (INV-GS-103)이 자동으로 dissent를 CI 폭으로 반영하므로 별도 anti-herd 할인 불필요."
   INV-GS-006:
     summary: "모든 verdict는 hash-chained NDJSON에 append; 누락 시 다음 verdict 거부"
     enforcement: evidence_chain
-    source: MOET A5
+    source: PLAN_v0.1
   INV-GS-007:
     summary: "DEFCON STOP 시 STRONG_BUY/BUY 차단 (sticky)"
     enforcement: defcon_gate
-    source: MOET A6
+    source: PLAN_v0.1
   INV-GS-008:
     summary: "T값 ≥ 1.5 + V값 ≥ 1.0 → conviction_w 1.2× 보너스"
     enforcement: time_bonus
@@ -66,7 +66,7 @@ invariants:
   INV-GS-010:
     summary: "동일 (ticker, date, seed) → 동일 verdict (결정론)"
     enforcement: rng_replay
-    source: MOET A7
+    source: PLAN_v0.1
 
   # ───────── v0.2: Cascade (011-016) — Phase 3로 이연 ─────────
   INV-GS-011:
@@ -175,7 +175,7 @@ invariants:
     source: E3 (Behavioral)
     sprint: phase_2
   INV-GS-031:
-    summary: "BETASTRIKE 상속 calibration 가중치 ≤ 10% (OOS retraining 전까지)"
+    summary: "Inherited calibration 가중치 ≤ 10% (OOS retraining 전까지)"
     enforcement: weight_cap
     source: E1
     sprint: 1

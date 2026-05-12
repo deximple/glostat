@@ -102,8 +102,8 @@ GLOSTAT is a **prediction tool**. The KIS client deliberately does NOT wrap:
 
 INV-GS-101 (no BUY/SELL action output) and INV-GS-024 (no broadcast) make
 order placement and broadcast-style outputs out of scope. If you need a KIS
-order client, see MOET (`/Applications/MOET/src/moet/core/paper_kis.py`)
-which is a separate paper-trading harness with its own compliance posture.
+order client for paper trading, that belongs in a separate harness with its
+own compliance posture — not in GLOSTAT.
 
 ---
 

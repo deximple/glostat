@@ -18,9 +18,9 @@ from glostat.gating.minority_premium import (
 )
 from glostat.gating.network import GatingNetwork
 
-# Composer — single entrypoint that fuses MOET A1 (gating weights) + A2
-# (anti-herd) + A3 (minority premium) into a ComposedSignal. Pure function;
-# verdict_builder consumes the result and applies INV-GS-001 cost gate after.
+# Composer — single entrypoint that fuses gating weights + anti-herd +
+# minority premium into a ComposedSignal. Pure function; verdict_builder
+# consumes the result and applies INV-GS-001 cost gate after.
 
 _EPS: Final[float] = 1e-9
 
@@ -48,7 +48,7 @@ def compose(
     )
     ah_applied = anti_herd_triggered(sig_list, threshold=anti_herd_threshold)
 
-    # 3. Minority premium (MOET A3).
+    # 3. Minority premium.
     mp_mult = apply_minority_premium(
         sig_list, boost=minority_boost, approve_callback=approve_callback
     )

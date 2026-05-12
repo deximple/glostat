@@ -68,7 +68,7 @@ class ExpertSignal:
     metadata: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
 
-# Output of the Gating composer (MOET A1+A2+A3). Frozen dataclass so callers can
+# Output of the Gating composer. Frozen dataclass so callers can
 # audit the final weights, applied multipliers, and source signals deterministically.
 @dataclass(frozen=True, slots=True)
 class ComposedSignal:

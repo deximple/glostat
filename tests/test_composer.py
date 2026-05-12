@@ -11,7 +11,7 @@ from glostat.core.types import ComposedSignal, ExpertName, ExpertSignal
 from glostat.gating.composer import compose
 from glostat.gating.network import GatingNetwork
 
-# Composer — fuses MOET A1 + A2 + A3 into ComposedSignal.
+# Composer — fuses gating weights + anti-herd + minority premium into ComposedSignal.
 
 _NOW: Final = datetime(2026, 4, 28, 14, 30, tzinfo=UTC)
 
