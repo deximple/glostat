@@ -467,8 +467,8 @@ Live in v0.6 (kept):
 ## Workspace Capability Atlas — portfolio boundaries
 
 <!-- atlas-rules-ref:start -->
-This workspace operates within a portfolio (MOET / GLOSTAT / TITAN / Betastrike_Compact).
-The Workspace Capability Atlas (`/Applications/ATLAS/`) auto-generates
+This workspace operates within a multi-project portfolio managed by the
+Workspace Capability Atlas (`/Applications/ATLAS/`). The atlas auto-generates
 `.atlas-rules.md` in this workspace's root on every regen, expressing:
 
 - **Caps** — DO NOT EXCEED by design (e.g., GLOSTAT `exec ≤ 2` per INV-GS-024/104)

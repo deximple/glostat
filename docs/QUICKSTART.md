@@ -179,8 +179,8 @@ not-yet-implemented feature:
 
 - **No BUY / SELL output** (INV-GS-101)
 - **No target / stop prices** (derivative of prohibited action)
-- **No portfolio sizing recommendation** (`dca_sizing` is INFORMATION ONLY,
-  INV-GS-111)
+- **No portfolio sizing recommendation** (sizing-tier output removed in
+  v2.0; INV-GS-111 deprecated)
 - **No broadcast / mass-email** — `broadcast_telegram` and `mass_email`
   raise `ComplianceError` unconditionally (INV-GS-024)
 - **No multi-user deployment** — personal use only
@@ -198,7 +198,6 @@ Attempts to bypass any of these are PR-rejected automatically.
 | `docs/KR_SUPPORT.md` | KR (KOSPI/KOSDAQ) operational guide — universe, signals, Naver/DART/ECOS/KIS wiring |
 | `docs/V15_SECTOR.md` | v1.5 sector-aware cyclicals (commodity_client, sector_classifier_kr, E_FUNDAMENTAL_KR_CYCLICAL, E_COMMODITY_INDEX_KR) |
 | `docs/V16_CALENDAR.md` | v1.6 calendar awareness (kr_calendar_client, E_PEAD_KR, CI widening, next_triggers) |
-| `docs/DCA_SIZING.md` | TITAN-derived W값 sizing tier (INFORMATION ONLY framing) |
 | `docs/CONFIDENCE_V2.md` | 5-component confidence_v2 (sample_quality + effective_size + score_stability + return_consistency + recency_quality) |
 | `docs/ssot/PLAN_v1.0.md` | Canonical v1.0 spec — the contract the framework enforces |
 | `docs/post_mortem/SPRINT5_FAIL_post_mortem.md` | The honest v0.6 → v1.0 reframe story. Start here if evaluating adoption. |
