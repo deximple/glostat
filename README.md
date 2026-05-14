@@ -319,6 +319,16 @@ If you are evaluating whether to adopt or fork this:
 
 ---
 
+## Third-party data sources
+
+Usage of the Bigdata.com integration requires a valid API key and is subject to
+[Bigdata.com's Terms of Service](https://bigdata.com/terms). Users must obtain
+their own credentials independently. The Bigdata MCP client is gated behind
+`GLOSTAT_PHASE=phase_2` (INV-GS-036) and is **not active in the default MVP
+configuration**.
+
+---
+
 ## Compliance disclaimer
 
 GLOSTAT v1.0 is an **information tool** for personal use. Output is a
