@@ -166,7 +166,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 >   emit a Phase-KR-M1-derived disclosure: "AUC <= 0.51 on n=3,510 KOSPI 200
 >   samples — discrimination is at the edge of statistical noise".
 > - All changes are **presentation-layer only** — composite predictor logic,
->   Brier weights, confidence_v2, and DCA sizing are unchanged. New module
+>   Brier weights, and confidence_v2 are unchanged. New module
 >   `predictor.honesty` (~150 lines) carries the math; `cli_predict_print`
 >   wires it into the rendered output.
 > v1.4 delta:

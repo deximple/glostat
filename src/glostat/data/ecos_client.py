@@ -192,15 +192,27 @@ class EcosClient:
     # ── http + snapshot helpers ──────────────────────────────────────────
 
     async def _get_rows(self, url: str) -> list[dict[str, Any]]:
+        # SECURITY: ECOS embeds api_key in URL path; never surface url in
+        # exception messages (propagate to logs + tracebacks otherwise).
+        endpoint = "/".join(url.split("/")[-4:])  # last 4 path components, key stripped
+        endpoint = endpoint.replace(self._api_key, "<redacted>")
         try:
             resp = await self._client.get(url)
             resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise EcosApiError(
+                f"ECOS GET failed status={exc.response.status_code}"
+            ) from None
         except httpx.HTTPError as exc:
-            raise EcosApiError(f"ECOS GET failed url={url}: {exc}") from exc
+            raise EcosApiError(
+                f"ECOS GET transport error: {type(exc).__name__}"
+            ) from None
         try:
             data = resp.json()
-        except ValueError as exc:
-            raise EcosApiError(f"ECOS non-JSON response from {url}: {exc}") from exc
+        except ValueError:
+            raise EcosApiError(
+                f"ECOS non-JSON response from {endpoint}"
+            ) from None
         # Two response shapes:
         #   {"StatisticSearch": {"list_total_count": N, "row": [...]}}
         # or error:

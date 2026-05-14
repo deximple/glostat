@@ -134,7 +134,6 @@ n=360). The others receive near-zero ensemble weight. See
 | `CI 1-sigma (68%)` | **NOT 95%.** 1-sigma symmetric interval. Append `*** includes 0` when interval crosses zero (INV-GS-113 X1, X2) |
 | Contributing signals table | per-thesis: direction, raw_score, measured AUC, n, p-value, conf_v2 — INV-GS-103 + INV-GS-113 X3 |
 | `no data (n=0, weight=0)` | n=0 thesis displays explicit zero-data line instead of silent `+0.00` (INV-GS-113 X5) |
-| Sizing tier | Optional `W값` field — INFORMATION ONLY (INV-GS-111). NOT a position-size recommendation |
 | `Next triggers` | Concrete D-day countdowns from `kr_calendar_client` for KR tickers (BoK 금통위, OPEC, earnings) — INV-GS-120 |
 | Statistical disclaimer | Surfaces when every active signal has p > 0.05 — INV-GS-113 X6 |
 | Universe note | KR megacap honesty footer — INV-GS-114 |

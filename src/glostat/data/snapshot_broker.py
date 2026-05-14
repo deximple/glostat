@@ -291,9 +291,23 @@ class SnapshotBroker:
         ).fetchone()
         if row is None:
             raise KeyError(f"verdict not found: {verdict_hash}")
-        table = pq.read_table(self.root / row["parquet_path"])
+        shard = self._safe_shard_path(row["parquet_path"])
+        table = pq.read_table(shard)
         canon = bytes(table.to_pylist()[0]["payload_canon"])
         return json.loads(canon.decode("utf-8"))
+
+    def _safe_shard_path(self, parquet_path: str) -> Path:
+        # SECURITY: parquet_path comes from SQLite; if the database is
+        # tampered with (or via symlink) a path like "../../etc/passwd"
+        # would resolve outside self.root. Reject any candidate that
+        # escapes the broker root.
+        candidate = (self.root / parquet_path).resolve()
+        root = self.root.resolve()
+        if not candidate.is_relative_to(root):
+            raise IntegrityError(
+                f"shard path escapes broker root: {parquet_path!r}"
+            )
+        return candidate
 
     # ── audit (Merkle root over leaves; cheap, deterministic) ──────────────
 
@@ -354,7 +368,7 @@ class SnapshotBroker:
             params_canon=row["params_canon"],
         )
         leaf = MerkleLeaf(leaf_hash=row["leaf_hash"], key=key, payload_sha="")
-        shard = self.root / row["parquet_path"]
+        shard = self._safe_shard_path(row["parquet_path"])
         return SnapshotRecord(
             leaf=_with_payload_sha(leaf, shard),
             parquet_path=shard,

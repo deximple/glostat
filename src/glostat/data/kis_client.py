@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from collections.abc import Mapping
@@ -11,6 +12,13 @@ from typing import Any, Final
 
 import httpx
 import structlog
+
+# SECURITY: KIS sends appkey + appsecret as plain HTTP headers; if httpx
+# debug logging is ever enabled at runtime the headers (including both
+# credentials) are written to stderr/logs. Hard-cap httpx logging at
+# WARNING regardless of root logger config.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 from glostat.core.errors import GlostatError
 from glostat.data.snapshot_broker import SnapshotBroker, SnapshotKey

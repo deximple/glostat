@@ -16,6 +16,8 @@ from glostat.predictor.types import (
     Prediction,
     PredictionIn,
     SignalContribution,
+    SignalContributionIn,
+    prediction_sha256,
     prediction_to_canonical_json,
 )
 
@@ -31,11 +33,13 @@ __all__ = [
     "Prediction",
     "PredictionIn",
     "SignalContribution",
+    "SignalContributionIn",
     "ThesisCalibration",
     "compute_confidence_v2",
     "confidence_v2_from_calibration",
     "is_active",
     "load_calibration",
     "predict",
+    "prediction_sha256",
     "prediction_to_canonical_json",
 ]
