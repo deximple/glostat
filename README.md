@@ -8,32 +8,40 @@
 
 ## Status
 
-> **v1.2 ACTIVE (2026-04-30) — KR calibration (L1) + DART API (L2) landed.**
-> Previous: **v1.1 (2026-04-29) — KR support (K1).** | **v1.0 (2026-04-29) — Reframe of v0.7.**
+> **v2.0.1 ACTIVE (2026-05-23) — IP boundary cleanup + security hotfix.**
+> v2.0.0 removed the sizing-tier attachment (INV-GS-111 deprecated); v2.0.1
+> hardened API-key handling in DART/ECOS/KIS clients and added IP regression
+> guards. All v1.x releases (1.3.0..1.9.1, 12 versions) are yanked from PyPI;
+> `pip install glostat` now resolves to v2.0.1+.
 >
 > v0.6/v0.7 framed GLOSTAT as a **decision engine** (BUY/SELL action output)
 > and concluded "8 thesis FAIL" against a `Sharpe ≥ 0.8 / AUC ≥ 0.62 / OOS deg
-> ≤ 30%` gate. v1.0 reframes the same data as a **prediction tool**: probability
-> distribution + 90% CI + per-thesis Brier-weighted contribution + evidence
-> chain. The 8-thesis FAIL outcomes are now the **first input rows** of the
-> calibration table — `E_PEAD AUC 0.587`, `E_FOREIGN_REVERSAL OOS Sharpe 1.46`,
-> `E_FOMC_DRIFT AUC 0.357` (anti-predictor) — all carry honest, sample-aware
-> weights.
+> ≤ 30%` gate. v1.0 reframed the same data as a **prediction tool**: probability
+> distribution + 1-sigma (~68%) CI per INV-GS-113 + per-thesis Brier-weighted
+> contribution + evidence chain. The 8-thesis FAIL outcomes are now the **first
+> input rows** of the calibration table — `E_PEAD AUC 0.587`,
+> `E_FOREIGN_REVERSAL OOS Sharpe 1.46`, `E_FOMC_DRIFT AUC 0.357`
+> (anti-predictor) — all carry honest, sample-aware weights.
+>
+> **v2.0 migration**: `Prediction.dca_sizing` field is REMOVED. The predictor
+> surface is strictly probability + CI. Callers that read `.dca_sizing` must
+> remove that access. See [v2.0 release notes](https://github.com/deximple/glostat/releases/tag/v2.0.0).
 >
 > **Read first**:
 > [`docs/post_mortem/SPRINT5_FAIL_post_mortem.md`](docs/post_mortem/SPRINT5_FAIL_post_mortem.md)
 > (the v0.6 honest diagnosis), then
-> [`docs/ssot/PLAN_v1.0.md`](docs/ssot/PLAN_v1.0.md) (the v1.0 spec), then
+> [`docs/ssot/PLAN_v1.0.md`](docs/ssot/PLAN_v1.0.md) (the active spec), then
 > [`docs/CALIBRATION.md`](docs/CALIBRATION.md) (the empirical predictive
-> strength table).
+> strength table), then [`docs/ROADMAP_v2.md`](docs/ROADMAP_v2.md) (v2.x.x
+> integrated roadmap).
 
 ---
 
 ## What this project IS
 
-- A **calibrated probability predictor** — outputs `Prediction(p_up,
-  p_up_lower, p_up_upper, contributing, ...)` with Brier-derived ensemble
-  weights per thesis.
+- A **calibrated probability predictor** — outputs
+  `Prediction(up_probability, confidence_interval_bps, contributing_signals,
+  ...)` with Brier-derived ensemble weights per thesis.
 - A **deterministic hindcast harness** — turns any thesis into a calibration
   row (Brier + AUC + Sharpe + OOS) with explicit IS/OOS split and
   reproducibility guarantees.
@@ -48,8 +56,11 @@
   (INV-GS-104).
 - A **prompt registry** that pins each LLM call to a `sha256` so the prompt
   graph is auditable across versions.
-- **45+ numbered invariants** (`INV-GS-001..105`) with a 1:1 unit-test mapping
-  and a machine-readable `configs/invariants.yaml`.
+- **71+ numbered invariants** (`INV-GS-001..114`) with a 1:1 unit-test mapping
+  and a machine-readable `configs/invariants.yaml`. Active invariants include
+  `INV-GS-101` (no BUY/SELL output), `INV-GS-104` (per-prediction disclaimer),
+  `INV-GS-113` (CI 1-sigma + p-value + all-noise statistical disclosures),
+  `INV-GS-114` (KR megacap honesty footer).
 
 ## What this project IS NOT
 
@@ -61,34 +72,47 @@
   honestly across 8 thesis. The framework's value is the **honest measurement
   + Brier weighting**, not a guaranteed alpha.
 - **Not a black-box predictor.** Every `Prediction` carries a
-  `ThesisContribution` chain with calibration window, n_samples, AUC, Brier
-  weight, and source IDs.
+  `SignalContribution` chain with calibration window, n_samples,
+  calibration_auc, confidence_v2, and source snapshot IDs.
 - **Not a broadcast tool.** `broadcast_telegram` and `mass_email` are inert
   sentinels that always raise (INV-GS-024).
 - **Not a multi-user product.** Personal use only.
 
 ---
 
-## Supported markets (v1.1)
+## Supported markets
 
 | Market | MIC | Status | Universe | Data sources |
 |--------|-----|--------|----------|--------------|
-| US large-cap | XNAS, XNYS | ACTIVE (v1.0) | S&P 500 Top 50 (`sp500_top50.txt`) | yfinance + SEC EDGAR |
-| KR (KOSPI) | XKRX | ACTIVE (v1.1 K1) | KOSPI 200 (`kospi200.txt`) | yfinance (.KS) + Naver Finance |
-| KOSDAQ | XKOS | partial (yfinance .KQ only; Naver pending) | — | yfinance (.KQ) |
-| Crypto perp | BINANCE_PERP | research-only (Phase 1D) | BTC/ETH | CCXT |
-| FX/Commodity ETFs | NYSE/CBOE | partial | (per-thesis) | yfinance + CFTC |
+| US large-cap | XNAS, XNYS | active | S&P 500 Top 50 (`sp500_top50.txt`) | yfinance + SEC EDGAR + FRED-ready |
+| US small-mid | XNAS, XNYS | active | Russell 2000 Top 200 proxy | yfinance + SEC EDGAR |
+| KR KOSPI | XKRX | active | KOSPI 200 (`kospi200.txt`) | yfinance (.KS) + Naver Finance + DART + ECOS + KIS + KRX |
+| KR KOSDAQ | XKOS | active | KOSDAQ 150 Top 30 | yfinance (.KQ) + Naver Finance + DART |
+| Crypto perp | BINANCE_PERP | research | BTC/ETH | CCXT |
+| FX / Commodity ETFs | NYSE/CBOE | partial | per-thesis | yfinance + CFTC COT |
 
-KR predictions use **E_FUNDAMENTAL_KR** (yfinance .KS PER/ROE/dividend yield)
-+ **E_FOREIGN_REVERSAL** (Naver Finance 외인/기관 4-day reversal pattern)
-+ **E_TIME** (Ichimoku — universe-agnostic). See
+Active data clients (13): `yfinance`, `sec_edgar`, `cftc`, `ccxt`,
+`naver_kr`, `dart` (KR insider/disclosure), `ecos` (BoK macro), `kis`
+(KIS Open API read-only), `krx_short` (KRX short statistics),
+`toss` (Toss local-parquet cache), `commodity`, `kr_calendar`,
+`bigdata` (phase-gated, MVP-blocked per INV-GS-036).
+
+KR predictions use up to 11 active KR-specific signals: `E_FUNDAMENTAL_KR`
+(yfinance PER/ROE/dividend + DART overlay), `E_FUNDAMENTAL_KR_CYCLICAL`,
+`E_FOREIGN_REVERSAL` (3-source Naver+KIS+Toss flow fusion),
+`E_INSIDER_KR` (DART elestock), `E_MACRO_KR` (BoK ECOS), `E_PEAD_KR`,
+`E_INSIDER_VELOCITY_KR`, `E_SHORT_SELLING_KR`, `E_INTRADAY_FLOW_KR`,
+`E_COMMODITY_INDEX_KR`, `E_TIME` (Ichimoku, universe-agnostic). See
 [`docs/KR_SUPPORT.md`](docs/KR_SUPPORT.md) for the full guide.
 
 ```bash
-# v1.1 K1: live KR prediction (no Bigdata MCP, $0 cost)
-GLOSTAT_SEC_USER_AGENT="Your Name your@email" \
-  glostat predict 096770   # SK Innovation
-glostat predict 005930   # 삼성전자
+# Live KR prediction (no Bigdata MCP, $0 cost, no SEC_USER_AGENT needed for KR)
+glostat predict 005930 --horizon swing_5d   # 삼성전자
+glostat predict 096770 --horizon swing_5d   # SK Innovation
+
+# Live US prediction (SEC EDGAR requires User-Agent per INV-GS-038)
+GLOSTAT_SEC_USER_AGENT="Your Name your.email@yourdomain.com" \
+  glostat predict AAPL --horizon swing_5d
 ```
 
 ---
@@ -113,10 +137,29 @@ The numbers below come from the v0.6/v0.7 hindcast runs preserved in
 Full table + interpretation: [`docs/CALIBRATION.md`](docs/CALIBRATION.md).
 
 The v0.6 verdict on the same data: "8 thesis FAIL → automatic shutdown."
-The v1.0 verdict: "8 calibrated signals, composite p_up exists with explicit
-confidence interval, weak/anti-predictive signals carry near-zero weight."
+The v1.0 verdict: "8 calibrated signals, composite up_probability exists with
+explicit confidence interval, weak/anti-predictive signals carry near-zero
+weight."
 
-Both readings are honest. v1.0 is the more useful one.
+Both readings are honest. v1.0+ is the more useful one.
+
+**The above table is the v0.6 baseline only.** Current main has 21 thesis
+modules across US + KR + crypto, including the v1.x additions
+`E_FUNDAMENTAL_KR`, `E_PEAD_KR`, `E_INSIDER_VELOCITY_KR`,
+`E_ANALYST_REVISION`, `E_SHORT_SELLING_KR`, `E_INTRADAY_FLOW_KR`,
+`E_FUNDAMENTAL_KR_CYCLICAL`, `E_COMMODITY_INDEX_KR`, `E_MACRO_KR`,
+`E_INSIDER_KR`. See [`docs/CALIBRATION.md`](docs/CALIBRATION.md) for the
+full per-thesis table and [`docs/KR_SUPPORT.md`](docs/KR_SUPPORT.md) for
+KR-specific signal documentation.
+
+### KR megacap honesty footer (INV-GS-114)
+
+Phase KR M1 hindcast on KOSPI 200 (n = 3,510 samples) measured AUC ≤ 0.51 —
+**at the edge of statistical noise**. The CLI surfaces this footer on every
+KR megacap prediction (`*** KR megacap universe — AUC ≤ 0.51, predictions
+are weak signals`). This is the same honest data that drives the v1.x
+`E_FOREIGN_REVERSAL` Brier weight collapse on that universe; the framework
+shows it rather than hides it.
 
 ---
 
@@ -148,11 +191,11 @@ yfinance    SEC EDGAR    CFTC/CCXT    Bigdata MCP   ← Phase 2+, blocked in MVP
                 ▼
    ┌─────────────────────────────────────┐
    │  predictor/composite.py             │
-   │   composite_p_up()  +  Brier weights│   ← INV-GS-103
+   │   predict()  +  Brier weights       │   ← INV-GS-103
    └─────────────────────────────────────┘
                 │
                 ▼
-            Prediction  ───►  p_up + CI + ThesisContribution[] + disclaimer
+            Prediction  ───►  up_probability + 1-sigma CI + SignalContribution[] + disclaimer
                 │
                 ▼  (calibration loop, quarterly)
        calibration_table.parquet
@@ -182,17 +225,33 @@ print(record.leaf.leaf_hash[:12], broker.audit_root()[:12])
 broker.close()
 ```
 
-### Calibrated prediction (v1.0)
+### Calibrated prediction (v2.0)
 
 ```python
-from glostat.predictor.composite import composite_p_up
-from glostat.core.types import Prediction
+from glostat.predictor import predict, load_calibration
+from glostat.predictor.types import Prediction
 
-prediction: Prediction = pipeline.predict("AAPL", horizon="5d")
-print(f"p_up = {prediction.p_up:.3f}  90%CI=[{prediction.p_up_lower:.3f}, {prediction.p_up_upper:.3f}]")
-for c in prediction.contributing:
-    print(f"  {c.thesis_name:24} dir={c.direction:4} weight={c.brier_weight:.3f}  AUC={c.auc:.3f}  n={c.n_calibration_samples}")
-print(prediction.disclaimer)
+cal_table = load_calibration()
+prediction: Prediction = predict(
+    ticker="AAPL",
+    horizon="swing_5d",                     # intraday | swing_5d | swing_30d | long_3y
+    contributions=(...),                    # build via collect_contributions(); see docs/EXAMPLES.md
+    cal_table=cal_table,
+)
+
+print(f"p_up = {prediction.up_probability:.3f}")
+low_bps, high_bps = prediction.confidence_interval_bps
+print(f"  CI 1-sigma (~68%) bps = [{low_bps:+.1f}, {high_bps:+.1f}]")
+if low_bps <= 0 <= high_bps:
+    print("  *** includes 0 — no clear direction (INV-GS-113 X2)")
+
+for c in prediction.contributing_signals:
+    if c.direction == "skip":
+        continue
+    print(f"  {c.name:24} dir={c.direction:4}  "
+          f"AUC={c.calibration_auc:.3f}  n={c.n_samples}")
+
+print(prediction.disclaimer)                 # always non-empty (INV-GS-104)
 ```
 
 ### Compliance gate (cannot be bypassed)
@@ -211,31 +270,38 @@ broadcast_telegram(
 
 ## Quickstart
 
-Requires **Python 3.14**.
+Requires **Python ≥ 3.11**.
 
 ```bash
-# clone + install (uv preferred)
-git clone https://github.com/<you>/glostat.git
+# install (PyPI default = v2.0.1+, since v1.x are yanked)
+pip install glostat
+
+# or from source (uv preferred)
+git clone https://github.com/deximple/glostat.git
 cd glostat
 uv sync --extra dev
 
 # verify
-uv run pytest -q                                   # all unit tests
-uv run python -c "import glostat; print(glostat.__version__)"   # → 1.0.0
+uv run pytest -q                                   # 836+ test functions
+uv run python -c "import glostat; print(glostat.__version__)"   # → 2.0.1
 
-# v1.0 prediction (mock data, no network)
-uv run glostat predict AAPL --horizon 5d --mock
+# Mock prediction (no network, fixture data)
+uv run glostat predict AAPL --horizon swing_5d --mock
 
-# canonical JSON output for downstream tooling
-uv run glostat predict AAPL --horizon 5d --mock --json
+# JSON output (machine-readable)
+uv run glostat predict AAPL --horizon swing_5d --mock --json
 
-# quarterly recalibration (re-run all thesis hindcasts → update table)
-uv run glostat calibrate --all-thesis --window 365d
-uv run glostat calibrate --update-table
+# Refresh calibration_table.parquet from cached hindcast reports
+uv run glostat calibrate --out cache/calibration_table.parquet
+
+# Run KR hindcast (KOSPI 200 universe, produces calibration JSON)
+uv run glostat kr-hindcast --universe kospi200 --start 2024-01-01 --end 2026-04-30
 ```
 
-Live mode requires `GLOSTAT_SEC_USER_AGENT="Your Name your.email@yourdomain.com"`
-(SEC EDGAR mandates a contactable User-Agent — `INV-GS-038`).
+US live mode requires `GLOSTAT_SEC_USER_AGENT="Your Name your.email@yourdomain.com"`
+(SEC EDGAR mandates a contactable User-Agent — `INV-GS-038`). KR live mode
+does NOT need it (Naver / DART / ECOS / KIS use their own keys; bare
+`glostat predict 005930 --horizon swing_5d` works).
 
 ---
 
@@ -267,33 +333,38 @@ Migration from v0.7: [`docs/MIGRATION_v0.7_TO_v1.0.md`](docs/MIGRATION_v0.7_TO_v
 
 ```
 src/glostat/
-  core/         # Prediction (v1.0), ThesisContribution (NEW), Verdict (deprecated, kept for back-compat)
-  data/         # snapshot broker, prompt registry, free-stack clients, phase-gated DataRouter
-  experts/      # 11 thesis modules (PEAD, FOREIGN_REVERSAL, INSIDER_CLUSTER, FX_CARRY, …)
-  predictor/    # NEW v1.0 — composite_p_up(), thesis_weight() (Brier sigmoid), calibration I/O
+  core/         # Verdict (deprecated, kept for back-compat), shared types/errors
+  data/         # 13 data clients (snapshot broker, free-stack clients, phase-gated DataRouter)
+  experts/      # 21 thesis modules (PEAD, FOREIGN_REVERSAL, INSIDER_CLUSTER, FX_CARRY,
+                #   E_FUNDAMENTAL_KR, E_PEAD_KR, E_INSIDER_VELOCITY_KR, E_ANALYST_REVISION, …)
+  predictor/    # composite.predict(), confidence_v2 (5-component geometric mean), calibration I/O
+                #   Prediction lives here (predictor/types.py), NOT in core/
   gating/       # cost gate, regime gate (kept; used during hindcast as calibration mask)
   replay/       # hindcast harness, sprint4_gate (now calibration check), kill criteria
   risk/         # compliance gate (INV-GS-024 + INV-GS-104)
 
 configs/
-  invariants.yaml    # 45 numbered invariants (001..105), v0.6 deprecated entries flagged
+  invariants.yaml    # 71 numbered invariants (001..114), v0.6 + INV-GS-111 deprecated entries flagged
   budget.yaml        # phase-gated budget caps (mvp $0)
-  markets.yaml       # XNAS + XNYS + XKRX
-  gating.yaml        # cost / regime / anti-herd parameters (decision-engine vintage; used as calibration mask only in v1.0)
+  markets.yaml       # XNAS + XNYS + XKRX + XKOS
+  gating.yaml        # cost / regime / anti-herd parameters (decision-engine vintage; used as calibration mask only in v1.0+)
   kill_criteria.yaml # narrowed v1.0 triggers (compliance, broker integrity, stale calibration)
   universes/
 
 cache/
-  calibration_table.parquet  # NEW v1.0 — quarterly-updated weights per thesis-universe-horizon
-  hindcast/                  # phase1b + phase1c + phase1d historical reports
+  calibration_table.parquet  # quarterly-updated weights per thesis-universe-horizon
+  hindcast/                  # phase1b + phase1c + phase1d + phase_kr historical reports
 
-tests/                       # 506+ pytest tests, INV-GS-001..105 coverage
+tests/                       # 836+ test functions across 79 files; INV-GS-001..114 coverage
 docs/
-  ssot/                      # immutable plan history v0.1 → v0.7 + PLAN_v1.0.md (canonical)
+  ssot/                      # plan history v0.1 → v0.7 + PLAN_v1.0.md (active spec)
   post_mortem/               # honest Sprint 5 FAIL diagnosis (v0.6)
   research/                  # design notes
-  CALIBRATION.md             # NEW — per-thesis empirical predictive strength
-  MIGRATION_v0.7_TO_v1.0.md  # NEW — developer migration guide
+  ROADMAP_v2.md              # v2.x.x integrated roadmap (10-agent synthesis)
+  v2.1_PRD.md                # v2.1 product requirements
+  CALIBRATION.md             # per-thesis empirical predictive strength
+  CONFIDENCE_V2.md           # 5-component confidence model (INV-GS-112)
+  MIGRATION_v0.7_TO_v1.0.md  # developer migration guide
   EXAMPLES.md                # extending the framework
 ```
 
@@ -306,10 +377,10 @@ If you are evaluating whether to adopt or fork this:
 1. [`docs/post_mortem/SPRINT5_FAIL_post_mortem.md`](docs/post_mortem/SPRINT5_FAIL_post_mortem.md)
    — start here. The v0.6 framework worked; the alpha didn't. v1.0 turns that
    honest finding into the calibration baseline.
-2. [`docs/ssot/PLAN_v1.0.md`](docs/ssot/PLAN_v1.0.md) — canonical v1.0 spec.
-   Section 0 explains the reframe rationale; Section 2 explains how the 8 FAIL
-   outcomes become calibration data; Section 5 lists new INV-GS-101..105 and
-   deprecated INV-GS-001/005/033.
+2. [`docs/ssot/PLAN_v1.0.md`](docs/ssot/PLAN_v1.0.md) — active framework spec.
+   Section 1 explains the reframe rationale; Section 2 explains how the 8 FAIL
+   outcomes become calibration data; later sections list invariants
+   INV-GS-101..114 and deprecated INV-GS-001/005/033/111.
 3. [`docs/CALIBRATION.md`](docs/CALIBRATION.md) — empirical predictive
    strength of every thesis currently in the calibration table.
 4. [`docs/MIGRATION_v0.7_TO_v1.0.md`](docs/MIGRATION_v0.7_TO_v1.0.md) —
@@ -378,4 +449,4 @@ it, just keep the copyright notice.
 
 If this framework helps your research or post-mortem write-up, a link back to
 this repository is appreciated. Cite the calibration table version
-(`v1.x.0`, quarter-bumped) so reproducibility is preserved.
+(`v2.x.x`, quarter-bumped) so reproducibility is preserved.

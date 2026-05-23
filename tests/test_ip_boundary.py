@@ -78,8 +78,13 @@ def test_no_dca_sizing_imports_or_refs() -> None:
     # (INV-GS-111 deprecated). Guard against reintroduction.
     _, stdout = _grep("dca_sizing")
     hits = _exclude_self(stdout)
-    # Roadmap + PRD docs are allowed to reference removal historically.
-    allowed_suffixes = ("docs/ROADMAP_v2.md", "docs/v2.1_PRD.md")
+    # Roadmap + PRD + README are allowed to reference the v2.0 removal
+    # historically (migration notes pointing former v1.x users to the change).
+    allowed_suffixes = (
+        "docs/ROADMAP_v2.md",
+        "docs/v2.1_PRD.md",
+        "README.md",
+    )
     hits = [h for h in hits if not any(h.endswith(s) for s in allowed_suffixes)]
     assert not hits, (
         "dca_sizing reintroduced after v2.0 deletion:\n" + "\n".join(hits)
