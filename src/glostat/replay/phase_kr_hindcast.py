@@ -259,6 +259,10 @@ class PhaseKrHindcastResult:
     commodity_index_kr: KrThesisReport            # v1.6.2 wave 2
     insider_velocity_kr: KrThesisReport           # v1.7.1
     skipped_tickers: tuple[str, ...]
+    # Raw per-thesis trades (entry_day, signed_return) — kept so the effective-rank
+    # resume gate (replay/thesis_returns.py → predictor/independence.py) can consume
+    # a date-aligned return matrix instead of only the collapsed scalar reports.
+    thesis_trades: Mapping[str, tuple[KrHindcastTrade, ...]] = field(default_factory=dict)
 
 
 async def run_phase_kr_hindcast(
@@ -407,6 +411,13 @@ async def run_phase_kr_hindcast(
         commodity_index_kr=commodity_report,
         insider_velocity_kr=insider_velocity_report,
         skipped_tickers=tuple(sorted(set(skipped_tickers))),
+        thesis_trades={
+            acc.thesis: tuple(acc.trades)
+            for acc in (
+                fund_acc, time_acc, rev_acc, pead_acc,
+                cyclical_acc, commodity_acc, insider_velocity_acc,
+            )
+        },
     )
 
 

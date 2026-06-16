@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import math
+import os
 import subprocess
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta
@@ -20,6 +21,7 @@ from glostat.predictor.confidence_v2 import (
     ConfidenceV2,
     confidence_v2_from_calibration,
 )
+from glostat.predictor.honesty import all_active_signals_are_noise
 from glostat.predictor.types import (
     Direction,
     Horizon,
@@ -76,6 +78,47 @@ def _weight_for(cal: ThesisCalibration) -> float:
     return _brier_to_weight(cal.brier_score)
 
 
+# #1 fragility VETO axis (orthogonal to strength). oos_degradation already exists
+# in ThesisCalibration but only DISCOUNTS strength via confidence_v2 (derived_oos =
+# sharpe*(1-oos_degradation)); here it can VETO a thesis whose OOS edge has fully
+# collapsed/reversed, regardless of how strong its Brier weight is. Feature-flagged
+# OFF by default (GLOSTAT_FRAGILITY_VETO) so live weights are unchanged until an
+# operator validates the threshold on real calibration data (INV-GS-132).
+OOS_DEGRADATION_VETO_THRESHOLD: Final[float] = 1.0  # ≥1.0 → OOS Sharpe collapsed to ≤0
+_FRAGILITY_VETO_ENV: Final[str] = "GLOSTAT_FRAGILITY_VETO"
+# P3-3-2 (INV-GS-133): when every active thesis is statistically indistinguishable
+# from random, the composite edge is built entirely from noise. Today that fact is
+# only printed as a CLI footer; this gate makes it load-bearing — collapse the
+# prediction to base rate ("no usable signal", per kill_criteria). Feature-flagged
+# OFF so live predictions are unchanged by default.
+_NOISE_GATE_ENV: Final[str] = "GLOSTAT_NOISE_GATE"
+_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
+
+
+def _fragility_veto_enabled() -> bool:
+    return os.environ.get(_FRAGILITY_VETO_ENV, "").strip().lower() in _TRUTHY
+
+
+def _noise_gate_enabled() -> bool:
+    return os.environ.get(_NOISE_GATE_ENV, "").strip().lower() in _TRUTHY
+
+
+def fragility_veto(
+    cal: ThesisCalibration, *, oos_threshold: float = OOS_DEGRADATION_VETO_THRESHOLD
+) -> float:
+    """Orthogonal kill-axis multiplier: 1.0 = pass, 0.0 = vetoed.
+
+    Distinct from strength: a thesis can carry a high Brier/confidence weight yet
+    be structurally fragile. The only scalar fragility signal carried per thesis
+    today is oos_degradation; ``>= oos_threshold`` means the OOS Sharpe has
+    collapsed to ≤ 0 (e.g. E_FOREIGN_REVERSAL=1.156) → veto. Additional components
+    (crowding, cost, lookahead) require the per-thesis return series and are added
+    when the effective-rank adapter is wired live."""
+    if cal.oos_degradation >= oos_threshold:
+        return 0.0
+    return 1.0
+
+
 def _weight_for_v2(cal: ThesisCalibration, conf: ConfidenceV2) -> float:
     # v1.4 N4 (INV-GS-112): final weight = brier_weight × confidence_v2 composite.
     # Geometric mean confidence acts as a damping multiplier — high-n stable
@@ -83,7 +126,10 @@ def _weight_for_v2(cal: ThesisCalibration, conf: ConfidenceV2) -> float:
     base = _weight_for(cal)
     if base <= 0.0:
         return 0.0
-    return base * conf.composite_confidence
+    weight = base * conf.composite_confidence
+    if _fragility_veto_enabled():
+        weight *= fragility_veto(cal)  # INV-GS-132: orthogonal veto, default-off
+    return weight
 
 
 def _flip_direction(d: Direction) -> Direction:
@@ -324,7 +370,16 @@ def predict(
     if not contributions:
         raise ValueError("predict requires at least one SignalContribution")
     mass_up, mass_down, mass_neutral, total_w, rows = _compute_masses(contributions, table)
-    if total_w <= _PROB_TOL:
+    # P3-3-2 (INV-GS-133): if enabled and every weighted thesis is statistically
+    # indistinguishable from random, the edge is pure noise — collapse to base
+    # rate instead of emitting a confident-looking prediction. Default-off.
+    noise_collapsed = False
+    if _noise_gate_enabled():
+        active_aucs = tuple(
+            (s.calibration_auc, s.n_samples) for s, w, _ in rows if w > _PROB_TOL
+        )
+        noise_collapsed = all_active_signals_are_noise(active_aucs)
+    if total_w <= _PROB_TOL or noise_collapsed:
         # Fall back to base rate prior — nothing weighted enough to shift it.
         p_up = base
         p_down = (1.0 - base) * 0.5

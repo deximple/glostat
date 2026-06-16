@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 68
+total: 70
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -696,6 +696,11 @@ v1_8_0_active:
 v1_9_0_active:
   - INV-GS-130    # glostat scan command (universe-wide ranking + sig filter)
   - INV-GS-131    # cross-universe empirical: thesis × universe interaction
+
+# Post-v1.9 advancement (ARK transfer — fragility as orthogonal veto):
+post_v1_9_active:
+  - INV-GS-132    # fragility VETO axis: oos_degradation>=1.0 zeroes thesis weight; feature-flagged OFF (GLOSTAT_FRAGILITY_VETO), live unchanged by default
+  - INV-GS-133    # noise gate: all-active-signals-noise collapses predict() to base rate; feature-flagged OFF (GLOSTAT_NOISE_GATE), live unchanged by default
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:
