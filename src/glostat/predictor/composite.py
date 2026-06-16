@@ -45,10 +45,10 @@ log: Final = structlog.get_logger(__name__)
 
 _DEFAULT_BASE_RATE_UP: Final[float] = 0.50  # symmetric prior; refined per-horizon below
 _HORIZON_BASE_RATES: Final[dict[Horizon, float]] = {
-    "intraday":  0.50,
-    "swing_5d":  0.51,
+    "intraday": 0.50,
+    "swing_5d": 0.51,
     "swing_30d": 0.52,
-    "long_3y":   0.62,
+    "long_3y": 0.62,
 }
 _HORIZON_DAYS: Final[dict[Horizon, int]] = {
     "intraday": 1,
@@ -140,9 +140,7 @@ def _flip_direction(d: Direction) -> Direction:
     return d  # "neutral" / "skip" unchanged
 
 
-def _effective_direction(
-    s: SignalContribution, bias: int
-) -> Direction:
+def _effective_direction(s: SignalContribution, bias: int) -> Direction:
     if s.direction == "skip":
         return "skip"
     if bias < 0:
@@ -191,17 +189,19 @@ def _attach_confidence_v2(
     for s in contributions:
         cal = cal_table.get(s.name)
         conf = confidence_v2_from_calibration(cal)
-        out.append(SignalContribution(
-            name=s.name,
-            value=s.value,
-            direction=s.direction,
-            calibration_auc=s.calibration_auc,
-            calibration_sharpe=s.calibration_sharpe,
-            n_samples=s.n_samples,
-            skip_reason=s.skip_reason,
-            source_snapshot_ids=s.source_snapshot_ids,
-            confidence_v2=conf,
-        ))
+        out.append(
+            SignalContribution(
+                name=s.name,
+                value=s.value,
+                direction=s.direction,
+                calibration_auc=s.calibration_auc,
+                calibration_sharpe=s.calibration_sharpe,
+                n_samples=s.n_samples,
+                skip_reason=s.skip_reason,
+                source_snapshot_ids=s.source_snapshot_ids,
+                confidence_v2=conf,
+            )
+        )
     return tuple(out)
 
 
@@ -280,7 +280,8 @@ def _git_commit() -> str:
     try:
         out = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
-            text=True, stderr=subprocess.DEVNULL,
+            text=True,
+            stderr=subprocess.DEVNULL,
         )
         return out.strip()[:40] or "unknown"
     except (subprocess.CalledProcessError, FileNotFoundError, OSError):
@@ -290,9 +291,7 @@ def _git_commit() -> str:
 def _prompt_versions(contributions: Iterable[SignalContribution]) -> tuple[tuple[str, str], ...]:
     versions: dict[str, str] = {}
     for s in contributions:
-        versions[s.name] = hashlib.sha256(
-            f"{s.name}@predictor-formulaic-v1".encode()
-        ).hexdigest()
+        versions[s.name] = hashlib.sha256(f"{s.name}@predictor-formulaic-v1".encode()).hexdigest()
     return tuple(sorted(versions.items()))
 
 
@@ -364,8 +363,10 @@ def predict(
     # widens CI sigma when an event is < 7 days out (INV-GS-121).
     table = cal_table or load_calibration()
     ts = issued_at or datetime.now(tz=UTC)
-    base = base_rate_up if base_rate_up is not None else _HORIZON_BASE_RATES.get(
-        horizon, _DEFAULT_BASE_RATE_UP
+    base = (
+        base_rate_up
+        if base_rate_up is not None
+        else _HORIZON_BASE_RATES.get(horizon, _DEFAULT_BASE_RATE_UP)
     )
     if not contributions:
         raise ValueError("predict requires at least one SignalContribution")
@@ -375,9 +376,7 @@ def predict(
     # rate instead of emitting a confident-looking prediction. Default-off.
     noise_collapsed = False
     if _noise_gate_enabled():
-        active_aucs = tuple(
-            (s.calibration_auc, s.n_samples) for s, w, _ in rows if w > _PROB_TOL
-        )
+        active_aucs = tuple((s.calibration_auc, s.n_samples) for s, w, _ in rows if w > _PROB_TOL)
         noise_collapsed = all_active_signals_are_noise(active_aucs)
     if total_w <= _PROB_TOL or noise_collapsed:
         # Fall back to base rate prior — nothing weighted enough to shift it.
@@ -398,7 +397,9 @@ def predict(
         p_up, p_down, p_neutral = _normalize_three(p_up, p_down, p_neutral)
     p_up, p_down, p_neutral = _ensure_neutral_floor(p_up, p_down, p_neutral)
     expected_bps, sigma_bps = _expected_return_and_sigma(
-        rows, table, days_to_imminent_event=days_to_imminent_event,
+        rows,
+        table,
+        days_to_imminent_event=days_to_imminent_event,
     )
     edge_pp = (p_up - base) * 100.0
     # v1.4 N4: enrich contributions with per-thesis confidence_v2 breakdown.
@@ -416,8 +417,7 @@ def predict(
         edge_over_baseline_pp=edge_pp,
         contributing_signals=enriched,
         next_triggers=(
-            next_triggers if next_triggers is not None
-            else _next_triggers(contributions, horizon)
+            next_triggers if next_triggers is not None else _next_triggers(contributions, horizon)
         ),
         evidence_hash=_evidence_hash(contributions),
         prompt_versions=_prompt_versions(contributions),

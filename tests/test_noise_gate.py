@@ -18,16 +18,25 @@ _FLAG = "GLOSTAT_NOISE_GATE"
 
 def _signal(name: str, *, auc: float, n: int, direction: str = "up") -> SignalContribution:
     return SignalContribution(
-        name=name, value=1.0, direction=direction,  # type: ignore[arg-type]
-        calibration_auc=auc, calibration_sharpe=0.4, n_samples=n,
+        name=name,
+        value=1.0,
+        direction=direction,  # type: ignore[arg-type]
+        calibration_auc=auc,
+        calibration_sharpe=0.4,
+        n_samples=n,
     )
 
 
 def _table(name: str, *, auc: float, n: int) -> CalibrationTable:
     t = CalibrationTable()
     t.entries[name] = ThesisCalibration(
-        name=name, auc=auc, sharpe=0.4, n_samples=n, oos_degradation=0.0,
-        period_start=date(2024, 1, 1), period_end=date(2026, 4, 1),
+        name=name,
+        auc=auc,
+        sharpe=0.4,
+        n_samples=n,
+        oos_degradation=0.0,
+        period_start=date(2024, 1, 1),
+        period_end=date(2026, 4, 1),
     )
     return t
 
@@ -38,8 +47,13 @@ def _two_noise():
     t = CalibrationTable()
     for s in sigs:
         t.entries[s.name] = ThesisCalibration(
-            name=s.name, auc=0.55, sharpe=0.4, n_samples=80, oos_degradation=0.0,
-            period_start=date(2024, 1, 1), period_end=date(2026, 4, 1),
+            name=s.name,
+            auc=0.55,
+            sharpe=0.4,
+            n_samples=80,
+            oos_degradation=0.0,
+            period_start=date(2024, 1, 1),
+            period_end=date(2026, 4, 1),
         )
     return sigs, t
 

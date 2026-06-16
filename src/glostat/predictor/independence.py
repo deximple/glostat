@@ -27,8 +27,8 @@ hindcast layer and be passed in.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Sequence
 
 import numpy as np
 
@@ -42,18 +42,18 @@ def effective_rank(corr: np.ndarray) -> float:
     ~1 when they are perfectly collinear. Robust to tiny negative eigenvalues
     from numerical error.
     """
-    C = np.asarray(corr, dtype=float)
-    if C.ndim != 2 or C.shape[0] != C.shape[1]:
+    cm = np.asarray(corr, dtype=float)
+    if cm.ndim != 2 or cm.shape[0] != cm.shape[1]:
         raise ValueError("corr must be a square 2-D matrix")
-    k = C.shape[0]
+    k = cm.shape[0]
     if k == 0:
         return 0.0
     if k == 1:
         return 1.0
-    eig = np.linalg.eigvalsh(C)
+    eig = np.linalg.eigvalsh(cm)
     eig = np.clip(eig, 0.0, None)  # numerical hygiene: drop tiny negatives
     s1 = float(eig.sum())
-    s2 = float((eig ** 2).sum())
+    s2 = float((eig**2).sum())
     if s2 <= 0.0:
         return 0.0
     return (s1 * s1) / s2
@@ -66,26 +66,26 @@ def effective_rank_from_returns(returns: np.ndarray) -> float:
     information) and rows with any NaN before computing the correlation matrix.
     Returns the participation ratio of the resulting correlation spectrum.
     """
-    R = np.asarray(returns, dtype=float)
-    if R.ndim != 2:
+    mat = np.asarray(returns, dtype=float)
+    if mat.ndim != 2:
         raise ValueError("returns must be a 2-D (T x K) matrix")
-    if R.shape[1] == 0:
+    if mat.shape[1] == 0:
         return 0.0
     # Drop degenerate (constant) columns.
-    col_var = np.nanvar(R, axis=0)
-    R = R[:, col_var > _ZERO_VAR_EPS]
-    if R.shape[1] <= 1:
-        return float(R.shape[1])
+    col_var = np.nanvar(mat, axis=0)
+    mat = mat[:, col_var > _ZERO_VAR_EPS]
+    if mat.shape[1] <= 1:
+        return float(mat.shape[1])
     # Drop rows with any NaN so corrcoef is well-defined.
-    R = R[~np.isnan(R).any(axis=1)]
-    if R.shape[0] < 2:
+    mat = mat[~np.isnan(mat).any(axis=1)]
+    if mat.shape[0] < 2:
         # Too few common-date observations to MEASURE correlation. Fail-closed:
         # "unmeasurable" must NOT pass as full independence (theses trading on
         # disjoint dates would otherwise be declared independent — the exact
         # correlated-sleeve false-positive the gate exists to catch).
         return 0.0
-    C = np.corrcoef(R, rowvar=False)
-    return effective_rank(C)
+    cm = np.corrcoef(mat, rowvar=False)
+    return effective_rank(cm)
 
 
 def returns_matrix_from_records(
@@ -159,13 +159,12 @@ def resume_gate(
     independence. 2.5 carries that sampling tolerance while still rejecting a
     correlated pair (rho=0.82 collapses three columns to ~2.2 effective dims).
     """
-    R = np.asarray(returns, dtype=float)
-    if R.ndim != 2:
+    mat = np.asarray(returns, dtype=float)
+    if mat.ndim != 2:
         raise ValueError("returns must be a 2-D (T x K) matrix")
-    if R.shape[1] != len(p_values):
+    if mat.shape[1] != len(p_values):
         raise ValueError(
-            f"p_values (len {len(p_values)}) must align with returns columns "
-            f"(K={R.shape[1]})"
+            f"p_values (len {len(p_values)}) must align with returns columns (K={mat.shape[1]})"
         )
 
     sig_idx = [i for i, p in enumerate(p_values) if p < alpha]
@@ -175,19 +174,21 @@ def resume_gate(
             eligible=False,
             n_significant=n_sig,
             effective_rank=float("nan"),
-            reason=(f"only {n_sig} thesis(es) at p<{alpha}; "
-                    f"need >= {min_significant}"),
+            reason=(f"only {n_sig} thesis(es) at p<{alpha}; need >= {min_significant}"),
         )
 
-    er = effective_rank_from_returns(R[:, sig_idx])
+    er = effective_rank_from_returns(mat[:, sig_idx])
     eligible = er >= min_eff_rank
     if eligible:
-        reason = (f"{n_sig} significant theses span {er:.2f} effective "
-                  f"dimensions (>= {min_eff_rank})")
+        reason = (
+            f"{n_sig} significant theses span {er:.2f} effective dimensions (>= {min_eff_rank})"
+        )
     else:
-        reason = (f"{n_sig} theses pass p<{alpha} but span only {er:.2f} "
-                  f"effective dimensions (< {min_eff_rank}) — correlated bets "
-                  f"counted as independent")
+        reason = (
+            f"{n_sig} theses pass p<{alpha} but span only {er:.2f} "
+            f"effective dimensions (< {min_eff_rank}) — correlated bets "
+            f"counted as independent"
+        )
     return ResumeVerdict(
         eligible=eligible,
         n_significant=n_sig,

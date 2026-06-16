@@ -51,9 +51,9 @@ _DEFAULT_OUTPUT_DIR: Final[Path] = Path("cache") / "hindcast" / "phase_kr"
 _DEFAULT_HORIZON_FUNDAMENTAL: Final[int] = 30
 _DEFAULT_HORIZON_TIME: Final[int] = 30
 _DEFAULT_HORIZON_REVERSAL: Final[int] = 7
-_DEFAULT_HORIZON_PEAD: Final[int] = 30          # v1.6 P5
-_DEFAULT_HORIZON_CYCLICAL: Final[int] = 30      # v1.6.2 wave 2
-_DEFAULT_HORIZON_COMMODITY: Final[int] = 30     # v1.6.2 wave 2
+_DEFAULT_HORIZON_PEAD: Final[int] = 30  # v1.6 P5
+_DEFAULT_HORIZON_CYCLICAL: Final[int] = 30  # v1.6.2 wave 2
+_DEFAULT_HORIZON_COMMODITY: Final[int] = 30  # v1.6.2 wave 2
 _DEFAULT_HORIZON_INSIDER_VELOCITY: Final[int] = 30  # v1.7.1
 _DEFAULT_SPLIT_RATIO: Final[float] = 0.7
 _DEFAULT_SAMPLE_STRIDE_DAYS: Final[int] = 7
@@ -152,14 +152,20 @@ class _ThesisAccumulator:
         key = (reason or "unknown").strip()[:60]
         self.skip_breakdown[key] = self.skip_breakdown.get(key, 0) + 1
 
-    def record_signal(self, *, ticker: str, day: date, raw_score: float,
-                       direction: str, forward_return: float) -> None:
+    def record_signal(
+        self, *, ticker: str, day: date, raw_score: float, direction: str, forward_return: float
+    ) -> None:
         self.n_actionable += 1
-        self.trades.append(KrHindcastTrade(
-            thesis=self.thesis, ticker=ticker, entry_day=day,
-            raw_score=raw_score, direction=direction,
-            forward_return=forward_return,
-        ))
+        self.trades.append(
+            KrHindcastTrade(
+                thesis=self.thesis,
+                ticker=ticker,
+                entry_day=day,
+                raw_score=raw_score,
+                direction=direction,
+                forward_return=forward_return,
+            )
+        )
 
 
 def _compute_auc(trades: Sequence[KrHindcastTrade]) -> float:
@@ -242,8 +248,8 @@ class PhaseKrHindcastConfig:
     horizon_fundamental: int = _DEFAULT_HORIZON_FUNDAMENTAL
     horizon_time: int = _DEFAULT_HORIZON_TIME
     horizon_reversal: int = _DEFAULT_HORIZON_REVERSAL
-    horizon_pead: int = _DEFAULT_HORIZON_PEAD   # v1.6 P5
-    horizon_cyclical: int = _DEFAULT_HORIZON_CYCLICAL    # v1.6.2 wave 2
+    horizon_pead: int = _DEFAULT_HORIZON_PEAD  # v1.6 P5
+    horizon_cyclical: int = _DEFAULT_HORIZON_CYCLICAL  # v1.6.2 wave 2
     horizon_commodity: int = _DEFAULT_HORIZON_COMMODITY  # v1.6.2 wave 2
     horizon_insider_velocity: int = _DEFAULT_HORIZON_INSIDER_VELOCITY  # v1.7.1
     max_concurrent: int = 5
@@ -254,10 +260,10 @@ class PhaseKrHindcastResult:
     fundamental_kr: KrThesisReport
     time_kr: KrThesisReport
     foreign_reversal: KrThesisReport
-    pead_kr: KrThesisReport                       # v1.6 P5
-    fundamental_kr_cyclical: KrThesisReport       # v1.6.2 wave 2
-    commodity_index_kr: KrThesisReport            # v1.6.2 wave 2
-    insider_velocity_kr: KrThesisReport           # v1.7.1
+    pead_kr: KrThesisReport  # v1.6 P5
+    fundamental_kr_cyclical: KrThesisReport  # v1.6.2 wave 2
+    commodity_index_kr: KrThesisReport  # v1.6.2 wave 2
+    insider_velocity_kr: KrThesisReport  # v1.7.1
     skipped_tickers: tuple[str, ...]
     # Raw per-thesis trades (entry_day, signed_return) — kept so the effective-rank
     # resume gate (replay/thesis_returns.py → predictor/independence.py) can consume
@@ -283,7 +289,8 @@ async def run_phase_kr_hindcast(
     # v1.6.2 wave 2: shared commodity client (per-process cache + point-in-time
     # slicing). Prefetched once per commodity needed across the whole run.
     commodity_client = CommodityClient(
-        yfinance_client=yf, snapshot_broker=broker,
+        yfinance_client=yf,
+        snapshot_broker=broker,
     )
     # v1.7.1: insider velocity expert (skeleton — works only when DART is
     # configured; otherwise hindcast records skip with explanation).
@@ -294,22 +301,28 @@ async def run_phase_kr_hindcast(
     # bars deterministically.
 
     fund_acc = _ThesisAccumulator(
-        thesis="E_FUNDAMENTAL_KR", horizon_days=config.horizon_fundamental,
+        thesis="E_FUNDAMENTAL_KR",
+        horizon_days=config.horizon_fundamental,
     )
     time_acc = _ThesisAccumulator(
-        thesis="E_TIME_KR", horizon_days=config.horizon_time,
+        thesis="E_TIME_KR",
+        horizon_days=config.horizon_time,
     )
     rev_acc = _ThesisAccumulator(
-        thesis="E_FOREIGN_REVERSAL", horizon_days=config.horizon_reversal,
+        thesis="E_FOREIGN_REVERSAL",
+        horizon_days=config.horizon_reversal,
     )
-    pead_acc = _ThesisAccumulator(    # v1.6 P5
-        thesis="E_PEAD_KR", horizon_days=config.horizon_pead,
+    pead_acc = _ThesisAccumulator(  # v1.6 P5
+        thesis="E_PEAD_KR",
+        horizon_days=config.horizon_pead,
     )
-    cyclical_acc = _ThesisAccumulator(    # v1.6.2 wave 2
-        thesis="E_FUNDAMENTAL_KR_CYCLICAL", horizon_days=config.horizon_cyclical,
+    cyclical_acc = _ThesisAccumulator(  # v1.6.2 wave 2
+        thesis="E_FUNDAMENTAL_KR_CYCLICAL",
+        horizon_days=config.horizon_cyclical,
     )
-    commodity_acc = _ThesisAccumulator(    # v1.6.2 wave 2
-        thesis="E_COMMODITY_INDEX_KR", horizon_days=config.horizon_commodity,
+    commodity_acc = _ThesisAccumulator(  # v1.6.2 wave 2
+        thesis="E_COMMODITY_INDEX_KR",
+        horizon_days=config.horizon_commodity,
     )
     insider_velocity_acc = _ThesisAccumulator(  # v1.7.1
         thesis="E_INSIDER_VELOCITY_KR",
@@ -329,19 +342,26 @@ async def run_phase_kr_hindcast(
         log.warning("phase_kr.commodity_prefetch_failed", err=str(exc))
 
     sample_days = _sample_days(
-        start=config.start, end=config.end, stride=config.sample_stride_days,
+        start=config.start,
+        end=config.end,
+        stride=config.sample_stride_days,
     )
     semaphore = asyncio.Semaphore(max(1, config.max_concurrent))
 
     async def process_ticker(code: str) -> None:
         async with semaphore:
             await _process_one_ticker(
-                code=code, sample_days=sample_days,
-                yf=yf, naver=naver,
-                fundamental=fundamental, time_expert=time_expert,
+                code=code,
+                sample_days=sample_days,
+                yf=yf,
+                naver=naver,
+                fundamental=fundamental,
+                time_expert=time_expert,
                 commodity=commodity_client,
                 insider_velocity=insider_velocity_expert,
-                fund_acc=fund_acc, time_acc=time_acc, rev_acc=rev_acc,
+                fund_acc=fund_acc,
+                time_acc=time_acc,
+                rev_acc=rev_acc,
                 pead_acc=pead_acc,
                 cyclical_acc=cyclical_acc,
                 commodity_acc=commodity_acc,
@@ -361,45 +381,59 @@ async def run_phase_kr_hindcast(
         await asyncio.gather(*tasks, return_exceptions=False)
 
     fund_report = _build_report(
-        thesis="E_FUNDAMENTAL_KR", accumulator=fund_acc,
+        thesis="E_FUNDAMENTAL_KR",
+        accumulator=fund_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
     time_report = _build_report(
-        thesis="E_TIME_KR", accumulator=time_acc,
+        thesis="E_TIME_KR",
+        accumulator=time_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
     rev_report = _build_report(
-        thesis="E_FOREIGN_REVERSAL", accumulator=rev_acc,
+        thesis="E_FOREIGN_REVERSAL",
+        accumulator=rev_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
-    pead_report = _build_report(    # v1.6 P5
-        thesis="E_PEAD_KR", accumulator=pead_acc,
+    pead_report = _build_report(  # v1.6 P5
+        thesis="E_PEAD_KR",
+        accumulator=pead_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
-    cyclical_report = _build_report(    # v1.6.2 wave 2
-        thesis="E_FUNDAMENTAL_KR_CYCLICAL", accumulator=cyclical_acc,
+    cyclical_report = _build_report(  # v1.6.2 wave 2
+        thesis="E_FUNDAMENTAL_KR_CYCLICAL",
+        accumulator=cyclical_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
-    commodity_report = _build_report(    # v1.6.2 wave 2
-        thesis="E_COMMODITY_INDEX_KR", accumulator=commodity_acc,
+    commodity_report = _build_report(  # v1.6.2 wave 2
+        thesis="E_COMMODITY_INDEX_KR",
+        accumulator=commodity_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
-    insider_velocity_report = _build_report(    # v1.7.1
-        thesis="E_INSIDER_VELOCITY_KR", accumulator=insider_velocity_acc,
+    insider_velocity_report = _build_report(  # v1.7.1
+        thesis="E_INSIDER_VELOCITY_KR",
+        accumulator=insider_velocity_acc,
         universe=config.universe_tickers,
-        period_start=config.start, period_end=config.end,
+        period_start=config.start,
+        period_end=config.end,
         split_ratio=config.split_ratio,
     )
     return PhaseKrHindcastResult(
@@ -414,8 +448,13 @@ async def run_phase_kr_hindcast(
         thesis_trades={
             acc.thesis: tuple(acc.trades)
             for acc in (
-                fund_acc, time_acc, rev_acc, pead_acc,
-                cyclical_acc, commodity_acc, insider_velocity_acc,
+                fund_acc,
+                time_acc,
+                rev_acc,
+                pead_acc,
+                cyclical_acc,
+                commodity_acc,
+                insider_velocity_acc,
             )
         },
     )
@@ -468,37 +507,66 @@ async def _process_one_ticker(
         ts = datetime(day.year, day.month, day.day, 12, 0, tzinfo=UTC)
 
         await evaluate_fundamental(
-            fundamental=fundamental, code=code, day=day, ts=ts, yf=yf,
-            horizon_days=horizon_fundamental, accumulator=fund_acc,
+            fundamental=fundamental,
+            code=code,
+            day=day,
+            ts=ts,
+            yf=yf,
+            horizon_days=horizon_fundamental,
+            accumulator=fund_acc,
         )
         await evaluate_time(
-            time_expert=time_expert, code=code, day=day, ts=ts, yf=yf,
-            horizon_days=horizon_time, accumulator=time_acc,
+            time_expert=time_expert,
+            code=code,
+            day=day,
+            ts=ts,
+            yf=yf,
+            horizon_days=horizon_time,
+            accumulator=time_acc,
         )
         evaluate_foreign_reversal(
-            naver_bars=naver_bars, bars_by_date=bars_by_date,
-            code=code, day=day, horizon_days=horizon_reversal,
+            naver_bars=naver_bars,
+            bars_by_date=bars_by_date,
+            code=code,
+            day=day,
+            horizon_days=horizon_reversal,
             accumulator=rev_acc,
         )
         # v1.6 P5: KR Post-Earnings Announcement Drift point-in-time hindcast.
         await evaluate_pead_kr(
-            code=code, day=day, yf=yf,
-            horizon_days=horizon_pead, accumulator=pead_acc,
+            code=code,
+            day=day,
+            yf=yf,
+            horizon_days=horizon_pead,
+            accumulator=pead_acc,
         )
         # v1.6.2 wave 2: cyclical-sector + refining-momentum point-in-time
         # hindcast. Universe gates inside the evaluators decide skip vs fire.
         await evaluate_fundamental_kr_cyclical(
-            fundamental=fundamental, commodity=commodity,
-            code=code, day=day, ts=ts, yf=yf,
-            horizon_days=horizon_cyclical, accumulator=cyclical_acc,
+            fundamental=fundamental,
+            commodity=commodity,
+            code=code,
+            day=day,
+            ts=ts,
+            yf=yf,
+            horizon_days=horizon_cyclical,
+            accumulator=cyclical_acc,
         )
         await evaluate_commodity_index_kr(
-            commodity=commodity, code=code, day=day, yf=yf,
-            horizon_days=horizon_commodity, accumulator=commodity_acc,
+            commodity=commodity,
+            code=code,
+            day=day,
+            yf=yf,
+            horizon_days=horizon_commodity,
+            accumulator=commodity_acc,
         )
         # v1.7.1: insider velocity hindcast.
         await evaluate_insider_velocity_kr(
-            expert=insider_velocity, code=code, day=day, ts=ts, yf=yf,
+            expert=insider_velocity,
+            code=code,
+            day=day,
+            ts=ts,
+            yf=yf,
             horizon_days=horizon_insider_velocity,
             accumulator=insider_velocity_acc,
         )

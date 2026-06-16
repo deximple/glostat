@@ -39,14 +39,17 @@ def test_trades_to_records_isoformats_dates():
 
 def test_persist_load_roundtrip(tmp_path):
     trades = {
-        "E_X": [SimpleNamespace(entry_day=date(2026, 1, 1), signed_return=2.0),
-                SimpleNamespace(entry_day=date(2026, 1, 2), signed_return=3.0)],
+        "E_X": [
+            SimpleNamespace(entry_day=date(2026, 1, 1), signed_return=2.0),
+            SimpleNamespace(entry_day=date(2026, 1, 2), signed_return=3.0),
+        ],
     }
     p = tmp_path / "trades.jsonl"
     n = persist_trades(trades, p)
     assert n == 2
     assert sorted(load_records(p)) == [
-        ("E_X", "2026-01-01", 2.0), ("E_X", "2026-01-02", 3.0),
+        ("E_X", "2026-01-01", 2.0),
+        ("E_X", "2026-01-02", 3.0),
     ]
 
 

@@ -26,9 +26,13 @@ _FLAG = "GLOSTAT_FRAGILITY_VETO"
 
 def _cal(*, oos_deg: float, auc: float = 0.586, n: int = 298) -> ThesisCalibration:
     return ThesisCalibration(
-        name="E_TEST", auc=auc, sharpe=0.629, n_samples=n,
+        name="E_TEST",
+        auc=auc,
+        sharpe=0.629,
+        n_samples=n,
         oos_degradation=oos_deg,
-        period_start=date(2024, 1, 1), period_end=date(2026, 4, 1),
+        period_start=date(2024, 1, 1),
+        period_end=date(2026, 4, 1),
     )
 
 
@@ -41,8 +45,8 @@ def test_veto_passes_below_threshold():
 
 
 def test_veto_fires_at_and_above_threshold():
-    assert fragility_veto(_cal(oos_deg=1.0)) == 0.0     # boundary inclusive
-    assert fragility_veto(_cal(oos_deg=1.156)) == 0.0   # E_FOREIGN_REVERSAL case
+    assert fragility_veto(_cal(oos_deg=1.0)) == 0.0  # boundary inclusive
+    assert fragility_veto(_cal(oos_deg=1.156)) == 0.0  # E_FOREIGN_REVERSAL case
     assert fragility_veto(_cal(oos_deg=4.57)) == 0.0
 
 
@@ -58,10 +62,20 @@ def test_threshold_constant_is_one():
 # ── env flag parsing ─────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("val,expected", [
-    ("1", True), ("true", True), ("TRUE", True), ("yes", True), ("on", True),
-    ("0", False), ("false", False), ("", False), ("nope", False),
-])
+@pytest.mark.parametrize(
+    "val,expected",
+    [
+        ("1", True),
+        ("true", True),
+        ("TRUE", True),
+        ("yes", True),
+        ("on", True),
+        ("0", False),
+        ("false", False),
+        ("", False),
+        ("nope", False),
+    ],
+)
 def test_flag_parsing(monkeypatch, val, expected):
     monkeypatch.setenv(_FLAG, val)
     assert _fragility_veto_enabled() is expected

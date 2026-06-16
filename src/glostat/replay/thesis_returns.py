@@ -23,8 +23,9 @@ stream between runs. Computing/acting on the resume verdict stays operator-gated
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Iterable, Mapping, Protocol, Sequence
+from typing import Protocol
 
 from glostat.predictor.independence import (
     ResumeVerdict,
@@ -34,7 +35,7 @@ from glostat.predictor.independence import (
 
 
 class _Trade(Protocol):
-    entry_day: object        # date (or anything with isoformat()/str())
+    entry_day: object  # date (or anything with isoformat()/str())
     signed_return: float
 
 
@@ -68,8 +69,8 @@ def persist_trades(thesis_trades: Mapping[str, Iterable[_Trade]], path: str | Pa
 def load_records(path: str | Path) -> list[Record]:
     """Read a trades JSONL artifact back into records. Malformed lines are skipped."""
     out: list[Record] = []
-    for line in Path(path).read_text().splitlines():
-        line = line.strip()
+    for raw in Path(path).read_text().splitlines():
+        line = raw.strip()
         if not line:
             continue
         try:
@@ -97,6 +98,9 @@ def resume_gate_from_records(
     names, _, matrix = returns_matrix_from_records(records)
     p_values = [float(p_values_by_thesis.get(name, 1.0)) for name in names]
     return resume_gate(
-        p_values, matrix,
-        alpha=alpha, min_significant=min_significant, min_eff_rank=min_eff_rank,
+        p_values,
+        matrix,
+        alpha=alpha,
+        min_significant=min_significant,
+        min_eff_rank=min_eff_rank,
     )
