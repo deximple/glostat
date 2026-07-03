@@ -35,20 +35,21 @@ class TestAucStandardError:
         assert math.isinf(auc_standard_error(0))
 
     def test_n_3510_matches_panel_quote(self) -> None:
-        # P8 Statistician reported SE ≈ 0.0049 for E_FUNDAMENTAL_KR n=3510.
+        # Corrected balanced-class SE for n=3510: sqrt(3511/(3·3510²)) ≈ 0.00975.
+        # (Prior 0.00487 was 2× too small — D-20260702 §3.)
         se = auc_standard_error(3510)
-        assert abs(se - 0.00487) < 1e-3
+        assert abs(se - 0.00975) < 1e-3
 
     def test_n_200_matches_panel_quote(self) -> None:
-        # P8 reported SE ≈ 0.0204 for E_TIME n=200.
+        # Corrected balanced-class SE for n=200: sqrt(201/(3·200²)) ≈ 0.04093.
         se = auc_standard_error(200)
-        assert abs(se - 0.0204) < 1e-3
+        assert abs(se - 0.04093) < 1e-3
 
 
 class TestAucZScore:
     def test_perfect_discrimination_large_z(self) -> None:
         z = auc_z_score(0.95, n=1000)
-        assert z > 30.0  # very far from null
+        assert z > 20.0  # very far from null (corrected SE halves z vs prior)
 
     def test_random_auc_zero_z(self) -> None:
         assert abs(auc_z_score(0.5, n=1000)) < 1e-9
@@ -57,9 +58,10 @@ class TestAucZScore:
         assert auc_z_score(0.95, n=0) == 0.0
 
     def test_e_fundamental_kr_z_matches_panel(self) -> None:
-        # P8 reported z = (0.495 - 0.500) / 0.00487 = -1.02
+        # Corrected: z = (0.495 - 0.500) / 0.00975 = -0.51 (prior -1.02 used 2×
+        # too-small SE — D-20260702 §3).
         z = auc_z_score(0.495, n=3510)
-        assert abs(z - (-1.02)) < 0.05
+        assert abs(z - (-0.51)) < 0.05
 
 
 class TestAucPValue:
@@ -75,9 +77,10 @@ class TestAucPValue:
         assert auc_p_value(0.7, n=500) < 0.001
 
     def test_panel_p_value_for_e_fundamental_kr(self) -> None:
-        # P8 reported p=0.31 for AUC=0.495, n=3510.
+        # Corrected: AUC=0.495, n=3510 → z=-0.51 → p≈0.61 (prior 0.31 used 2×
+        # too-small SE — D-20260702 §3).
         p = auc_p_value(0.495, n=3510)
-        assert 0.25 < p < 0.35
+        assert 0.55 < p < 0.65
 
 
 class TestIsStatisticallySignificant:

@@ -15,10 +15,14 @@ import yaml
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 _MARKETS_YAML: Final[Path] = _REPO_ROOT / "configs" / "markets.yaml"
 
-# AUC SE under H₀ (random AUC = 0.5) — conservative approximation:
-#   SE ≈ 1 / sqrt(12 · n)
-# Used by P8 in the v1.4.1 panel evaluation. Matches Hanley & McNeil for
-# balanced classes within ~10% — close enough for honest disclosure.
+# AUC SE under H₀ (random AUC = 0.5). Hanley & McNeil / Mann-Whitney null
+# variance for BALANCED classes (n1 = n2 = n/2):
+#   Var(AUC|H₀) = (n + 1) / (3 · n²)  →  SE = sqrt((n + 1) / (3 · n²)) ≈ 1/sqrt(3n)
+# NOTE: assumes balanced classes. Under class imbalance the true SE is LARGER,
+# so this SE is a lower bound and the resulting significance is anti-conservative
+# (treat p as a floor, not an exact value).
+# Fixed 2026-07-03 [D-20260702 §3]: the prior 1/sqrt(12·n) was exactly 2× too
+# small (z doubled, p under-stated). The "~10% match" claim was false.
 _AUC_NULL: Final[float] = 0.5
 _SIG_ALPHA: Final[float] = 0.05
 _Z_AT_ALPHA_05: Final[float] = 1.96  # two-tailed 5% threshold
@@ -27,10 +31,10 @@ _KR_MARKETS: Final[frozenset[str]] = frozenset({"XKRX", "XKOS"})
 
 
 def auc_standard_error(n: int) -> float:
-    # Conservative SE under H₀. Returns +inf for n=0 so z-score is 0.
+    # Balanced-class SE under H₀. Returns +inf for n=0 so z-score is 0.
     if n <= 0:
         return float("inf")
-    return 1.0 / math.sqrt(12.0 * n)
+    return math.sqrt((n + 1.0) / (3.0 * n * n))
 
 
 def auc_z_score(auc: float, n: int) -> float:
