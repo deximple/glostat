@@ -15,6 +15,10 @@ from glostat.core.errors import ConfigError
 # Wrapper for 6 Bigdata MCP tools.
 # Sprint 0: structure + budget tracking. MCP wiring lands in Sprint 1.
 # v0.6: gated behind phase >= phase_2 (INV-GS-036).
+#
+# Usage of the Bigdata.com integration requires a valid API key
+# and is subject to Bigdata.com's Terms of Service.
+# Users must obtain their own credentials independently.
 
 log: Final = structlog.get_logger(__name__)
 

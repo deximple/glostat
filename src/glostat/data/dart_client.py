@@ -148,8 +148,15 @@ class DartClient:
         try:
             resp = await self._client.get(url, params=params)
             resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            # SECURITY: do not include URL/params (contains crtfc_key)
+            raise DartApiError(
+                f"DART corpCode fetch failed status={exc.response.status_code}"
+            ) from None
         except httpx.HTTPError as exc:
-            raise DartApiError(f"DART corpCode fetch failed: {exc}") from exc
+            raise DartApiError(
+                f"DART corpCode fetch transport error: {type(exc).__name__}"
+            ) from None
         entries = _parse_corp_code_zip(resp.content)
         mapping = {e.stock_code: e.corp_code for e in entries if e.stock_code}
         self._write_corp_code_cache(entries)
@@ -281,15 +288,26 @@ class DartClient:
     # ── http + snapshot helpers ──────────────────────────────────────────
 
     async def _get_json(self, url: str, params: Mapping[str, str]) -> dict[str, Any]:
+        # SECURITY: do not surface url/params (contains crtfc_key) in any
+        # exception message — those propagate to structlog and tracebacks.
+        endpoint = url.rsplit("/", 1)[-1]  # safe identifier for logs
         try:
             resp = await self._client.get(url, params=dict(params))
             resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise DartApiError(
+                f"DART GET {endpoint} failed status={exc.response.status_code}"
+            ) from None
         except httpx.HTTPError as exc:
-            raise DartApiError(f"DART GET failed url={url}: {exc}") from exc
+            raise DartApiError(
+                f"DART GET {endpoint} transport error: {type(exc).__name__}"
+            ) from None
         try:
             data = resp.json()
-        except ValueError as exc:
-            raise DartApiError(f"DART non-JSON response from {url}: {exc}") from exc
+        except ValueError:
+            raise DartApiError(
+                f"DART non-JSON response from {endpoint}"
+            ) from None
         status = str(data.get("status", "000"))
         # 000 = OK, 013 = no data — both treated as success.
         if status not in {"000", "013"}:
@@ -315,6 +333,10 @@ class DartClient:
 
 
 def _parse_corp_code_zip(zipped_bytes: bytes) -> list[CorpCodeEntry]:
+    # SECURITY: DART server response is parsed XML — guard against
+    # billion-laughs / external-entity attacks even though current stdlib
+    # ElementTree does not resolve SYSTEM entities. Reject any payload
+    # carrying a DOCTYPE declaration (no legitimate DART XML has one).
     out: list[CorpCodeEntry] = []
     try:
         with zipfile.ZipFile(io.BytesIO(zipped_bytes)) as zf:
@@ -322,11 +344,16 @@ def _parse_corp_code_zip(zipped_bytes: bytes) -> list[CorpCodeEntry]:
             if xml_name is None:
                 return out
             with zf.open(xml_name) as fh:
-                tree = ET.parse(fh)
+                raw = fh.read()
+        # Cheap doctype/entity reject before parser sees the bytes.
+        prefix = raw[:4096].lower()
+        if b"<!doctype" in prefix or b"<!entity" in prefix:
+            log.warning("dart.corp_code_rejected_doctype")
+            return out
+        root = ET.fromstring(raw)
     except (zipfile.BadZipFile, ET.ParseError) as exc:
         log.warning("dart.corp_code_parse_failed", err=str(exc))
         return out
-    root = tree.getroot()
     for el in root.findall("list"):
         out.append(CorpCodeEntry(
             corp_code=(el.findtext("corp_code") or "").strip(),

@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final
 
-# MOET A7: SeededRng — same (ticker, date, seed) ⇒ same verdict (INV-GS-010).
+# SeededRng — same (ticker, date, seed) ⇒ same verdict (INV-GS-010).
 # SHA256-derivable so the same (universe, date, namespace) always reproduces.
 
 _NS_BYTES: Final[int] = 32

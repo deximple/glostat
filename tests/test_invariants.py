@@ -326,6 +326,9 @@ def test_hindcast_stub_report_is_deterministic() -> None:
 
 
 def test_version_string() -> None:
-    assert __version__ == "1.4.1"
+    # WHY: pinned smoke test that the public __version__ tracks the
+    # pyproject.toml `version` field. Bump both together; tests/test_pyproject_version.py
+    # asserts the cross-file equality so this single string stays current.
+    assert __version__ == "2.0.1"
 
 # v0.6 INV-GS-036..040 live in tests/test_invariants_v06.py to keep this file ≤ 400 lines.

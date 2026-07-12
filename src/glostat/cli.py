@@ -26,6 +26,7 @@ from glostat.cli_predictor import (
     cmd_calibrate,
     cmd_predict,
 )
+from glostat.cli_scan import add_scan_subparser, cmd_scan
 from glostat.cli_universe import (
     add_screen_subparser,
     add_universe_subparser,
@@ -59,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     handler = {
         "predict":     cmd_predict,
         "calibrate":   cmd_calibrate,
+        "scan":        cmd_scan,
         "verdict":     cmd_verdict,
         "replay":      _cmd_replay,
         "audit":       _cmd_audit,
@@ -90,6 +92,8 @@ def _build_parser() -> argparse.ArgumentParser:
     # v1.0 commands
     add_predict_subparser(sub)
     add_calibrate_subparser(sub)
+    # v1.9.0 — universe scan command
+    add_scan_subparser(sub)
 
     # Legacy v0.7 verdict surface — deprecated, kept for backward compat.
     add_verdict_subparser(sub)

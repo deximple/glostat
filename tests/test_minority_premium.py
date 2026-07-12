@@ -10,7 +10,7 @@ from glostat.gating.minority_premium import (
     boosted_experts,
 )
 
-# MOET A3 — minority premium + Meta-adjudicator (PLAN_v0.4 §0.3).
+# Minority premium + Meta-adjudicator (PLAN_v0.4 §0.3).
 
 _NOW: Final = datetime(2026, 4, 28, 14, 30, tzinfo=UTC)
 

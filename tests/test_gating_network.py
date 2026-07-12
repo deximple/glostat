@@ -7,7 +7,7 @@ import yaml
 
 from glostat.gating.network import GatingNetwork, default_config_path
 
-# MOET A1 — IC-softmax + entropy regularization + per-expert caps.
+# Gating Network — IC-softmax + entropy regularization + per-expert caps.
 
 
 def _write_cfg(tmp_path: Path, body: dict) -> Path:

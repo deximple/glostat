@@ -3,7 +3,7 @@
 # 출처: docs/ssot/PLAN_v0.1.md ~ PLAN_v0.7.md + PLAN_v1.0.md
 
 schema_version: 3
-total: 51
+total: 68
 v1_0_active: 5
 v1_0_deprecated: 3
 v1_1_active: 1   # INV-GS-106 (KR ticker normalization)
@@ -11,13 +11,20 @@ v1_2_active_count: 1   # INV-GS-107 (DART)
 v1_3_active_count: 1   # INV-GS-108 (ECOS)
 v1_4_active_count: 3   # INV-GS-109 + 110 + 112 (confidence_v2); 111 deprecated in v2.0
 v1_4_1_active_count: 2 # INV-GS-113 (statistical honesty) + 114 (KR megacap universe note)
+v1_5_active_count: 4   # INV-GS-115/116/117/118 (P6 sector cycle absorption)
+v1_6_active_count: 3   # INV-GS-119/120/121 (P5 calendar absorption)
+v1_6_1_active_count: 1 # INV-GS-122 (E_PEAD_KR hindcast wave 1)
+v1_6_2_active_count: 1 # INV-GS-123 (cyclical + commodity hindcast wave 2)
+v1_7_0_active_count: 4 # INV-GS-124..127 (SQLite + KOSDAQ150 + skeleton thesis + CI)
+v1_8_0_active_count: 2 # INV-GS-128/129 (insider velocity hindcast + analyst revision)
+v1_9_0_active_count: 2 # INV-GS-130/131 (scan command + cross-universe finding)
 
 invariants:
   # ───────── v0.1: 핵심 (001-010) ─────────
   INV-GS-001:
     summary: "edge_bps ≥ 1.5 × all_in_bps 미충족 시 BUY/STRONG_BUY → HOLD 강등"
     enforcement: hard_gate
-    source: MOET A4, PLAN_v0.1
+    source: PLAN_v0.1
     deprecated: true
     deprecated_in: v1.0
     deprecated_note: "v0.6 decision-engine artifact. v1.0은 BUY 출력 자체가 없으므로 cost gate 의미 상실. 무력화 (계산 자체는 hindcast 손익 실현 시 cost mask로만 사용)."
@@ -36,18 +43,18 @@ invariants:
   INV-GS-005:
     summary: "4 Expert 이상 동방향 시 가중치 0.80× 할인 (anti-herd)"
     enforcement: gating_post
-    source: MOET A2
+    source: PLAN_v0.1
     deprecated: true
     deprecated_in: v1.0
     deprecated_note: "v0.6 decision-engine artifact. Brier-weighted ensemble (INV-GS-103)이 자동으로 dissent를 CI 폭으로 반영하므로 별도 anti-herd 할인 불필요."
   INV-GS-006:
     summary: "모든 verdict는 hash-chained NDJSON에 append; 누락 시 다음 verdict 거부"
     enforcement: evidence_chain
-    source: MOET A5
+    source: PLAN_v0.1
   INV-GS-007:
     summary: "DEFCON STOP 시 STRONG_BUY/BUY 차단 (sticky)"
     enforcement: defcon_gate
-    source: MOET A6
+    source: PLAN_v0.1
   INV-GS-008:
     summary: "T값 ≥ 1.5 + V값 ≥ 1.0 → conviction_w 1.2× 보너스"
     enforcement: time_bonus
@@ -59,7 +66,7 @@ invariants:
   INV-GS-010:
     summary: "동일 (ticker, date, seed) → 동일 verdict (결정론)"
     enforcement: rng_replay
-    source: MOET A7
+    source: PLAN_v0.1
 
   # ───────── v0.2: Cascade (011-016) — Phase 3로 이연 ─────────
   INV-GS-011:
@@ -168,7 +175,7 @@ invariants:
     source: E3 (Behavioral)
     sprint: phase_2
   INV-GS-031:
-    summary: "BETASTRIKE 상속 calibration 가중치 ≤ 10% (OOS retraining 전까지)"
+    summary: "Inherited calibration 가중치 ≤ 10% (OOS retraining 전까지)"
     enforcement: weight_cap
     source: E1
     sprint: 1
@@ -385,6 +392,223 @@ invariants:
       - cli_predict_print._maybe_print_universe_note
     note: "Phase KR M1 hindcast measured E_FUNDAMENTAL_KR AUC=0.495 (n=3510), E_TIME_KR AUC=0.483 — both statistically indistinguishable from random. Honest disclosure gives the user the full context for any KR megacap probability output. Non-KR markets (XNAS/XNYS) emit no extra footer. Future v1.5+ work (sector-aware E_FUNDAMENTAL_KR_CYCLICAL, E_PEAD_KR event calendar) will reduce the KR megacap honesty footer's necessity once new experts pass the same statistical test."
 
+  # ───────── v1.5: P6 KR Market Specialist absorption — sector cycle ─────────
+  INV-GS-115:
+    summary: "commodity_client wraps yfinance commodity futures (CL=F WTI, BZ=F Brent, RB=F gasoline, TIO=F iron ore, HG=F copper, BDRY) with cycle-percentile + 30d-momentum metrics; mandatory snapshot broker writes for replay (INV-GS-022)."
+    enforcement: data_client
+    source: docs/V15_SECTOR.md (v1.5 P6 panel) + P6 KR Market Specialist evaluation
+    active_in: [v1.5]
+    enforce_at:
+      - data.commodity_client.CommodityClient.get_cycle
+      - data.commodity_client.CommodityClient.get_crack_spread
+      - data.commodity_client._record_snapshot
+    note: "All commodity OHLCV is dollar-denominated US futures (free via yfinance) — Korea-specific exchange data avoided to keep MVP free-stack. 6h per-process cache shares fetches across multiple experts in one prediction. Crack spread = 42 * gasoline_$/gal - WTI_$/bbl (textbook refining margin proxy, aligned by date)."
+
+  INV-GS-116:
+    summary: "sector_classifier_kr maps KOSPI 200 tickers to KrSector + CycleClass; cyclical roster (정유/철강/화학/운송/건설/자동차) is hard-coded for the 30+ tickers where mis-scoring is most damaging. Other tickers fall through to KrSector.OTHER."
+    enforcement: classification_table
+    source: docs/V15_SECTOR.md (v1.5 P6 panel)
+    active_in: [v1.5]
+    enforce_at:
+      - data.sector_classifier_kr.sector_of
+      - data.sector_classifier_kr.cycle_class_of
+      - data.sector_classifier_kr.is_cyclical
+      - data.sector_classifier_kr.is_refining
+    note: "Hard-coded roster prioritises KSIC accuracy on the cyclical subset where E_FUNDAMENTAL_KR's generic PER scoring most damages signal quality. Programmatic KSIC lookup deferred to v1.6+ once calendar/PEAD work needs sector grouping. Manual roster covers ~40 tickers across all KOSPI 200 cyclical, defensive, growth buckets."
+
+  INV-GS-117:
+    summary: "E_FUNDAMENTAL_KR_CYCLICAL gates to cyclical sectors only (ExpertSkipError otherwise); scores via EV/EBITDA z-score (sector-specific median) + commodity-cycle term where trough percentile → LONG (mean-reversion archetype)."
+    enforcement: cyclical_expert_gate
+    source: docs/V15_SECTOR.md (v1.5 P6 panel) + P6 specialist on SK이노베이션 misscoring
+    active_in: [v1.5]
+    enforce_at:
+      - experts.e_fundamental_kr_cyclical.EFundamentalKrCyclicalExpert.compute
+      - predictor.thesis_wrappers.wrap_fundamental_kr_cyclical
+    note: "Refining → crack spread; steel → iron ore; chemicals → Brent (naphtha proxy); shipping → BDRY; construction/auto → copper. EV/EBITDA medians: refining 5.5±2.5, steel 6.0±2.5, chemicals 7.5±3.0, shipping 4.5±3.0, construction 5.0±2.0, consumer cyclical 8.0±3.0. Score formula: -W_VALUE * ev_ebitda_z + W_CYCLE * (-cycle_term * 2.0); W_VALUE=0.6, W_CYCLE=0.4. Direction threshold 0.5 (relaxed from generic 1.0 since cyclicals reward earlier mean-reversion entry). archetype=contrarian (per CompositeSignal taxonomy)."
+
+  INV-GS-118:
+    summary: "E_COMMODITY_INDEX_KR gates to refining-sector tickers only (ExpertSkipError otherwise); scores 30-day momentum on WTI + crack spread, archetype=continuation (momentum-following, not contrarian)."
+    enforcement: refining_universe_gate
+    source: docs/V15_SECTOR.md (v1.5 P6 panel)
+    active_in: [v1.5]
+    enforce_at:
+      - experts.e_commodity_index_kr.ECommodityIndexKrExpert.compute
+      - predictor.thesis_wrappers.wrap_commodity_index_kr
+    note: "Refining-only gate keeps oil-sensitive momentum from spuriously firing on non-refining cyclicals (where commodity dynamics differ). raw = 0.5 * wti_signal + 0.5 * crack_signal where each sub_signal = clamp(momentum_30d * 5.0, ±1.5). +20% commodity move → +1.0 sub-signal. Direction threshold 0.3."
+
+  # ───────── v1.6: P5 Event-Driven absorption — calendar awareness ─────────
+  INV-GS-119:
+    summary: "kr_calendar_client surfaces upcoming KR earnings (KIFRS Q-end + 45d heuristic), BoK 금통위 (hardcoded 2026 schedule, 8 meetings), OPEC 장관급 (auto-scrape opec.org/40.htm with 30d cache, falls back to hardcoded 2026 dates), and OPEC JMMC (first-Wednesday monthly heuristic)."
+    enforcement: event_calendar_client
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - data.kr_calendar_client.KrCalendarClient.next_events
+      - data.kr_calendar_client._next_kr_earnings
+      - data.kr_calendar_client._next_bok_rate
+      - data.kr_calendar_client._next_opec_jmmc
+      - data.kr_calendar_client._scrape_opec
+    note: "KR has no public earnings-calendar API; KIFRS deadline (Q-end + 45d) is a deterministic heuristic. BoK schedule is published annually but no API — hardcoded; refresh quarterly. OPEC ministerial dates scraped from opec.org with regex parser (constraint: same paragraph as 'Ministerial' or 'Conference'); fallback ensures graceful degradation when scrape fails."
+
+  INV-GS-120:
+    summary: "next_triggers field populated from kr_calendar_client when ticker is KR; concrete D-day countdowns ('BoK 금통위 2026-05-30 (D-28)') replace the generic 'horizon expires in ~30 days' message."
+    enforcement: presentation_layer
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - cli_predictor._build_calendar_overlay
+      - predictor.composite.predict
+    note: "When calendar fetch fails or ticker is non-KR, falls back to the original auto-derived next_triggers (predictor.composite._next_triggers). User always sees ≥ horizon-expiration trigger so the field is never empty."
+
+  INV-GS-121:
+    summary: "Composite CI sigma widens when an imminent calendar event drives additional uncertainty: D-day < 3 → ×2.0 sigma, D-day < 7 → ×1.5 sigma, otherwise unchanged."
+    enforcement: ci_widening
+    source: docs/V16_CALENDAR.md (v1.6 P5 Event-Driven panel)
+    active_in: [v1.6]
+    enforce_at:
+      - predictor.composite.predict
+      - predictor.composite._expected_return_and_sigma
+      - predictor.composite._calendar_sigma_multiplier
+    note: "Reflects the well-documented increase in option-implied volatility approaching scheduled events (BoK rate decisions, OPEC meetings, KR earnings deadlines). Multiplier applied AFTER the active-signal-count sigma scaling, so the calendar signal stacks rather than replaces. CI widening is presentation-honest only (does not change p_up); coupled with INV-GS-113 'CI 1-sigma' label so user sees the wider band."
+
+  # ───────── v1.6.1: Option A wave 1 — E_PEAD_KR hindcast ─────────
+  INV-GS-122:
+    summary: "kr-hindcast now wires E_PEAD_KR via evaluate_pead_kr point-in-time evaluator: for each (ticker, day) sample, computes most-recent expected KIFRS earnings filing date (Q-end + 45d), then measures OHLCV drift in T+5..T+30 window. Output report ingested by calibration._PHASE_SOURCES → real AUC replaces n=0 bootstrap."
+    enforcement: hindcast_wiring
+    source: docs/V16_CALENDAR.md (v1.6 P5) + Cross-Stock Acid Test 2026-05-02 finding (n=0 → weight=0 → no impact on p_up)
+    active_in: [v1.6.1]
+    enforce_at:
+      - replay.phase_kr_eval.evaluate_pead_kr
+      - replay.phase_kr_eval._measure_pead_drift
+      - replay.phase_kr_eval._close_on_or_after
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastConfig.horizon_pead
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.pead_kr
+      - replay.phase_kr_hindcast._process_one_ticker
+      - replay.phase_kr_report.persist_phase_kr_reports
+      - predictor.calibration._PHASE_SOURCES
+    note: "Point-in-time correctness: never reads OHLCV bars beyond `day` for the drift calculation, only for forward_return. Skip cleanly when days_since < 30 (drift window not yet observable) or OHLCV bars missing. Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) and commodity-momentum (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — requires historical commodity OHLCV with point-in-time semantics (commodity_client cache key needs (key, as_of) tuple, not just key)."
+
+  # ───────── v1.6.2: Option A wave 2 — cyclical + commodity hindcast ─────────
+  # ───────── v1.9.0: Alpha Discovery Sprint — scan command + cross-universe ─────────
+  INV-GS-130:
+    summary: "glostat scan command: universe-wide ranking by composite edge over baseline. --significant filter (at least one active signal with p<0.05). --min-edge filter. --top N. Reuses single-ticker predict() pipeline; semaphore-throttled async iteration."
+    enforcement: cli_command
+    source: docs/EMPIRICAL_RESULTS_2026-05-02.md (v1.9.0 Alpha Discovery section)
+    active_in: [v1.9.0]
+    enforce_at:
+      - cli_scan.cmd_scan
+      - cli_scan._scan_universe
+      - cli_scan._apply_filters
+      - cli_scan._has_significant_signal
+      - cli_scan._top_active_signal
+    note: "Productization layer for the calibrated framework. Cross-Stock Acid Test 2026-05-02 showed 4 of 5 cyclical KR tickers landed at identical p_up = 53.4% before calibration; after calibration filling, differentiation appeared. The scan command surfaces this differentiation across an entire universe in a single call."
+
+  INV-GS-131:
+    summary: "Cross-universe empirical measurement (KR megacap + KR mid-cap + US megacap + US small-mid) reveals universe × thesis interaction: E_PEAD_KR works on KR megacap (AUC 0.5405) but not KR mid-cap (0.4991); E_TIME_KR reverses (0.4692 vs 0.5138). US Sharpe attenuates moving up cap curve (small-mid +0.355 vs megacap 0.000)."
+    enforcement: empirical_finding
+    source: docs/EMPIRICAL_RESULTS_2026-05-02.md (v1.9.0 cross-universe matrix)
+    active_in: [v1.9.0]
+    enforce_at:
+      - replay.phase_kr_hindcast (KOSDAQ150 universe support)
+      - cli_hindcast (US small-mid universe support)
+      - docs/EMPIRICAL_RESULTS_2026-05-02.md (cross-universe AUC matrix)
+    note: "Reframes P10 Contrarian Veteran prediction: 'infrastructure ≠ alpha' STILL TRUE for single-thesis questions; 'GLOSTAT finds no edge' PARTIALLY FALSE — different theses find different edges in different universes. The ensemble is the product, not any one row."
+
+  # ───────── v1.8.0: Multi-stream thesis pipeline — insider velocity hindcast + analyst revision ─────────
+  INV-GS-128:
+    summary: "v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via evaluate_insider_velocity_kr (7th thesis). Uses live expert.compute() path (DART fetch + score_velocity); skip clean when DART API key missing."
+    enforcement: hindcast_wiring
+    source: V17_THESIS_IDEATION.md (E_INSIDER_VELOCITY_KR section)
+    active_in: [v1.8.0]
+    enforce_at:
+      - replay.phase_kr_eval.evaluate_insider_velocity_kr
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastConfig.horizon_insider_velocity
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.insider_velocity_kr
+      - replay.phase_kr_hindcast._process_one_ticker
+      - replay.phase_kr_report (7-column comparison rendering)
+      - predictor.calibration._PHASE_SOURCES (E_INSIDER_VELOCITY_KR loader)
+    note: "Same point-in-time pattern as PEAD wiring. Universe gate: KOSPI 200 + DART. Without DART API key, expert is None → all samples skip with 'expert_not_wired (DART API key required)' reason. Calibration loader picks up live measurement once user runs kr-hindcast with GLOSTAT_DART_API_KEY set."
+
+  INV-GS-129:
+    summary: "v1.8 E_ANALYST_REVISION expert: sell-side rec-revision drift via yfinance Ticker.upgrades_downgrades. 60d rolling window, score = clip(net_revisions * 0.5, ±2.5). Universe: US/global liquid (Russell 2000+ has reliable data); KR megacap partial coverage. archetype=continuation."
+    enforcement: expert
+    source: V17_THESIS_IDEATION.md (E_ANALYST_REVISION section) + Stickel 1991 / Womack 1996 academic literature
+    active_in: [v1.8.0]
+    enforce_at:
+      - data.yfinance_client.YFinanceClient.get_recommendations
+      - data.yfinance_parsers.parse_recommendations
+      - data.yfinance_parsers.recommendations_to_payload
+      - data.yfinance_types.AnalystRecommendationEvent
+      - data.yfinance_types.AnalystRecommendationHistory
+      - experts.e_analyst_revision.EAnalystRevisionExpert.compute
+      - experts.e_analyst_revision.score_revisions
+      - data.data_router (E_ANALYST_REVISION → yfinance.get_recommendations route)
+      - predictor.calibration.synthetic_calibration_for_mock (E_ANALYST_REVISION entry)
+    note: "Skeleton n=0 bootstrap. Hindcast wiring deferred to v1.8.1 (US-side hindcast harness needs analyst-rec evaluator). Expected AUC 0.53-0.56 per academic literature on US large/mid-cap."
+
+  # ───────── v1.7.0: Self-eval uplift — SQLite + CI + KOSDAQ150 + new thesis ─────────
+  INV-GS-124:
+    summary: "SnapshotBroker SQLite parallel-process safety: connect timeout=30s + PRAGMA busy_timeout=30000 + WAL pragma idempotent retry-on-lock (5 attempts with linear backoff). Concurrent `glostat predict` runs from same cwd no longer raise 'database is locked'."
+    enforcement: data_layer
+    source: Cross-Stock Acid Test 2026-05-02 finding (5 parallel predicts hit lock)
+    active_in: [v1.7.0]
+    enforce_at:
+      - data.snapshot_broker.SnapshotBroker.__post_init__
+      - data.snapshot_broker.SnapshotBroker._enable_wal_with_retry
+    note: "Race: concurrent processes may try to flip journal_mode = WAL simultaneously. WAL bit lives in file header, requires brief exclusive access. Retry idempotent — once any process sets WAL, file persists state and subsequent reads return 'wal' without contention."
+
+  INV-GS-125:
+    summary: "KOSDAQ150 universe registered (KR_KOSDAQ150_TOP30) covering 30 mid-cap KR growth/bio/battery/반도체-장비/게임 names. KOSPI 200 vs KOSDAQ 150 split allows the predictor to differentiate mega-cap (efficient market hard) from mid-cap (potentially more signal)."
+    enforcement: universe_registration
+    source: docs/QUICKSTART.md + self-eval gap (KR coverage 7.5 → 9 path)
+    active_in: [v1.7.0]
+    enforce_at:
+      - configs/universes.yaml KR_KOSDAQ150_TOP30 entry
+      - configs/universes/kosdaq150_top30.txt (30 tickers)
+    note: "Refresh policy: quarterly (next 2026-08-31). Universe is starter — KOSDAQ150 full membership rotates more than KOSPI200; users running production should re-source from KRX official membership list."
+
+  INV-GS-126:
+    summary: "E_INSIDER_VELOCITY_KR skeleton (v1.7.0). First-derivative of E_INSIDER_KR cluster signal: rate of insider buy / sell acceleration week-over-week using log-velocity ratio. Calibration n=0 bootstrap (weight=0 in composite); hindcast wiring deferred to v1.7.1+."
+    enforcement: skeleton_expert
+    source: docs/V17_THESIS_IDEATION.md (1 of 3 new theses ideated; this is the v1.7.0 implementation)
+    active_in: [v1.7.0]
+    enforce_at:
+      - experts.e_insider_velocity_kr.EInsiderVelocityKrExpert.compute
+      - experts.e_insider_velocity_kr.score_velocity
+      - predictor.calibration.synthetic_calibration_for_mock (E_INSIDER_VELOCITY_KR entry)
+    note: "Score formula: net_velocity = log((buys_recent+1)/(buys_prior+1)) - log((sells_recent+1)/(sells_prior+1)); raw = clip(net_velocity * 2.0, ±2.5). Universe gate: KOSPI 200 + DART API key required (graceful skip otherwise). Other 2 ideated theses (E_OPTIONS_IV_SKEW + E_ANALYST_REVISION) documented for v1.8/v1.9."
+
+  INV-GS-127:
+    summary: "CI workflow restored (.github/workflows/ci.yml). Runs ruff check + ruff format check + pytest on every push to main and every PR. Cache: uv setup with enable-cache=true."
+    enforcement: ci_pipeline
+    source: Self-eval gap (Operational Maturity 6.5 → 9 path)
+    active_in: [v1.7.0]
+    enforce_at:
+      - .github/workflows/ci.yml
+    note: "Workflow was removed in 2025 due to OAuth scope issue during initial GitHub push. Restored from commit 2b96ca58 git history. If push fails again with 'workflow scope' error, use `gh auth refresh -s workflow` first."
+
+  INV-GS-123:
+    summary: "kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via point-in-time evaluators using commodity_client.get_cycle(as_of=...) and get_crack_spread(as_of=...). commodity_client now caches the FULL fetched series and slices on demand, with prefetch() helper for hindcast callers (single fetch per commodity per run)."
+    enforcement: hindcast_wiring
+    source: Cross-Stock Acid Test 2026-05-02 finding + Wave 1 (INV-GS-122) follow-up
+    active_in: [v1.6.2]
+    enforce_at:
+      - data.commodity_client.CommodityClient.get_cycle
+      - data.commodity_client.CommodityClient.get_crack_spread
+      - data.commodity_client.CommodityClient.prefetch
+      - data.commodity_client._bars_on_or_before
+      - data.commodity_client._closes_on_or_before
+      - data.commodity_client._cache_covers_window
+      - replay.phase_kr_eval.evaluate_fundamental_kr_cyclical
+      - replay.phase_kr_eval.evaluate_commodity_index_kr
+      - replay.phase_kr_hindcast.run_phase_kr_hindcast
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.fundamental_kr_cyclical
+      - replay.phase_kr_hindcast.PhaseKrHindcastResult.commodity_index_kr
+      - predictor.calibration._PHASE_SOURCES
+    note: "Wave 2 completes the v1.5/v1.6 expert calibration filling — all 6 KR-active theses (E_FUNDAMENTAL_KR, E_TIME_KR, E_FOREIGN_REVERSAL, E_PEAD_KR, E_FUNDAMENTAL_KR_CYCLICAL, E_COMMODITY_INDEX_KR) now produce real measured AUC/Sharpe via kr-hindcast. Point-in-time correctness for commodity series: cache stores full fetched window; get_cycle(key, as_of=d) slices to bars on/before `d` for percentile + momentum. Prefetch helper calls _fetch_series with earliest as_of so subsequent get_cycle(as_of=d) calls hit cache."
+
 # Sprint 0 in-scope subset (MVP):
 sprint_0_active:
   - INV-GS-001    # Cost gate
@@ -434,6 +658,44 @@ v1_4_active:
 v1_4_1_active:
   - INV-GS-113    # Statistical-significance disclosure (CI 1-sigma, p-value, all-noise flag)
   - INV-GS-114    # KR megacap universe-specific honesty footer
+
+# v1.5 active set (P6 KR Market Specialist absorption — sector cycle):
+v1_5_active:
+  - INV-GS-115    # commodity_client (yfinance commodity futures + cycle metrics)
+  - INV-GS-116    # sector_classifier_kr (KOSPI 200 cyclical/defensive/growth)
+  - INV-GS-117    # E_FUNDAMENTAL_KR_CYCLICAL (EV/EBITDA + sector cycle, contrarian)
+  - INV-GS-118    # E_COMMODITY_INDEX_KR (WTI + crack momentum, refining gate, continuation)
+
+# v1.6 active set (P5 Event-Driven panel absorption — calendar awareness):
+v1_6_active:
+  - INV-GS-119    # kr_calendar_client (DART earnings + BoK + auto OPEC)
+  - INV-GS-120    # next_triggers populated with concrete D-day countdowns
+  - INV-GS-121    # CI sigma calendar widening (D < 7 → ×1.5; D < 3 → ×2.0)
+
+# v1.6.1 active set (Option A wave 1 — E_PEAD_KR hindcast wiring):
+v1_6_1_active:
+  - INV-GS-122    # kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift
+
+# v1.6.2 active set (Option A wave 2 — cyclical + commodity hindcast wiring):
+v1_6_2_active:
+  - INV-GS-123    # kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR; commodity_client point-in-time
+
+# v1.7.0 active set (Self-eval uplift — operational + KR coverage + new thesis):
+v1_7_0_active:
+  - INV-GS-124    # SnapshotBroker SQLite parallel safety
+  - INV-GS-125    # KOSDAQ150 universe registration
+  - INV-GS-126    # E_INSIDER_VELOCITY_KR skeleton (1 of 3 ideated)
+  - INV-GS-127    # CI workflow restoration
+
+# v1.8.0 active set (Multi-stream thesis pipeline activation):
+v1_8_0_active:
+  - INV-GS-128    # v1.7.1 wired: E_INSIDER_VELOCITY_KR into kr-hindcast (7-thesis run)
+  - INV-GS-129    # v1.8 E_ANALYST_REVISION expert (yfinance recommendations, 60d window)
+
+# v1.9.0 active set (Alpha Discovery Sprint — scan + cross-universe):
+v1_9_0_active:
+  - INV-GS-130    # glostat scan command (universe-wide ranking + sig filter)
+  - INV-GS-131    # cross-universe empirical: thesis × universe interaction
 
 # Deprecated in v1.0 (kept for lineage; do not enforce):
 v1_0_deprecated:

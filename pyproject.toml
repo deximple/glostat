@@ -1,6 +1,6 @@
 [project]
 name = "glostat"
-version = "2.0.0"
+version = "2.0.2"
 description = "GLOSTAT — Evidence-based probability predictor for global equities. Brier-calibrated multi-thesis ensemble. Information tool, not investment advice."
 readme = "README.md"
 requires-python = ">=3.11"

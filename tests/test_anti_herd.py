@@ -14,7 +14,7 @@ from glostat.gating.anti_herd import (
     majority_direction_count,
 )
 
-# MOET A2 — anti-herd discount (INV-GS-005).
+# Anti-herd discount (INV-GS-005).
 
 _NOW: Final = datetime(2026, 4, 28, 14, 30, tzinfo=UTC)
 

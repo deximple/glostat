@@ -1,0 +1,58 @@
+# GLOSTAT — KOSDAQ 150 Top 30 (mid-cap subset, 2026-05-02)
+# Source: KRX KOSDAQ 150 index components, top 30 by free-float market cap.
+# WHY: KOSPI 200 covers large-cap; KOSDAQ 150 covers KR mid-cap growth /
+# bio / battery names. Universe sizing matches kospi200_top30.txt for
+# fast iteration. Refresh policy: quarterly (next refresh 2026-08-31).
+#
+# Sector mix (approximate):
+#   - Bio / pharma (5):   알테오젠, HLB, 셀트리온제약, 리가켐바이오, 휴젤
+#   - Battery / 2차전지 (4): 에코프로비엠, 에코프로, 엘앤에프, 천보
+#   - 반도체 장비 (4):    리노공업, 원익IPS, 솔브레인, HPSP
+#   - 게임 / 엔터 (4):    펄어비스, 카카오게임즈, 더블유게임즈, JYP Ent.
+#   - 미디어컨텐츠 (3):   에스엠, 와이지엔터테인먼트, 컴투스
+#   - 화장품 / 미용 (2):  클래시스, 디오
+#   - 소비재 (3):         CJ ENM, 케어젠, 동국제약
+#   - 산업재 (3):         이오테크닉스, 한미반도체, 위메이드
+#   - 기타 (2):           코오롱티슈진, 메디톡스
+#
+# One ticker per line. Lines starting with '#' or blank lines ignored.
+
+# Bio / pharma
+196170
+028300
+068760
+141080
+145020
+# Battery / 2차전지
+247540
+086520
+066970
+278280
+# 반도체 장비
+058470
+240810
+357780
+403870
+# 게임 / 엔터
+263750
+293490
+192080
+035900
+# 미디어 / 컨텐츠
+041510
+122870
+078340
+# 화장품 / 미용
+214150
+039840
+# 소비재
+035760
+214370
+086450
+# 산업재
+039030
+042700
+112040
+# 기타
+950160
+086900

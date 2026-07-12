@@ -114,11 +114,43 @@ class SnapshotBroker:
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / "shards").mkdir(exist_ok=True)
         (self.root / "verdicts").mkdir(exist_ok=True)
-        self._db = sqlite3.connect(self.root / "index.sqlite", isolation_level=None)
+        # WHY (v1.6.3): connect with timeout=30s so concurrent processes wait
+        # for the lock instead of immediately raising OperationalError. WAL +
+        # busy_timeout combo lets multiple readers and one writer coexist.
+        # Discovered via cross-stock acid test 2026-05-02: 5 parallel
+        # `glostat predict` runs from same cwd hit "database is locked".
+        self._db = sqlite3.connect(
+            self.root / "index.sqlite",
+            isolation_level=None,
+            timeout=30.0,
+        )
         self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA journal_mode = WAL")
+        self._db.execute("PRAGMA busy_timeout = 30000")  # 30s in ms
+        # WAL pragma requires brief exclusive access to flip the mode bits in
+        # the file header. Concurrent initializers race here; idempotent retry
+        # — once any process sets WAL, the file persists that state and
+        # subsequent reads of journal_mode return "wal" without contention.
+        self._enable_wal_with_retry()
         self._db.execute("PRAGMA synchronous = NORMAL")
         self._db.executescript(_DDL)
+
+    def _enable_wal_with_retry(self, *, attempts: int = 5) -> None:
+        import time  # noqa: PLC0415 — cold path
+        for attempt in range(attempts):
+            try:
+                # Read current mode first; if already WAL, no-op.
+                row = self._db.execute("PRAGMA journal_mode").fetchone()
+                current = (row[0] if row else "").lower()
+                if current == "wal":
+                    return
+                self._db.execute("PRAGMA journal_mode = WAL")
+                return
+            except sqlite3.OperationalError as exc:
+                if "lock" not in str(exc).lower():
+                    raise
+                if attempt == attempts - 1:
+                    raise
+                time.sleep(0.2 * (attempt + 1))
 
     # ── snapshot lifecycle ─────────────────────────────────────────────────
 
@@ -259,9 +291,23 @@ class SnapshotBroker:
         ).fetchone()
         if row is None:
             raise KeyError(f"verdict not found: {verdict_hash}")
-        table = pq.read_table(self.root / row["parquet_path"])
+        shard = self._safe_shard_path(row["parquet_path"])
+        table = pq.read_table(shard)
         canon = bytes(table.to_pylist()[0]["payload_canon"])
         return json.loads(canon.decode("utf-8"))
+
+    def _safe_shard_path(self, parquet_path: str) -> Path:
+        # SECURITY: parquet_path comes from SQLite; if the database is
+        # tampered with (or via symlink) a path like "../../etc/passwd"
+        # would resolve outside self.root. Reject any candidate that
+        # escapes the broker root.
+        candidate = (self.root / parquet_path).resolve()
+        root = self.root.resolve()
+        if not candidate.is_relative_to(root):
+            raise IntegrityError(
+                f"shard path escapes broker root: {parquet_path!r}"
+            )
+        return candidate
 
     # ── audit (Merkle root over leaves; cheap, deterministic) ──────────────
 
@@ -322,7 +368,7 @@ class SnapshotBroker:
             params_canon=row["params_canon"],
         )
         leaf = MerkleLeaf(leaf_hash=row["leaf_hash"], key=key, payload_sha="")
-        shard = self.root / row["parquet_path"]
+        shard = self._safe_shard_path(row["parquet_path"])
         return SnapshotRecord(
             leaf=_with_payload_sha(leaf, shard),
             parquet_path=shard,

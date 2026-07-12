@@ -272,6 +272,25 @@ _PHASE_SOURCES: Final[tuple[tuple[str, str, str, dict[str, Any]], ...]] = (
     ("E_FUNDAMENTAL_KR",  "hindcast/phase_kr/e_fundamental_kr_report.json",  "phase1b", {}),
     ("E_TIME_KR",         "hindcast/phase_kr/e_time_kr_report.json",         "phase1b", {}),
     ("E_FOREIGN_REVERSAL_KR", "hindcast/phase_kr/e_foreign_reversal_report.json", "phase1b", {}),
+    # v1.6 P5 — KR Post-Earnings Announcement Drift (point-in-time hindcast).
+    ("E_PEAD_KR",            "hindcast/phase_kr/e_pead_kr_report.json",          "phase1b", {}),
+    # v1.6.2 wave 2 — cyclical-sector + commodity-momentum hindcasts.
+    (
+        "E_FUNDAMENTAL_KR_CYCLICAL",
+        "hindcast/phase_kr/e_fundamental_kr_cyclical_report.json",
+        "phase1b", {},
+    ),
+    (
+        "E_COMMODITY_INDEX_KR",
+        "hindcast/phase_kr/e_commodity_index_kr_report.json",
+        "phase1b", {},
+    ),
+    # v1.7.1 — KR Insider Velocity hindcast (skeleton wave 3).
+    (
+        "E_INSIDER_VELOCITY_KR",
+        "hindcast/phase_kr/e_insider_velocity_kr_report.json",
+        "phase1b", {},
+    ),
 )
 
 # Phase 1D — markdown-only, parse columns from comparison table.
@@ -436,6 +455,44 @@ def synthetic_calibration_for_mock() -> CalibrationTable:
         # v1.4 N2 — KR intraday flow (Naver + KIS overlay). n=0 placeholder.
         "E_INTRADAY_FLOW_KR": ThesisCalibration(
             "E_INTRADAY_FLOW_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.5 P6 — KR cyclical-sector fundamentals (EV/EBITDA + commodity
+        # cycle). n=0 placeholder; weight=0 until a phase_kr_cyclical hindcast
+        # measures predictive AUC for cyclical universe.
+        "E_FUNDAMENTAL_KR_CYCLICAL": ThesisCalibration(
+            "E_FUNDAMENTAL_KR_CYCLICAL", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.5 P6 — KR refining commodity-momentum (WTI + crack spread).
+        # Refining-universe-only; n=0 placeholder.
+        "E_COMMODITY_INDEX_KR": ThesisCalibration(
+            "E_COMMODITY_INDEX_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.6 P5 — KR Post-Earnings Announcement Drift. n=0 bootstrap until
+        # a dedicated KR PEAD hindcast measures predictive AUC.
+        "E_PEAD_KR": ThesisCalibration(
+            "E_PEAD_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.7.0 — KR Insider Velocity (skeleton). DART-derived first-derivative
+        # of E_INSIDER_KR cluster signal. Requires GLOSTAT_DART_API_KEY for
+        # live activation. v1.7.1 added kr-hindcast wiring.
+        "E_INSIDER_VELOCITY_KR": ThesisCalibration(
+            "E_INSIDER_VELOCITY_KR", auc=0.50, sharpe=0.0, n_samples=0,
+            oos_degradation=0.0,
+            period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
+        ),
+        # v1.8.0 — Sell-side analyst revision drift. yfinance recommendations
+        # API; coverage best in US large/mid-cap (Russell 2000+). KR megacap
+        # has partial coverage. n=0 bootstrap; weight=0 until live hindcast.
+        "E_ANALYST_REVISION": ThesisCalibration(
+            "E_ANALYST_REVISION", auc=0.50, sharpe=0.0, n_samples=0,
             oos_degradation=0.0,
             period_start=_DEFAULT_PERIOD_START, period_end=_DEFAULT_PERIOD_END,
         ),

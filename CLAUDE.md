@@ -55,11 +55,98 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # GLOSTAT — Claude Code Project Context
 
-> **STATUS: ACTIVE v1.4.1 — X+W honesty patch (P8 Statistician + P10 Contrarian Veteran panel synthesis).**
-> Previous: v1.4 — N1+N2+N3+N4 (KR multi-source + experts + sizing + confidence);
-> v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR calibration (L1)
-> + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200) production support;
-> v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> **STATUS: ACTIVE v1.9.0 — Alpha Discovery Sprint (scan command + cross-universe empirical: thesis × universe interaction confirmed).**
+> Previous: v1.8.0 — Multi-stream thesis pipeline (insider velocity hindcast + analyst revision expert);
+> v1.7.0 — Self-eval-driven uplift (SQLite + CI + KOSDAQ150 + thesis ideation);
+> v1.6.2 — Option A wave 2 (cyclical + commodity hindcast wired);
+> v1.6.1 — Option A wave 1 (E_PEAD_KR hindcast wired);
+> v1.6 — P5 Event-Driven panel absorption (calendar awareness);
+> v1.5 — P6 sector-aware cyclicals; v1.4.1 — X+W honesty patch
+> (P8+P10 panel synthesis); v1.4 — N1+N2+N3+N4 (KR multi-source + experts +
+> sizing + confidence); v1.3 — M2 (ECOS BoK macro overlay); v1.2 — KR
+> calibration (L1) + DART API (L2); v1.1 (2026-04-29) — KR (KOSPI 200)
+> production support; v1.0 (2026-04-29) Prediction Tool reframe of v0.7.
+> v1.6.2 delta (Option A wave 2 — INV-GS-123):
+> - **commodity_client point-in-time refactor** — cache stores FULL fetched
+>   series; `get_cycle(key, as_of=...)` slices to bars on/before `as_of` for
+>   percentile + momentum. New `prefetch(keys, earliest_as_of)` helper for
+>   hindcast callers (single fetch per commodity per run). New helpers:
+>   `_bars_on_or_before`, `_closes_on_or_before`, `_cache_covers_window`.
+> - **evaluate_fundamental_kr_cyclical** in `phase_kr_eval.py` — point-in-time
+>   evaluator: cyclical-sector gate via `cycle_class_of()`, commodity cycle
+>   via `commodity_client.get_cycle(as_of=day)` or `get_crack_spread(as_of=day)`,
+>   EV/EBITDA z-score from yfinance Fundamentals.raw, score = `-W_VALUE *
+>   ev_ebitda_z + W_CYCLE * (-cycle_term * 2)`.
+> - **evaluate_commodity_index_kr** in `phase_kr_eval.py` — refining-only
+>   gate via `is_refining()`, WTI + crack-spread 30-day momentum.
+> - **phase_kr_hindcast** is now 6-thesis (was 4) — adds `fundamental_kr_cyclical`
+>   + `commodity_index_kr` to Result/Config + accumulators + report build.
+>   Single commodity prefetch at start of run.
+> - **`calibration._PHASE_SOURCES`** loads 2 new reports so the next predict
+>   after a kr-hindcast run lifts both new theses from n=0 bootstrap to real
+>   measured AUC/Sharpe.
+> - 2 new commodity_client point-in-time tests; full suite 1069 pass.
+> v1.6.1 delta (Option A wave 1 — INV-GS-122):
+> v1.6.1 delta (Option A wave 1 — INV-GS-122):
+> - **evaluate_pead_kr** in `phase_kr_eval.py` — point-in-time T+5..T+30
+>   OHLCV drift evaluator for E_PEAD_KR. For each (ticker, day) sample,
+>   computes most-recent expected KIFRS earnings filing (Q-end + 45d),
+>   measures drift, records signal with forward_return. Skip cleanly when
+>   days_since < 30 or OHLCV bars missing.
+> - **phase_kr_hindcast** wired: 4-thesis run (was 3) — adds pead_kr field
+>   to Result + horizon_pead to Config + accumulator + report build.
+> - **persist_phase_kr_reports** + **render_phase_kr_comparison** — 4-column
+>   comparison MD; 4 thesis JSONs.
+> - **calibration._PHASE_SOURCES** — adds E_PEAD_KR loader so the next
+>   `glostat predict` after running `glostat kr-hindcast` lifts E_PEAD_KR
+>   from n=0 bootstrap to real measured AUC/Sharpe.
+> - **17 new + updated tests**; full suite 1067 pass.
+> - Cyclical (E_FUNDAMENTAL_KR_CYCLICAL) + commodity-momentum
+>   (E_COMMODITY_INDEX_KR) hindcast deferred to wave 2 — needs historical
+>   commodity OHLCV with point-in-time semantics (commodity_client cache key
+>   needs (key, as_of) tuple, not just key).
+> v1.6 delta (P5 calendar absorption — INV-GS-119/120/121):
+> v1.6 delta (P5 calendar absorption — INV-GS-119/120/121):
+> - **kr_calendar_client.py** (~250 lines) — surfaces upcoming KR-relevant
+>   events: KR earnings (KIFRS Q-end + 45d heuristic), BoK 금통위
+>   (hardcoded 2026 schedule, 8 meetings), OPEC 장관급 (auto-scrape
+>   opec.org/40.htm with 30d cache + hardcoded 2026 fallback), OPEC JMMC
+>   (first-Wednesday monthly heuristic). Snapshot writes mandatory.
+> - **E_PEAD_KR** (~250 lines) — KR Post-Earnings Announcement Drift.
+>   Computes T+5 → T+30 OHLCV drift after most-recent expected filing
+>   date (Q-end + 45d). archetype=continuation. KOSPI 200 universe gate.
+>   Bootstrap n=0; weight=0 until KR PEAD hindcast measures real AUC.
+> - **composite CI calendar widening** — `predict()` accepts
+>   `days_to_imminent_event`; sigma scales ×1.5 (D-day < 7) or ×2.0
+>   (D-day < 3). Reflects option-implied vol expansion approaching
+>   scheduled events.
+> - **next_triggers populated from calendar** — concrete D-day countdowns
+>   ("BoK 금통위 2026-05-30 (D-28)") replace generic
+>   "horizon expires in ~30 days". KR ticker only; non-KR falls back to
+>   the original auto-derived list.
+> - 34 new tests; full suite green.
+> v1.5 delta (P6 sector cycle absorption — INV-GS-115/116/117/118):
+> - **commodity_client.py** (~200 lines) — wraps yfinance commodity futures
+>   (CL=F WTI, BZ=F Brent, RB=F gasoline, TIO=F iron ore, HG=F copper, BDRY)
+>   with cycle-percentile + 30d-momentum metrics. Computes crack spread
+>   (42·gas − WTI) for refining margin. 6h per-process cache; mandatory
+>   snapshot broker writes (INV-GS-022).
+> - **sector_classifier_kr.py** (~120 lines) — KOSPI 200 ticker → KrSector +
+>   CycleClass. Hard-coded ~40 ticker roster covering 정유 5, 철강 4, 화학 5,
+>   운송 4, 건설 5, 자동차 3 cyclical + defensive/growth slots.
+> - **E_FUNDAMENTAL_KR_CYCLICAL** (~280 lines) — gates to cyclical sectors
+>   only. Score formula: −0.6·EV/EBITDA_z + 0.4·(−cycle_term·2). Trough
+>   percentile + cheap valuation → LONG (mean-reversion archetype, contrarian).
+>   Directly addresses P6 panel finding: "정유주는 사이클 저점에서 PER 상승 =
+>   healthy, not bearish". E_FUNDAMENTAL_KR for SK이노베이션 (-1.78 SHORT)
+>   was structurally wrong; the cyclical version produces correct LONG when
+>   EV/EBITDA cheap + crack spread at trough.
+> - **E_COMMODITY_INDEX_KR** (~180 lines) — refining-only universe gate;
+>   30d momentum on WTI + crack spread, archetype=continuation (momentum-
+>   following). Refining tickers: 010950 S-Oil, 096770 SK이노베이션, 078930
+>   GS, 267250 HD현대.
+> - All 4 modules cleanly integrate with thesis_wrappers + cli_predictor +
+>   calibration backfill. 81 new tests; 1029 total pass.
 > v1.4.1 delta (X+W honesty patch — INV-GS-113 + INV-GS-114):
 > - **X1 — CI 1-sigma label clarity.** `confidence_interval_bps` is a 1-sigma
 >   (~68%) interval, not 95%. Output now reads `CI 1-sigma (68%): ...`.
@@ -79,7 +166,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 >   emit a Phase-KR-M1-derived disclosure: "AUC <= 0.51 on n=3,510 KOSPI 200
 >   samples — discrimination is at the edge of statistical noise".
 > - All changes are **presentation-layer only** — composite predictor logic,
->   Brier weights, confidence_v2, and DCA sizing are unchanged. New module
+>   Brier weights, and confidence_v2 are unchanged. New module
 >   `predictor.honesty` (~150 lines) carries the math; `cli_predict_print`
 >   wires it into the rendered output.
 > v1.4 delta:
@@ -179,7 +266,7 @@ advice.
 | INV-GS-028      | expected_pnl_bps = upside − current_loss                                                                                          | deferred (decision-engine artifact)                               |
 | INV-GS-029      | Verdict.disagreement_weight required; < 0.5 → UX warn                                                                             | superseded by Prediction CI                                       |
 | INV-GS-030      | E_NARRATIVE: 60d lookback + crystallization + contrarian                                                                          | deferred phase 2                                                  |
-| INV-GS-031      | BETASTRIKE inherited calibration weight ≤ 10%                                                                                     | deferred                                                          |
+| INV-GS-031      | Inherited calibration weight ≤ 10%                                                                                                | deferred                                                          |
 | INV-GS-032      | Edge multipliers must be validated; "never tested" → weight=0                                                                     | active (now Brier-derived)                                        |
 | INV-GS-033      | Sprint 4 gate FAIL → automatic shutdown (no override)                                                                             | **DEPRECATED v1.0** (project not bound to per-thesis Sharpe gate) |
 | INV-GS-034      | Cascade Graph isolated to research/; zero impact on production                                                                    | deferred phase 3                                                  |
@@ -201,6 +288,23 @@ advice.
 | **INV-GS-112**  | **confidence_v2 uses 5-component geometric mean; composite weight = brier_weight × confidence_v2_factor**         | **active v1.4**                                                   |
 | **INV-GS-113**  | **Output honesty: CI label = '1-sigma (~68%)'; CI-includes-0 flag; n=0 thesis 'no data' line; AUC z-score / p-value annotation; composite all-noise statistical disclaimer** | **active v1.4.1**                                                |
 | **INV-GS-114**  | **Universe-specific honesty: KR megacap (XKRX/XKOS) predictions surface a Phase KR M1 measured-AUC <= 0.51 disclosure footer**                                              | **active v1.4.1**                                                |
+| **INV-GS-115**  | **commodity_client wraps yfinance commodity futures with cycle-percentile + 30d-momentum metrics; mandatory snapshot writes**                                               | **active v1.5**                                                  |
+| **INV-GS-116**  | **sector_classifier_kr maps KOSPI 200 → KrSector + CycleClass; hard-coded ~40 cyclical/defensive/growth roster**                                                            | **active v1.5**                                                  |
+| **INV-GS-117**  | **E_FUNDAMENTAL_KR_CYCLICAL gates to cyclical sectors; EV/EBITDA z-score + commodity-cycle term where trough → LONG (contrarian)**                                          | **active v1.5**                                                  |
+| **INV-GS-118**  | **E_COMMODITY_INDEX_KR gates to refining tickers; 30d WTI + crack spread momentum (continuation)**                                                                          | **active v1.5**                                                  |
+| **INV-GS-119**  | **kr_calendar_client surfaces KR earnings (KIFRS heuristic) + BoK 금통위 (hardcoded 2026) + OPEC 장관급 (auto-scrape + fallback) + OPEC JMMC (first-Wed monthly)**            | **active v1.6**                                                  |
+| **INV-GS-120**  | **next_triggers populated with concrete D-day countdowns from calendar; KR ticker only, falls back to auto-derived list otherwise**                                          | **active v1.6**                                                  |
+| **INV-GS-121**  | **CI sigma calendar widening: D-day < 7 → ×1.5σ, D-day < 3 → ×2.0σ; reflects option-implied vol expansion near scheduled events**                                            | **active v1.6**                                                  |
+| **INV-GS-122**  | **kr-hindcast wires E_PEAD_KR via point-in-time T+5..T+30 OHLCV drift; calibration loader picks up the real report so n=0 bootstrap is replaced with measured AUC/Sharpe**     | **active v1.6.1**                                                |
+| **INV-GS-123**  | **kr-hindcast wires E_FUNDAMENTAL_KR_CYCLICAL + E_COMMODITY_INDEX_KR via commodity_client point-in-time slicing; full 6-thesis KR calibration in one hindcast run**             | **active v1.6.2**                                                |
+| **INV-GS-124**  | **SnapshotBroker parallel-process safety (busy_timeout=30s + WAL retry-on-lock); concurrent `glostat predict` runs no longer raise 'database is locked'**                       | **active v1.7.0**                                                |
+| **INV-GS-125**  | **KOSDAQ150 universe registered (KR_KOSDAQ150_TOP30, 30 mid-cap names: bio/battery/반도체-장비/게임)**                                                                            | **active v1.7.0**                                                |
+| **INV-GS-126**  | **E_INSIDER_VELOCITY_KR skeleton (first-derivative of E_INSIDER_KR cluster, log-velocity buy/sell ratio); calibration n=0 bootstrap; hindcast wiring deferred to v1.7.1**         | **active v1.7.0**                                                |
+| **INV-GS-127**  | **CI workflow restored (.github/workflows/ci.yml); ruff + format + pytest on every push/PR; uv setup with cache**                                                                | **active v1.7.0**                                                |
+| **INV-GS-128**  | **v1.7.1 wired: kr-hindcast adds E_INSIDER_VELOCITY_KR via point-in-time evaluator (7th thesis); calibration loader picks up the report when DART configured**                  | **active v1.8.0**                                                |
+| **INV-GS-129**  | **v1.8 E_ANALYST_REVISION expert (sell-side rec-revision drift via yfinance upgrades_downgrades, 60d window, archetype=continuation, US/global liquid universe)**                | **active v1.8.0**                                                |
+| **INV-GS-130**  | **glostat scan command — universe-wide ranking by composite edge + --significant filter (p<0.05) + --min-edge filter; productization layer**                                    | **active v1.9.0**                                                |
+| **INV-GS-131**  | **Cross-universe empirical: thesis × universe interaction. E_PEAD_KR (KR megacap 0.5405 vs mid-cap 0.4991), E_TIME_KR reverses (0.4692 vs 0.5138). US Sharpe ↑ down cap curve** | **active v1.9.0**                                                |
 
 Source: `docs/ssot/PLAN_v0.1.md` … `PLAN_v0.7.md` (history) + `PLAN_v1.0.md` (canonical) + `docs/KR_SUPPORT.md` (v1.1 KR addendum). Machine-readable: `configs/invariants.yaml`. Budget policy: `configs/budget.yaml`.
 

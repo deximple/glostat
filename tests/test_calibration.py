@@ -110,18 +110,19 @@ def test_calibration_table_names() -> None:
 # ── synthetic_calibration_for_mock — covers all 11 theses ────────────────
 
 
-def test_synthetic_calibration_has_thirteen_theses() -> None:
-    # v1.4 N2: 11 v1.0 thesis + E_FUNDAMENTAL_KR (v1.1) + E_TIME_KR (v1.2 L1) +
-    # E_INSIDER_KR (v1.2 L2) + E_MACRO_KR (v1.3 M2) + E_SHORT_SELLING_KR (v1.4 N2) +
-    # E_INTRADAY_FLOW_KR (v1.4 N2) = 17 total.
+def test_synthetic_calibration_has_twentytwo_theses() -> None:
+    # v1.8.0: 21 prior + E_ANALYST_REVISION = 22.
     table = synthetic_calibration_for_mock()
-    assert len(table.entries) == 17
+    assert len(table.entries) == 22
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
     assert "E_MACRO_KR" in table.entries
     assert "E_SHORT_SELLING_KR" in table.entries
     assert "E_INTRADAY_FLOW_KR" in table.entries
+    assert "E_FUNDAMENTAL_KR_CYCLICAL" in table.entries
+    assert "E_COMMODITY_INDEX_KR" in table.entries
+    assert "E_PEAD_KR" in table.entries
 
 
 def test_synthetic_includes_phase1b_theses() -> None:
@@ -158,19 +159,18 @@ def test_synthetic_pead_matches_archived_metrics() -> None:
 
 
 def test_load_calibration_empty_cache(tmp_path: Path) -> None:
-    # v1.4 N2: when no cached reports exist, load_calibration backfills from the
-    # synthetic baseline so the live predictor has at least the v0.6/v1.1 numbers
-    # to lean on. 17 entries = 11 v1.0 + E_FUNDAMENTAL_KR (v1.1) + E_TIME_KR
-    # (v1.2 L1) + E_INSIDER_KR (v1.2 L2) + E_MACRO_KR (v1.3 M2) +
-    # E_SHORT_SELLING_KR + E_INTRADAY_FLOW_KR (v1.4 N2).
+    # v1.8.0: 22 entries = 21 prior + E_ANALYST_REVISION (skeleton).
     table = load_calibration(cache_dir=tmp_path)
-    assert len(table.entries) == 17
+    assert len(table.entries) == 22
     assert "E_FUNDAMENTAL_KR" in table.entries
     assert "E_TIME_KR" in table.entries
     assert "E_INSIDER_KR" in table.entries
     assert "E_MACRO_KR" in table.entries
     assert "E_SHORT_SELLING_KR" in table.entries
     assert "E_INTRADAY_FLOW_KR" in table.entries
+    assert "E_FUNDAMENTAL_KR_CYCLICAL" in table.entries
+    assert "E_COMMODITY_INDEX_KR" in table.entries
+    assert "E_PEAD_KR" in table.entries
 
 
 def test_load_calibration_reads_phase1b_report(tmp_path: Path) -> None:
@@ -248,8 +248,7 @@ def test_calibration_table_writes_parquet_or_json(tmp_path: Path) -> None:
 def test_calibration_table_to_records_round_trip() -> None:
     table = synthetic_calibration_for_mock()
     records = table.to_records()
-    # v1.4 N2: 11 + E_FUNDAMENTAL_KR + E_TIME_KR + E_INSIDER_KR + E_MACRO_KR +
-    # E_SHORT_SELLING_KR + E_INTRADAY_FLOW_KR
-    assert len(records) == 17
+    # v1.8.0: 21 prior + E_ANALYST_REVISION = 22.
+    assert len(records) == 22
     assert all("brier_score" in r for r in records)
     assert all("auc" in r for r in records)

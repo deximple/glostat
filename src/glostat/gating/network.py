@@ -7,7 +7,7 @@ from typing import Final
 
 import yaml
 
-# Gating Network — MOET A1 (IC-softmax + entropy regularization + per-expert caps).
+# Gating Network — IC-softmax + entropy regularization + per-expert caps.
 # Sprint 1 PR #5: pure function, deterministic, no I/O after construction.
 
 _DEFAULT_CONFIG: Final[Path] = (
@@ -116,7 +116,7 @@ def _softmax(values: list[float], temperature: float) -> list[float]:
 
 
 def _entropy_regularize(weights: list[float], lam: float) -> list[float]:
-    # MOET A1 — pull weights toward uniform by `lam` × KL_to_uniform penalty.
+    # Pull weights toward uniform by `lam` × KL_to_uniform penalty.
     # Implementation: w_i ← (1 − lam) × w_i + lam × (1/n). This is convex
     # interpolation between softmax distribution and the uniform — it dominates
     # multiplicative KL penalties for small n while preserving monotonicity.
