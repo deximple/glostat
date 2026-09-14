@@ -31,8 +31,8 @@ class CcxtDataError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class FundingRateBar:
-    ts: datetime           # 8h interval timestamp UTC
-    funding_rate: float    # decimal e.g. 0.0001 = 0.01%
+    ts: datetime  # 8h interval timestamp UTC
+    funding_rate: float  # decimal e.g. 0.0001 = 0.01%
     mark_price: float | None = None
 
 
@@ -47,7 +47,7 @@ class FundingRateSeries:
 
 @dataclass(frozen=True, slots=True)
 class CcxtOhlcvBar:
-    ts: datetime           # bar open time UTC
+    ts: datetime  # bar open time UTC
     open: float
     high: float
     low: float
@@ -110,10 +110,12 @@ class CcxtBinanceClient:
     def _ex(self) -> Any:
         if self._exchange is None:
             ccxt = _import_ccxt()
-            self._exchange = ccxt.binanceusdm({
-                "enableRateLimit": True,
-                "options": {"defaultType": "swap"},
-            })
+            self._exchange = ccxt.binanceusdm(
+                {
+                    "enableRateLimit": True,
+                    "options": {"defaultType": "swap"},
+                }
+            )
         return self._exchange
 
     async def close(self) -> None:
@@ -145,11 +147,15 @@ class CcxtBinanceClient:
             rate = r.get("fundingRate")
             if ts_ms is None or rate is None:
                 continue
-            bars.append(FundingRateBar(
-                ts=datetime.fromtimestamp(ts_ms / 1000, tz=UTC),
-                funding_rate=float(rate),
-                mark_price=_safe_float(r.get("markPrice") or r.get("info", {}).get("markPrice")),
-            ))
+            bars.append(
+                FundingRateBar(
+                    ts=datetime.fromtimestamp(ts_ms / 1000, tz=UTC),
+                    funding_rate=float(rate),
+                    mark_price=_safe_float(
+                        r.get("markPrice") or r.get("info", {}).get("markPrice")
+                    ),
+                )
+            )
         return bars
 
     async def fetch_funding_history_paginated(
@@ -209,12 +215,17 @@ class CcxtBinanceClient:
         for row in raw or []:
             if len(row) < 6:
                 continue
-            ts_ms, o, h, l, c, v = row[:6]
-            bars.append(CcxtOhlcvBar(
-                ts=datetime.fromtimestamp(int(ts_ms) / 1000, tz=UTC),
-                open=float(o), high=float(h), low=float(l), close=float(c),
-                volume=float(v),
-            ))
+            ts_ms, o, h, low, c, v = row[:6]
+            bars.append(
+                CcxtOhlcvBar(
+                    ts=datetime.fromtimestamp(int(ts_ms) / 1000, tz=UTC),
+                    open=float(o),
+                    high=float(h),
+                    low=float(low),
+                    close=float(c),
+                    volume=float(v),
+                )
+            )
         return bars
 
     async def fetch_ohlcv_paginated(

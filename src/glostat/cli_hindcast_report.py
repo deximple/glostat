@@ -35,16 +35,14 @@ def render_metrics_table(report: HindcastReport) -> str:
         f"{report.overall_sharpe:>10.4f}"
     )
     lines.append(
-        f"  {'auc':<14} {report.is_auc:>10.4f} {report.oos_auc:>10.4f} "
-        f"{report.overall_auc:>10.4f}"
+        f"  {'auc':<14} {report.is_auc:>10.4f} {report.oos_auc:>10.4f} {report.overall_auc:>10.4f}"
     )
     lines.append(
         f"  {'maxdd':<14} {report.is_max_drawdown:>10.4f} "
         f"{report.oos_max_drawdown:>10.4f} {report.overall_maxdd:>10.4f}"
     )
     lines.append(
-        f"  {'oos_degradation':<14} {'-':>10} {report.degradation() * 100:>9.2f}% "
-        f"{'-':>10}"
+        f"  {'oos_degradation':<14} {'-':>10} {report.degradation() * 100:>9.2f}% {'-':>10}"
     )
     return "\n".join(lines)
 
@@ -52,9 +50,9 @@ def render_metrics_table(report: HindcastReport) -> str:
 def render_kill_decision(kill: KillDecisionResult) -> str:
     lines: list[str] = []
     badge = {
-        "CONTINUE":   "[CONTINUE]",
+        "CONTINUE": "[CONTINUE]",
         "SUSPEND_7D": "[SUSPEND_7D]",
-        "SHUTDOWN":   "[SHUTDOWN]",
+        "SHUTDOWN": "[SHUTDOWN]",
     }[kill.decision.value]
     lines.append(f"=== Kill Criteria Decision {badge} (profile={kill.profile}) ===")
     lines.append(f"  reason             : {kill.reason}")
@@ -102,29 +100,29 @@ def json_payload(
         "report": {
             "split": {
                 "in_sample_start": report.split.in_sample_start.isoformat(),
-                "in_sample_end":   report.split.in_sample_end.isoformat(),
+                "in_sample_end": report.split.in_sample_end.isoformat(),
                 "out_sample_start": report.split.out_sample_start.isoformat(),
-                "out_sample_end":   report.split.out_sample_end.isoformat(),
-                "in_sample_days":   report.split.in_sample_days,
-                "out_sample_days":  report.split.out_sample_days,
+                "out_sample_end": report.split.out_sample_end.isoformat(),
+                "in_sample_days": report.split.in_sample_days,
+                "out_sample_days": report.split.out_sample_days,
             },
-            "is_sharpe":          report.is_sharpe,
-            "oos_sharpe":         report.oos_sharpe,
-            "is_auc":             report.is_auc,
-            "oos_auc":            report.oos_auc,
-            "is_max_drawdown":    report.is_max_drawdown,
-            "oos_max_drawdown":   report.oos_max_drawdown,
-            "overall_sharpe":     report.overall_sharpe,
-            "overall_auc":        report.overall_auc,
-            "overall_maxdd":      report.overall_maxdd,
-            "cost_passed_pct":    report.cost_passed_pct,
-            "reproducibility":    report.reproducibility,
+            "is_sharpe": report.is_sharpe,
+            "oos_sharpe": report.oos_sharpe,
+            "is_auc": report.is_auc,
+            "oos_auc": report.oos_auc,
+            "is_max_drawdown": report.is_max_drawdown,
+            "oos_max_drawdown": report.oos_max_drawdown,
+            "overall_sharpe": report.overall_sharpe,
+            "overall_auc": report.overall_auc,
+            "overall_maxdd": report.overall_maxdd,
+            "cost_passed_pct": report.cost_passed_pct,
+            "reproducibility": report.reproducibility,
             "determinism_verified": report.determinism_verified,
-            "n_verdicts":         report.n_verdicts,
-            "days_evaluated":     report.days_evaluated,
-            "seed":               report.seed,
-            "oos_degradation":    report.degradation(),
-            "notes":              list(report.notes),
+            "n_verdicts": report.n_verdicts,
+            "days_evaluated": report.days_evaluated,
+            "seed": report.seed,
+            "oos_degradation": report.degradation(),
+            "notes": list(report.notes),
         },
         "gate": gate.to_dict(),
         "kill": kill.to_dict(),
@@ -148,9 +146,7 @@ def render_md(
         f"- window: `{report.split.in_sample_start.isoformat()}`"
         f" .. `{report.split.out_sample_end.isoformat()}`"
     )
-    lines.append(
-        f"- IS / OOS days: {report.split.in_sample_days} / {report.split.out_sample_days}"
-    )
+    lines.append(f"- IS / OOS days: {report.split.in_sample_days} / {report.split.out_sample_days}")
     lines.append(f"- verdicts: {report.n_verdicts}")
     lines.append("")
     lines.append("## Metrics")
@@ -161,20 +157,13 @@ def render_md(
         f"| sharpe | {report.is_sharpe:.4f} | {report.oos_sharpe:.4f} | "
         f"{report.overall_sharpe:.4f} |"
     )
-    lines.append(
-        f"| auc | {report.is_auc:.4f} | {report.oos_auc:.4f} | "
-        f"{report.overall_auc:.4f} |"
-    )
+    lines.append(f"| auc | {report.is_auc:.4f} | {report.oos_auc:.4f} | {report.overall_auc:.4f} |")
     lines.append(
         f"| maxdd | {report.is_max_drawdown:.4f} | {report.oos_max_drawdown:.4f} | "
         f"{report.overall_maxdd:.4f} |"
     )
-    lines.append(
-        f"| oos_degradation | – | {report.degradation() * 100:.2f}% | – |"
-    )
-    lines.append(
-        f"| cost_passed_pct | – | – | {report.cost_passed_pct * 100:.2f}% |"
-    )
+    lines.append(f"| oos_degradation | – | {report.degradation() * 100:.2f}% | – |")
+    lines.append(f"| cost_passed_pct | – | – | {report.cost_passed_pct * 100:.2f}% |")
     lines.append("")
     lines.append("## Sprint 4 Gate")
     lines.append("")
@@ -188,9 +177,7 @@ def render_md(
         flag = "ok" if c.passed else "FAIL"
         if c.borderline:
             flag += " (borderline)"
-        lines.append(
-            f"| {c.name} | {c.actual:.4f} | {c.operator} | {c.threshold:.4f} | {flag} |"
-        )
+        lines.append(f"| {c.name} | {c.actual:.4f} | {c.operator} | {c.threshold:.4f} | {flag} |")
     lines.append("")
     lines.append("## Kill Decision")
     lines.append("")

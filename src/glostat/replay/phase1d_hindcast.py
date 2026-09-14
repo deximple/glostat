@@ -48,8 +48,8 @@ class HindcastTrade:
     universe_id: str
     bar_idx: int
     timestamp: datetime
-    action: str            # BUY / SELL / HOLD
-    direction: str         # LONG / SHORT / NEUTRAL
+    action: str  # BUY / SELL / HOLD
+    direction: str  # LONG / SHORT / NEUTRAL
     edge_bps: float
     cost_passed: bool
     realized_return: float
@@ -63,9 +63,9 @@ class ThesisHindcastReport:
     n_bars_evaluated: int
     n_skip_insufficient: int
     n_neutral: int
-    n_actionable: int          # BUY+SELL pre-cost-gate
+    n_actionable: int  # BUY+SELL pre-cost-gate
     n_cost_passed: int
-    n_traded: int              # post-cost-gate BUY+SELL
+    n_traded: int  # post-cost-gate BUY+SELL
     is_sharpe: float
     oos_sharpe: float
     overall_sharpe: float
@@ -100,8 +100,15 @@ class _Counters:
 
 
 def _accumulate(
-    counters: _Counters, trades: list[HindcastTrade], *,
-    score, verdict, actual: float | None, universe_id: str, ts: datetime, idx: int,
+    counters: _Counters,
+    trades: list[HindcastTrade],
+    *,
+    score,
+    verdict,
+    actual: float | None,
+    universe_id: str,
+    ts: datetime,
+    idx: int,
 ) -> None:
     counters.pattern_counts[score.pattern] = counters.pattern_counts.get(score.pattern, 0) + 1
     if score.direction == "NEUTRAL":
@@ -116,15 +123,23 @@ def _accumulate(
     counters.pattern_total[score.pattern] = counters.pattern_total.get(score.pattern, 0) + 1
     if actual > 0:
         counters.pattern_pos[score.pattern] = counters.pattern_pos.get(score.pattern, 0) + 1
-    trades.append(HindcastTrade(
-        universe_id=universe_id, bar_idx=idx, timestamp=ts,
-        action=verdict.action, direction=score.direction,
-        edge_bps=verdict.edge_bps, cost_passed=True,
-        realized_return=actual, pattern=score.pattern,
-    ))
+    trades.append(
+        HindcastTrade(
+            universe_id=universe_id,
+            bar_idx=idx,
+            timestamp=ts,
+            action=verdict.action,
+            direction=score.direction,
+            edge_bps=verdict.edge_bps,
+            cost_passed=True,
+            realized_return=actual,
+            pattern=score.pattern,
+        )
+    )
 
 
 # ---------- E7 Funding Carry hindcast --------------------------------------
+
 
 async def hindcast_funding_carry(
     *,
@@ -143,14 +158,19 @@ async def hindcast_funding_carry(
         for symbol in symbols:
             log.info("phase1d.fetch_funding", symbol=symbol)
             funding_bars = await client.fetch_funding_history_paginated(
-                symbol, since_ms=since_ms, until_ms=until_ms, page_limit=1000)
+                symbol, since_ms=since_ms, until_ms=until_ms, page_limit=1000
+            )
             log.info("phase1d.fetch_ohlcv", symbol=symbol, n_funding=len(funding_bars))
             ohlcv_bars = await client.fetch_ohlcv_paginated(
-                symbol, timeframe="8h", since_ms=since_ms, until_ms=until_ms,
-                page_limit=1000)
+                symbol, timeframe="8h", since_ms=since_ms, until_ms=until_ms, page_limit=1000
+            )
             if not funding_bars or not ohlcv_bars:
-                log.warning("phase1d.empty_data", symbol=symbol,
-                            n_funding=len(funding_bars), n_ohlcv=len(ohlcv_bars))
+                log.warning(
+                    "phase1d.empty_data",
+                    symbol=symbol,
+                    n_funding=len(funding_bars),
+                    n_ohlcv=len(ohlcv_bars),
+                )
                 continue
             rates, closes, timestamps = _align_funding_ohlcv(funding_bars, ohlcv_bars)
             if len(rates) < 100:
@@ -164,21 +184,39 @@ async def hindcast_funding_carry(
                     continue
                 verdict = build_carry_verdict(symbol, idx, score)
                 actual = carry_realized_return(closes, entry_idx=idx, horizon_bars=3)
-                _accumulate(counters, trades, score=score, verdict=verdict,
-                            actual=actual, universe_id=symbol, ts=timestamps[idx], idx=idx)
+                _accumulate(
+                    counters,
+                    trades,
+                    score=score,
+                    verdict=verdict,
+                    actual=actual,
+                    universe_id=symbol,
+                    ts=timestamps[idx],
+                    idx=idx,
+                )
 
     if not trades:
-        return _empty_report("E7_FUNDING_CARRY", symbols, counters,
-                             notes=("no actionable post-cost-gate trades collected",))
+        return _empty_report(
+            "E7_FUNDING_CARRY",
+            symbols,
+            counters,
+            notes=("no actionable post-cost-gate trades collected",),
+        )
     trades.sort(key=lambda t: t.timestamp)
     return _build_report(
-        thesis="E7_FUNDING_CARRY", universe=symbols, trades=trades,
-        counters=counters, split_ratio=split_ratio,
+        thesis="E7_FUNDING_CARRY",
+        universe=symbols,
+        trades=trades,
+        counters=counters,
+        split_ratio=split_ratio,
         all_in_bps=ALL_IN_BPS_BINANCE_PERP,
-        horizon_per_year=int(365 * 3 / 1))
+        horizon_per_year=int(365 * 3 / 1),
+    )
 
 
-def _align_funding_ohlcv(funding_bars, ohlcv_bars) -> tuple[list[float], list[float], list[datetime]]:
+def _align_funding_ohlcv(
+    funding_bars, ohlcv_bars
+) -> tuple[list[float], list[float], list[datetime]]:
     # Snap each funding event to the latest OHLCV close at-or-before it.
     ohlcv_by_ts: dict[int, float] = {int(b.ts.timestamp()): b.close for b in ohlcv_bars}
     ohlcv_ts_sorted = sorted(ohlcv_by_ts)
@@ -198,7 +236,7 @@ def _align_funding_ohlcv(funding_bars, ohlcv_bars) -> tuple[list[float], list[fl
 
 def _last_le(sorted_seq: list[int], target: int) -> int | None:
     # binary-search the largest element ≤ target
-    import bisect  # noqa: PLC0415
+    import bisect
 
     pos = bisect.bisect_right(sorted_seq, target)
     if pos == 0:
@@ -207,6 +245,7 @@ def _last_le(sorted_seq: list[int], target: int) -> int | None:
 
 
 # ---------- E9 Foreign Reversal hindcast -----------------------------------
+
 
 async def hindcast_foreign_reversal(
     *,
@@ -223,8 +262,9 @@ async def hindcast_foreign_reversal(
     counters = _Counters()
 
     for code in codes:
-        bars = await _load_or_fetch_kr(client, code, start=start, end=end,
-                                       max_pages=max_pages, use_cache=use_cache)
+        bars = await _load_or_fetch_kr(
+            client, code, start=start, end=end, max_pages=max_pages, use_cache=use_cache
+        )
         if bars is None:
             continue
         counters.n_bars += len(bars)
@@ -235,25 +275,50 @@ async def hindcast_foreign_reversal(
                 continue
             verdict = build_kr_verdict(score)
             actual = kr_realized_return(bars, entry_idx=idx, horizon_days=7)
-            ts = datetime(bars[idx].bar_date.year, bars[idx].bar_date.month,
-                          bars[idx].bar_date.day, tzinfo=UTC)
-            _accumulate(counters, trades, score=score, verdict=verdict,
-                        actual=actual, universe_id=code, ts=ts, idx=idx)
+            ts = datetime(
+                bars[idx].bar_date.year,
+                bars[idx].bar_date.month,
+                bars[idx].bar_date.day,
+                tzinfo=UTC,
+            )
+            _accumulate(
+                counters,
+                trades,
+                score=score,
+                verdict=verdict,
+                actual=actual,
+                universe_id=code,
+                ts=ts,
+                idx=idx,
+            )
 
     if not trades:
-        return _empty_report("E9_FOREIGN_REVERSAL", codes, counters,
-                             notes=("no actionable post-cost-gate trades collected",))
+        return _empty_report(
+            "E9_FOREIGN_REVERSAL",
+            codes,
+            counters,
+            notes=("no actionable post-cost-gate trades collected",),
+        )
     trades.sort(key=lambda t: t.timestamp)
     return _build_report(
-        thesis="E9_FOREIGN_REVERSAL", universe=codes, trades=trades,
-        counters=counters, split_ratio=split_ratio,
+        thesis="E9_FOREIGN_REVERSAL",
+        universe=codes,
+        trades=trades,
+        counters=counters,
+        split_ratio=split_ratio,
         all_in_bps=ALL_IN_BPS_KR,
-        horizon_per_year=int(252 / 7))
+        horizon_per_year=int(252 / 7),
+    )
 
 
 async def _load_or_fetch_kr(
-    client: NaverKrClient, code: str, *, start: date, end: date,
-    max_pages: int, use_cache: bool,
+    client: NaverKrClient,
+    code: str,
+    *,
+    start: date,
+    end: date,
+    max_pages: int,
+    use_cache: bool,
 ) -> list[KrFlowBar] | None:
     bars: list[KrFlowBar] = []
     if use_cache:
@@ -275,19 +340,28 @@ async def _load_or_fetch_kr(
 
 # ---------- Shared report builder ------------------------------------------
 
+
 def _build_report(
-    *, thesis: str, universe: tuple[str, ...], trades: list[HindcastTrade],
-    counters: _Counters, split_ratio: float, all_in_bps: float, horizon_per_year: int,
+    *,
+    thesis: str,
+    universe: tuple[str, ...],
+    trades: list[HindcastTrade],
+    counters: _Counters,
+    split_ratio: float,
+    all_in_bps: float,
+    horizon_per_year: int,
 ) -> ThesisHindcastReport:
     n = len(trades)
     split_idx = int(n * split_ratio)
     is_t, oos_t = trades[:split_idx], trades[split_idx:]
     pattern_hr = {
         p: counters.pattern_pos.get(p, 0) / counters.pattern_total[p]
-        for p in counters.pattern_total if counters.pattern_total[p] > 0
+        for p in counters.pattern_total
+        if counters.pattern_total[p] > 0
     }
     return ThesisHindcastReport(
-        thesis=thesis, universe=universe,
+        thesis=thesis,
+        universe=universe,
         n_bars_evaluated=counters.n_bars,
         n_skip_insufficient=counters.n_skip,
         n_neutral=counters.n_neutral,
@@ -311,16 +385,31 @@ def _build_report(
 
 
 def _empty_report(
-    thesis: str, universe: tuple[str, ...], counters: _Counters,
-    *, notes: tuple[str, ...] = (),
+    thesis: str,
+    universe: tuple[str, ...],
+    counters: _Counters,
+    *,
+    notes: tuple[str, ...] = (),
 ) -> ThesisHindcastReport:
     return ThesisHindcastReport(
-        thesis=thesis, universe=universe, n_bars_evaluated=counters.n_bars,
-        n_skip_insufficient=counters.n_skip, n_neutral=counters.n_neutral,
-        n_actionable=counters.n_actionable, n_cost_passed=counters.n_cost_passed,
-        n_traded=0, is_sharpe=0.0, oos_sharpe=0.0, overall_sharpe=0.0,
-        is_auc=0.5, oos_auc=0.5, overall_auc=0.5, overall_maxdd=0.0,
-        cost_passed_pct=0.0, avg_actionable_return=0.0, hit_rate_actionable=0.0,
+        thesis=thesis,
+        universe=universe,
+        n_bars_evaluated=counters.n_bars,
+        n_skip_insufficient=counters.n_skip,
+        n_neutral=counters.n_neutral,
+        n_actionable=counters.n_actionable,
+        n_cost_passed=counters.n_cost_passed,
+        n_traded=0,
+        is_sharpe=0.0,
+        oos_sharpe=0.0,
+        overall_sharpe=0.0,
+        is_auc=0.5,
+        oos_auc=0.5,
+        overall_auc=0.5,
+        overall_maxdd=0.0,
+        cost_passed_pct=0.0,
+        avg_actionable_return=0.0,
+        hit_rate_actionable=0.0,
         notes=notes,
     )
 

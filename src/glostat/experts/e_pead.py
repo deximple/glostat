@@ -29,8 +29,8 @@ from glostat.phase1b.types import PhaseSignal
 
 log: Final = structlog.get_logger(__name__)
 
-_SURPRISE_THRESHOLD: Final[float] = 0.025      # 2.5% surprise minimum
-_SCORE_SCALE: Final[float] = 30.0              # 5% surprise → score 1.5
+_SURPRISE_THRESHOLD: Final[float] = 0.025  # 2.5% surprise minimum
+_SCORE_SCALE: Final[float] = 30.0  # 5% surprise → score 1.5
 _SCORE_CLIP: Final[float] = 3.0
 _CONFIDENCE_BASE: Final[float] = 0.6
 

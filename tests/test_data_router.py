@@ -29,18 +29,14 @@ def router() -> DataRouter:
 # ── Phase resolution ───────────────────────────────────────────────────────
 
 
-def test_active_phase_defaults_to_mvp(
-    router: DataRouter, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_active_phase_defaults_to_mvp(router: DataRouter, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GLOSTAT_PHASE", raising=False)
     # Point at non-existent yaml so file fallback also yields "mvp".
     router.budget_yaml = router.budget_yaml.with_name("does_not_exist.yaml")
     assert router.active_phase() == "mvp"
 
 
-def test_active_phase_env_override(
-    router: DataRouter, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_active_phase_env_override(router: DataRouter, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GLOSTAT_PHASE", "phase_2")
     assert router.active_phase() == "phase_2"
 
@@ -137,9 +133,7 @@ def test_route_phase_2_prefers_free_when_available(
 # ── INV-GS-039: unknown route → ConfigError ────────────────────────────────
 
 
-def test_route_unknown_pair_raises(
-    router: DataRouter, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_route_unknown_pair_raises(router: DataRouter, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GLOSTAT_PHASE", "mvp")
     with pytest.raises(ConfigError, match="INV-GS-039"):
         router.route("E_FUNDAMENTAL", "moon_phase")
@@ -167,9 +161,7 @@ def test_route_phase_3_cascade_filings_with_consent(
     assert method == "bigdata_search"
 
 
-def test_revoke_consent_blocks_again(
-    router: DataRouter, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_revoke_consent_blocks_again(router: DataRouter, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GLOSTAT_PHASE", "phase_2")
     router.grant_consent("phase_2")
     router.route("E_NARRATIVE", "search")  # OK

@@ -103,7 +103,9 @@ class EInsiderVelocityKrExpert:
 
     @classmethod
     def from_env(
-        cls, *, kospi200: frozenset[str] | None = None,
+        cls,
+        *,
+        kospi200: frozenset[str] | None = None,
     ) -> EInsiderVelocityKrExpert | None:
         if not is_dart_configured():
             return None
@@ -116,13 +118,10 @@ class EInsiderVelocityKrExpert:
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         code = normalize_kr_ticker(ticker)
         if self._kospi200 and code not in self._kospi200:
-            raise ExpertSkipError(
-                f"E_INSIDER_VELOCITY_KR: {code} not in KOSPI 200 universe"
-            )
+            raise ExpertSkipError(f"E_INSIDER_VELOCITY_KR: {code} not in KOSPI 200 universe")
         if self._dart is None:
             raise ExpertSkipError(
-                "E_INSIDER_VELOCITY_KR: DART API not configured "
-                "(set GLOSTAT_DART_API_KEY)"
+                "E_INSIDER_VELOCITY_KR: DART API not configured (set GLOSTAT_DART_API_KEY)"
             )
         sources: list[_Source] = []
         try:
@@ -133,7 +132,8 @@ class EInsiderVelocityKrExpert:
             ) from exc
         try:
             txns = await self._dart.get_executive_transactions(
-                corp_code, days_back=_LOOKBACK_DAYS,
+                corp_code,
+                days_back=_LOOKBACK_DAYS,
             )
         except DartApiError as exc:
             raise ExpertSkipError(
@@ -141,15 +141,20 @@ class EInsiderVelocityKrExpert:
             ) from exc
         snap_id = self._dart.last_snapshot_id
         if snap_id is not None:
-            sources.append(_Source(
-                name="dart.elestock.velocity", snapshot_id=snap_id,
-            ))
+            sources.append(
+                _Source(
+                    name="dart.elestock.velocity",
+                    snapshot_id=snap_id,
+                )
+            )
         score = score_velocity(txns, today=ts.date())
         return _build_signal(code=code, ts=ts, score=score, sources=sources)
 
 
 def score_velocity(
-    txns: Sequence[DartExecutiveTransaction], *, today: date,
+    txns: Sequence[DartExecutiveTransaction],
+    *,
+    today: date,
 ) -> InsiderVelocityScore:
     # Bucket transactions into recent_7d and prior_7d windows.
     recent_cutoff = today - timedelta(days=_RECENT_WINDOW)
@@ -182,14 +187,19 @@ def score_velocity(
     # Net velocity in log space — symmetric around zero.
     net_velocity = math.log(buy_velocity) - math.log(sell_velocity)
     raw = max(
-        -_SCORE_CLIP, min(_SCORE_CLIP, net_velocity * _VELOCITY_GAIN),
+        -_SCORE_CLIP,
+        min(_SCORE_CLIP, net_velocity * _VELOCITY_GAIN),
     )
     return InsiderVelocityScore(
-        buys_recent=buys_recent, buys_prior=buys_prior,
-        sells_recent=sells_recent, sells_prior=sells_prior,
-        buy_velocity=buy_velocity, sell_velocity=sell_velocity,
+        buys_recent=buys_recent,
+        buys_prior=buys_prior,
+        sells_recent=sells_recent,
+        sells_prior=sells_prior,
+        buy_velocity=buy_velocity,
+        sell_velocity=sell_velocity,
         net_velocity=net_velocity,
-        raw_score=raw, net_score=raw,
+        raw_score=raw,
+        net_score=raw,
     )
 
 
@@ -240,21 +250,25 @@ def _build_signal(
         f"({score.sells_recent:.0f}/{score.sells_prior:.0f}+1), "
         f"net_log={score.net_velocity:+.3f}, raw={score.raw_score:+.2f}"
     )
-    metadata = tuple(sorted({
-        "buys_recent": f"{score.buys_recent:.4f}",
-        "buys_prior": f"{score.buys_prior:.4f}",
-        "sells_recent": f"{score.sells_recent:.4f}",
-        "sells_prior": f"{score.sells_prior:.4f}",
-        "buy_velocity": f"{score.buy_velocity:.4f}",
-        "sell_velocity": f"{score.sell_velocity:.4f}",
-        "net_velocity": f"{score.net_velocity:.4f}",
-        "raw_score": f"{score.raw_score:.4f}",
-        "net_score": f"{score.net_score:.4f}",
-        "code": code,
-    }.items()))
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_insider_velocity_kr.synthetic",)
+    metadata = tuple(
+        sorted(
+            {
+                "buys_recent": f"{score.buys_recent:.4f}",
+                "buys_prior": f"{score.buys_prior:.4f}",
+                "sells_recent": f"{score.sells_recent:.4f}",
+                "sells_prior": f"{score.sells_prior:.4f}",
+                "buy_velocity": f"{score.buy_velocity:.4f}",
+                "sell_velocity": f"{score.sell_velocity:.4f}",
+                "net_velocity": f"{score.net_velocity:.4f}",
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "code": code,
+            }.items()
+        )
+    )
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_insider_velocity_kr.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_INSIDER_VELOCITY_KR",  # type: ignore[arg-type]
         ticker=code,

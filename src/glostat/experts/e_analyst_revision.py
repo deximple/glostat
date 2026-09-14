@@ -89,27 +89,32 @@ class EAnalystRevisionExpert:
             history = await getattr(client, method)(ticker)
         except Exception as exc:
             raise ExpertSkipError(
-                f"E_ANALYST_REVISION: yfinance recommendations failed for "
-                f"{ticker}: {exc}"
+                f"E_ANALYST_REVISION: yfinance recommendations failed for {ticker}: {exc}"
             ) from exc
         events = tuple(history.events)
         if not events:
-            raise ExpertSkipError(
-                f"E_ANALYST_REVISION: no analyst recommendations for {ticker}"
-            )
+            raise ExpertSkipError(f"E_ANALYST_REVISION: no analyst recommendations for {ticker}")
         snap_id = getattr(client, "last_snapshot_id", None)
         if snap_id is not None:
-            sources.append(_Source(
-                name="yfinance.recommendations", snapshot_id=snap_id,
-            ))
+            sources.append(
+                _Source(
+                    name="yfinance.recommendations",
+                    snapshot_id=snap_id,
+                )
+            )
         score = score_revisions(events, today=ts)
         return _build_signal(
-            ticker=ticker.upper(), ts=ts, score=score, sources=sources,
+            ticker=ticker.upper(),
+            ts=ts,
+            score=score,
+            sources=sources,
         )
 
 
 def score_revisions(
-    events: Sequence[AnalystRecommendationEvent], *, today: datetime,
+    events: Sequence[AnalystRecommendationEvent],
+    *,
+    today: datetime,
 ) -> AnalystRevisionScore:
     cutoff = today - timedelta(days=_LOOKBACK_DAYS)
     upgrades = 0
@@ -131,8 +136,12 @@ def score_revisions(
         min(_SCORE_CLIP, net * _GAIN_PER_REVISION),
     )
     return AnalystRevisionScore(
-        upgrades=upgrades, downgrades=downgrades, other_actions=other,
-        net_revisions=net, raw_score=raw, net_score=raw,
+        upgrades=upgrades,
+        downgrades=downgrades,
+        other_actions=other,
+        net_revisions=net,
+        raw_score=raw,
+        net_score=raw,
     )
 
 
@@ -148,25 +157,29 @@ def _build_signal(
         f"other={score.other_actions} net={score.net_revisions} "
         f"(window={_LOOKBACK_DAYS}d)"
     )
-    metadata = tuple(sorted({
-        "upgrades": str(score.upgrades),
-        "downgrades": str(score.downgrades),
-        "other_actions": str(score.other_actions),
-        "net_revisions": str(score.net_revisions),
-        "raw_score": f"{score.raw_score:.4f}",
-        "net_score": f"{score.net_score:.4f}",
-        "lookback_days": str(_LOOKBACK_DAYS),
-    }.items()))
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_analyst_revision.synthetic",)
+    metadata = tuple(
+        sorted(
+            {
+                "upgrades": str(score.upgrades),
+                "downgrades": str(score.downgrades),
+                "other_actions": str(score.other_actions),
+                "net_revisions": str(score.net_revisions),
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "lookback_days": str(_LOOKBACK_DAYS),
+            }.items()
+        )
+    )
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_analyst_revision.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_ANALYST_REVISION",  # type: ignore[arg-type]
         ticker=ticker,
         direction=score.direction,  # type: ignore[arg-type]
         net_score=score.net_score,
         confidence=score.confidence,
-        archetype="continuation",   # revisions cluster + drift in same direction
+        archetype="continuation",  # revisions cluster + drift in same direction
         basis=basis,
         sources=source_strings,
         expires_at=ts + timedelta(days=_HORIZON_DAYS),

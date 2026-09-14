@@ -118,12 +118,12 @@ class HindcastReport:
 
     def gate_checks(self, criteria: PassCriteria) -> dict[str, bool]:
         return {
-            "is_sharpe":         self.is_sharpe   >= criteria.sharpe_min,
-            "oos_sharpe":        self.oos_sharpe  >= criteria.sharpe_min,
-            "oos_degradation":   self.degradation() <= criteria.oos_degradation_max,
-            "determinism":       (not criteria.determinism_required) or self.determinism_verified,
-            "oos_auc":           self.oos_auc >= criteria.auc_min,
-            "cost_passed_band":  (
+            "is_sharpe": self.is_sharpe >= criteria.sharpe_min,
+            "oos_sharpe": self.oos_sharpe >= criteria.sharpe_min,
+            "oos_degradation": self.degradation() <= criteria.oos_degradation_max,
+            "determinism": (not criteria.determinism_required) or self.determinism_verified,
+            "oos_auc": self.oos_auc >= criteria.auc_min,
+            "cost_passed_band": (
                 criteria.cost_passed_pct_min <= self.cost_passed_pct <= criteria.cost_passed_pct_max
             ),
         }
@@ -162,9 +162,7 @@ class Hindcast:
     ) -> HindcastReport:
         if self.verdict_for_day is None or self.actual_return_for is None:
             return self._stub_report(start_date, end_date, split, seed_namespace)
-        return asyncio.run(
-            self._run_async(start_date, end_date, split, seed_namespace)
-        )
+        return asyncio.run(self._run_async(start_date, end_date, split, seed_namespace))
 
     async def _run_async(
         self,
@@ -182,7 +180,10 @@ class Hindcast:
         collected = await self._collect_rows(days, sem)
         rows: tuple[HindcastVerdictRow, ...] = tuple(collected)
         log.info(
-            "hindcast.collected", ns=ns, n_rows=len(rows), days=len(days),
+            "hindcast.collected",
+            ns=ns,
+            n_rows=len(rows),
+            days=len(days),
             tickers=len(self.universe),
         )
 
@@ -193,12 +194,8 @@ class Hindcast:
         oos_metrics = self._compute_metrics(oos_rows)
         all_metrics = self._compute_metrics(rows)
 
-        cost_passed_pct = (
-            sum(1 for r in rows if r.cost_passed) / len(rows) if rows else 0.0
-        )
-        repro = (
-            sum(1 for r in rows if r.snapshot_replay_match) / len(rows) if rows else 0.0
-        )
+        cost_passed_pct = sum(1 for r in rows if r.cost_passed) / len(rows) if rows else 0.0
+        repro = sum(1 for r in rows if r.snapshot_replay_match) / len(rows) if rows else 0.0
         determinism = repro >= 0.99
 
         return HindcastReport(
@@ -239,7 +236,9 @@ class Hindcast:
                 except Exception as exc:
                     log.warning(
                         "hindcast.verdict_failed",
-                        day=day.isoformat(), ticker=ticker, err=str(exc),
+                        day=day.isoformat(),
+                        ticker=ticker,
+                        err=str(exc),
                     )
                     return None
                 if verdict is None:
@@ -249,7 +248,9 @@ class Hindcast:
                 except Exception as exc:
                     log.warning(
                         "hindcast.actual_return_failed",
-                        day=day.isoformat(), ticker=ticker, err=str(exc),
+                        day=day.isoformat(),
+                        ticker=ticker,
+                        err=str(exc),
                     )
                     actual = 0.0
                 predicted = verdict.edge_bps / 1e4  # bps → fraction
@@ -273,9 +274,7 @@ class Hindcast:
         results = await asyncio.gather(*tasks)
         return [r for r in results if r is not None]
 
-    def _compute_metrics(
-        self, rows: tuple[HindcastVerdictRow, ...]
-    ) -> _MetricsBundle:
+    def _compute_metrics(self, rows: tuple[HindcastVerdictRow, ...]) -> _MetricsBundle:
         if not rows:
             return _MetricsBundle(sharpe=0.0, auc=0.5, maxdd=0.0)
         # Per-trade Sharpe (period = horizon days). Each BUY/SELL verdict contributes

@@ -116,16 +116,20 @@ class TestParseOpecMinisterDates:
 class TestCalendarEvent:
     def test_imminent_within_7_days(self) -> None:
         e = CalendarEvent(
-            kind=EventKind.BOK_RATE, date_utc=date(2026, 5, 10),
-            label="BoK", days_to=5,
+            kind=EventKind.BOK_RATE,
+            date_utc=date(2026, 5, 10),
+            label="BoK",
+            days_to=5,
         )
         assert e.is_imminent
         assert not e.is_very_imminent
 
     def test_very_imminent_within_3_days(self) -> None:
         e = CalendarEvent(
-            kind=EventKind.OPEC_JMMC, date_utc=date(2026, 5, 5),
-            label="JMMC", days_to=2,
+            kind=EventKind.OPEC_JMMC,
+            date_utc=date(2026, 5, 5),
+            label="JMMC",
+            days_to=2,
         )
         assert e.is_imminent
         assert e.is_very_imminent

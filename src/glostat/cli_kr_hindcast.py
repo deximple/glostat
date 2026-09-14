@@ -32,22 +32,42 @@ def add_kr_hindcast_subparser(sub: Any) -> None:
         "kr-hindcast",
         help="Run KR (KOSPI 200) hindcast over a date range; produce calibration JSON.",
     )
-    p.add_argument("--universe", default=_DEFAULT_UNIVERSE,
-                   help=f"Universe name (default {_DEFAULT_UNIVERSE}).")
-    p.add_argument("--start", default="2024-01-02",
-                   help="ISO date YYYY-MM-DD (default 2024-01-02).")
-    p.add_argument("--end", default="2026-03-29",
-                   help="ISO date YYYY-MM-DD (default 2026-03-29).")
-    p.add_argument("--max-concurrent", type=int, default=_DEFAULT_MAX_CONCURRENT,
-                   help=f"Parallel ticker semaphore. Default {_DEFAULT_MAX_CONCURRENT}.")
-    p.add_argument("--stride", type=int, default=7,
-                   help="Day-stride per ticker (smaller = more samples, slower). Default 7.")
-    p.add_argument("--split", type=float, default=0.7,
-                   help="IS/OOS split ratio in [0.5, 0.9]. Default 0.7.")
-    p.add_argument("--output-dir", type=Path, default=None,
-                   help=f"Output dir for reports. Default {_DEFAULT_OUTPUT_DIR}.")
-    p.add_argument("--snapshot-root", type=Path, default=None,
-                   help=f"Snapshot broker root. Default {_DEFAULT_SNAPSHOT_ROOT}.")
+    p.add_argument(
+        "--universe",
+        default=_DEFAULT_UNIVERSE,
+        help=f"Universe name (default {_DEFAULT_UNIVERSE}).",
+    )
+    p.add_argument(
+        "--start", default="2024-01-02", help="ISO date YYYY-MM-DD (default 2024-01-02)."
+    )
+    p.add_argument("--end", default="2026-03-29", help="ISO date YYYY-MM-DD (default 2026-03-29).")
+    p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=_DEFAULT_MAX_CONCURRENT,
+        help=f"Parallel ticker semaphore. Default {_DEFAULT_MAX_CONCURRENT}.",
+    )
+    p.add_argument(
+        "--stride",
+        type=int,
+        default=7,
+        help="Day-stride per ticker (smaller = more samples, slower). Default 7.",
+    )
+    p.add_argument(
+        "--split", type=float, default=0.7, help="IS/OOS split ratio in [0.5, 0.9]. Default 0.7."
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help=f"Output dir for reports. Default {_DEFAULT_OUTPUT_DIR}.",
+    )
+    p.add_argument(
+        "--snapshot-root",
+        type=Path,
+        default=None,
+        help=f"Snapshot broker root. Default {_DEFAULT_SNAPSHOT_ROOT}.",
+    )
 
 
 def cmd_kr_hindcast(args: argparse.Namespace) -> int:
@@ -81,9 +101,12 @@ def cmd_kr_hindcast(args: argparse.Namespace) -> int:
     snap_root = Path(args.snapshot_root or _DEFAULT_SNAPSHOT_ROOT)
     broker = SnapshotBroker(root=snap_root)
     try:
-        result = asyncio.run(run_phase_kr_hindcast(
-            config=config, snapshot_broker=broker,
-        ))
+        result = asyncio.run(
+            run_phase_kr_hindcast(
+                config=config,
+                snapshot_broker=broker,
+            )
+        )
     finally:
         broker.close()
 

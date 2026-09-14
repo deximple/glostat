@@ -59,34 +59,59 @@ def add_hindcast_subparser(sub: Any) -> None:
         help="Run Sprint 4 hindcast gate over a date range.",
     )
     p.add_argument("--start", required=True, help="ISO date YYYY-MM-DD (inclusive).")
-    p.add_argument("--end",   required=True, help="ISO date YYYY-MM-DD (inclusive).")
-    p.add_argument("--universe", default=_DEFAULT_UNIVERSE,
-                   help=f"Universe name (default {_DEFAULT_UNIVERSE}).")
-    p.add_argument("--mock", action="store_true",
-                   help="Use synthetic deterministic signals + actuals.")
-    p.add_argument("--tickers", default=None,
-                   help="Comma-separated subset (overrides --universe ticker list).")
-    p.add_argument("--max-concurrent", type=int, default=_DEFAULT_MAX_CONCURRENT,
-                   help=f"Parallel ticker semaphore. Default {_DEFAULT_MAX_CONCURRENT}.")
-    p.add_argument("--split", type=float, default=0.7,
-                   help="IS/OOS split ratio in [0.5, 0.9]. Default 0.7.")
-    p.add_argument("--profile", default="cautious",
-                   choices=["cautious", "balanced", "aggressive"],
-                   help="Kill criteria profile. Default cautious.")
-    p.add_argument("--horizon", type=int, default=_DEFAULT_HORIZON_DAYS,
-                   help="Forward return horizon in days. Default 30.")
-    p.add_argument("--jurisdiction", default="US",
-                   choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"])
-    p.add_argument("--defer-shutdown-7d", action="store_true",
-                   help="INV-GS-033 explicit deferral flag (cannot be silent).")
-    p.add_argument("--report-dir", default=None,
-                   help="Override report output dir (default cache/hindcast).")
-    p.add_argument("--snapshot-root", default=None,
-                   help="Override snapshot broker root (default cache/snapshots).")
-    p.add_argument("--actual-cache", default=None,
-                   help="Override actual-return parquet cache path.")
-    p.add_argument("--json", action="store_true",
-                   help="Emit machine-readable JSON to stdout.")
+    p.add_argument("--end", required=True, help="ISO date YYYY-MM-DD (inclusive).")
+    p.add_argument(
+        "--universe",
+        default=_DEFAULT_UNIVERSE,
+        help=f"Universe name (default {_DEFAULT_UNIVERSE}).",
+    )
+    p.add_argument(
+        "--mock", action="store_true", help="Use synthetic deterministic signals + actuals."
+    )
+    p.add_argument(
+        "--tickers", default=None, help="Comma-separated subset (overrides --universe ticker list)."
+    )
+    p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=_DEFAULT_MAX_CONCURRENT,
+        help=f"Parallel ticker semaphore. Default {_DEFAULT_MAX_CONCURRENT}.",
+    )
+    p.add_argument(
+        "--split", type=float, default=0.7, help="IS/OOS split ratio in [0.5, 0.9]. Default 0.7."
+    )
+    p.add_argument(
+        "--profile",
+        default="cautious",
+        choices=["cautious", "balanced", "aggressive"],
+        help="Kill criteria profile. Default cautious.",
+    )
+    p.add_argument(
+        "--horizon",
+        type=int,
+        default=_DEFAULT_HORIZON_DAYS,
+        help="Forward return horizon in days. Default 30.",
+    )
+    p.add_argument(
+        "--jurisdiction", default="US", choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"]
+    )
+    p.add_argument(
+        "--defer-shutdown-7d",
+        action="store_true",
+        help="INV-GS-033 explicit deferral flag (cannot be silent).",
+    )
+    p.add_argument(
+        "--report-dir", default=None, help="Override report output dir (default cache/hindcast)."
+    )
+    p.add_argument(
+        "--snapshot-root",
+        default=None,
+        help="Override snapshot broker root (default cache/snapshots).",
+    )
+    p.add_argument(
+        "--actual-cache", default=None, help="Override actual-return parquet cache path."
+    )
+    p.add_argument("--json", action="store_true", help="Emit machine-readable JSON to stdout.")
 
 
 def add_gate_status_subparser(sub: Any) -> None:
@@ -94,8 +119,9 @@ def add_gate_status_subparser(sub: Any) -> None:
         "gate-status",
         help="Print last cached Sprint 4 gate decision.",
     )
-    p.add_argument("--report-dir", default=None,
-                   help="Override report dir (default cache/hindcast).")
+    p.add_argument(
+        "--report-dir", default=None, help="Override report dir (default cache/hindcast)."
+    )
 
 
 def cmd_hindcast(args: argparse.Namespace) -> int:
@@ -117,7 +143,8 @@ def cmd_hindcast(args: argparse.Namespace) -> int:
 
     if args.mock:
         builder = _MockHindcastVerdictBuilder(
-            market_meta=market_meta, horizon_days=args.horizon,
+            market_meta=market_meta,
+            horizon_days=args.horizon,
         )
         report = _run_mock_hindcast(builder, tickers, args, start, end)
     else:
@@ -220,18 +247,20 @@ def _render_and_persist(
         if "network" in paths:
             print(f"Report saved: {paths['network']}")
         print()
-        print(disclaimer_for(args.jurisdiction).render(
-            ticker="*", action="*", issued_at=report.split.in_sample_start.isoformat(),
-        ))
+        print(
+            disclaimer_for(args.jurisdiction).render(
+                ticker="*",
+                action="*",
+                issued_at=report.split.in_sample_start.isoformat(),
+            )
+        )
 
     if kill.decision is KillDecision.SHUTDOWN and not args.defer_shutdown_7d:
         return 1
     return 0
 
 
-def _resolve_tickers(
-    universe_tickers: Sequence[str], tickers_arg: str | None
-) -> tuple[str, ...]:
+def _resolve_tickers(universe_tickers: Sequence[str], tickers_arg: str | None) -> tuple[str, ...]:
     if tickers_arg:
         wanted = tuple(t.strip().upper() for t in tickers_arg.split(",") if t.strip())
         return tuple(t for t in wanted if t)
@@ -317,7 +346,9 @@ class _MockHindcastVerdictBuilder:
         except ValueError as exc:
             log.warning(
                 "hindcast.build_verdict_failed",
-                ticker=ticker, day=day.isoformat(), err=str(exc),
+                ticker=ticker,
+                day=day.isoformat(),
+                err=str(exc),
             )
             return None
 
@@ -329,6 +360,7 @@ def _synthetic_snapshot_id(ticker: str, day: date, expert: str) -> str:
 
 def _load_market_meta_xnas() -> MarketMeta:
     from glostat.cli import _load_market_meta  # noqa: PLC0415 — local import to avoid cycle
+
     return _load_market_meta("XNAS")
 
 

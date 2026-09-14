@@ -53,10 +53,10 @@ CREATE INDEX IF NOT EXISTS idx_verdict_ticker ON verdicts(ticker, issued_at);
 @dataclass(frozen=True, slots=True)
 class SnapshotKey:
     uaid: str
-    edge_type: str       # logical signal type, e.g. "tearsheet", "search", "events"
-    ts_utc: datetime     # canonical event time (not wall clock)
+    edge_type: str  # logical signal type, e.g. "tearsheet", "search", "events"
+    ts_utc: datetime  # canonical event time (not wall clock)
     tool: str
-    params_canon: str    # canonical JSON of MCP params
+    params_canon: str  # canonical JSON of MCP params
 
     def to_leaf_input(self) -> bytes:
         payload = {
@@ -136,6 +136,7 @@ class SnapshotBroker:
 
     def _enable_wal_with_retry(self, *, attempts: int = 5) -> None:
         import time  # noqa: PLC0415 — cold path
+
         for attempt in range(attempts):
             try:
                 # Read current mode first; if already WAL, no-op.
@@ -155,8 +156,9 @@ class SnapshotBroker:
     # ── snapshot lifecycle ─────────────────────────────────────────────────
 
     def save_snapshot(self, key: SnapshotKey, payload: dict[str, Any]) -> SnapshotRecord:
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"),
-                               default=str).encode("utf-8")
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode(
+            "utf-8"
+        )
         leaf = MerkleLeaf.compute(key, canonical)
         existing = self._fetch_snapshot(leaf.leaf_hash)
         if existing is not None:
@@ -166,14 +168,14 @@ class SnapshotBroker:
         shard.parent.mkdir(parents=True, exist_ok=True)
         table = pa.Table.from_pydict(
             {
-                "leaf_hash":     [leaf.leaf_hash],
+                "leaf_hash": [leaf.leaf_hash],
                 "payload_canon": [canonical],
-                "payload_sha":   [leaf.payload_sha],
-                "uaid":          [key.uaid],
-                "edge_type":     [key.edge_type],
-                "ts_utc":        [key.ts_utc],
-                "tool":          [key.tool],
-                "params_canon":  [key.params_canon],
+                "payload_sha": [leaf.payload_sha],
+                "uaid": [key.uaid],
+                "edge_type": [key.edge_type],
+                "ts_utc": [key.ts_utc],
+                "tool": [key.tool],
+                "params_canon": [key.params_canon],
             }
         )
         pq.write_table(table, shard, compression="zstd")
@@ -202,8 +204,9 @@ class SnapshotBroker:
             tool=key.tool,
             bytes=len(canonical),
         )
-        return SnapshotRecord(leaf=leaf, parquet_path=shard,
-                              payload_bytes=len(canonical), created_at=created)
+        return SnapshotRecord(
+            leaf=leaf, parquet_path=shard, payload_bytes=len(canonical), created_at=created
+        )
 
     def read_snapshot(self, leaf_hash: str) -> dict[str, Any]:
         record = self._fetch_snapshot(leaf_hash)
@@ -253,19 +256,22 @@ class SnapshotBroker:
         payload: dict[str, Any],
         parent_hash: str | None = None,
     ) -> VerdictRecord:
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"),
-                               default=str).encode("utf-8")
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode(
+            "utf-8"
+        )
         shard = self.root / "verdicts" / f"{verdict_hash[:2]}" / f"{verdict_hash}.parquet"
         shard.parent.mkdir(parents=True, exist_ok=True)
-        table = pa.Table.from_pydict({
-            "verdict_hash":   [verdict_hash],
-            "payload_canon":  [canonical],
-            "leaves":         [list(leaves)],
-            "ticker":         [ticker],
-            "issued_at":      [issued_at],
-            "parent_hash":    [parent_hash],
-            "git_commit":     [git_commit],
-        })
+        table = pa.Table.from_pydict(
+            {
+                "verdict_hash": [verdict_hash],
+                "payload_canon": [canonical],
+                "leaves": [list(leaves)],
+                "ticker": [ticker],
+                "issued_at": [issued_at],
+                "parent_hash": [parent_hash],
+                "git_commit": [git_commit],
+            }
+        )
         pq.write_table(table, shard, compression="zstd")
         created = _utcnow()
         self._db.execute(
@@ -274,15 +280,25 @@ class SnapshotBroker:
             " git_commit, parquet_path, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                verdict_hash, ticker, issued_at.isoformat(), parent_hash,
-                json.dumps(list(leaves)), git_commit,
-                str(shard.relative_to(self.root)), created.isoformat(),
+                verdict_hash,
+                ticker,
+                issued_at.isoformat(),
+                parent_hash,
+                json.dumps(list(leaves)),
+                git_commit,
+                str(shard.relative_to(self.root)),
+                created.isoformat(),
             ),
         )
         return VerdictRecord(
-            verdict_hash=verdict_hash, ticker=ticker, issued_at=issued_at,
-            parent_hash=parent_hash, leaves=tuple(leaves),
-            git_commit=git_commit, parquet_path=shard, created_at=created,
+            verdict_hash=verdict_hash,
+            ticker=ticker,
+            issued_at=issued_at,
+            parent_hash=parent_hash,
+            leaves=tuple(leaves),
+            git_commit=git_commit,
+            parquet_path=shard,
+            created_at=created,
         )
 
     def replay_verdict(self, verdict_hash: str) -> dict[str, Any]:
@@ -304,18 +320,14 @@ class SnapshotBroker:
         candidate = (self.root / parquet_path).resolve()
         root = self.root.resolve()
         if not candidate.is_relative_to(root):
-            raise IntegrityError(
-                f"shard path escapes broker root: {parquet_path!r}"
-            )
+            raise IntegrityError(f"shard path escapes broker root: {parquet_path!r}")
         return candidate
 
     # ── audit (Merkle root over leaves; cheap, deterministic) ──────────────
 
     def audit_root(self, leaves: Sequence[str] | None = None) -> str:
         if leaves is None:
-            rows = self._db.execute(
-                "SELECT leaf_hash FROM snapshots ORDER BY leaf_hash"
-            ).fetchall()
+            rows = self._db.execute("SELECT leaf_hash FROM snapshots ORDER BY leaf_hash").fetchall()
             leaves = [row["leaf_hash"] for row in rows]
         else:
             leaves = sorted(leaves)

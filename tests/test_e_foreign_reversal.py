@@ -17,9 +17,13 @@ def _bar(
     code: str, d: date, *, foreign: float, organ: float = 0.0, close: float = 100.0
 ) -> KrFlowBar:
     return KrFlowBar(
-        code=code, bar_date=d, close_price=close,
-        organ_net=organ, foreign_net=foreign,
-        foreign_holdings=0, foreign_hold_pct=0.0,
+        code=code,
+        bar_date=d,
+        close_price=close,
+        organ_net=organ,
+        foreign_net=foreign,
+        foreign_holdings=0,
+        foreign_hold_pct=0.0,
     )
 
 

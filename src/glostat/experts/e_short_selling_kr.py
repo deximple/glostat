@@ -49,11 +49,11 @@ class ShortSellingScore:
     latest_balance_qty: float
     balance_3d_delta: float
     short_ratio_pct: float
-    price_trend: str           # UP / DOWN / FLAT
+    price_trend: str  # UP / DOWN / FLAT
     raw_score: float
     net_score: float
-    direction: str             # LONG / SHORT / NEUTRAL
-    signal: str                # SHORT_COVER / SHORT_SQUEEZE_RISK / SHORT_PRESSURE / NEUTRAL
+    direction: str  # LONG / SHORT / NEUTRAL
+    signal: str  # SHORT_COVER / SHORT_SQUEEZE_RISK / SHORT_PRESSURE / NEUTRAL
 
     @property
     def confidence(self) -> float:
@@ -73,16 +73,15 @@ def score_short_selling(
     vol_sorted = sorted(volume_bars, key=lambda b: b.bar_date)
     latest_balance = bal_sorted[-1].short_balance_qty if bal_sorted else 0.0
     balance_3d_delta = _rolling_balance_delta(bal_sorted, window=_ROLLING_WINDOW)
-    short_ratio = (
-        vol_sorted[-1].short_ratio_pct if vol_sorted else 0.0
-    )
+    short_ratio = vol_sorted[-1].short_ratio_pct if vol_sorted else 0.0
     price_trend = _classify_price(price_change_pct)
     raw = 0.0
     signal = "NEUTRAL"
     # 1) balance decrease (covering) → mildly bullish
     if balance_3d_delta < 0:
         coverage_strength = min(
-            1.0, abs(balance_3d_delta) / max(latest_balance, 1.0) * 10.0,
+            1.0,
+            abs(balance_3d_delta) / max(latest_balance, 1.0) * 10.0,
         )
         raw += _SCORE_PER_COMPONENT * coverage_strength
         signal = "SHORT_COVER"
@@ -108,20 +107,29 @@ def score_short_selling(
                 signal = "SHORT_PRESSURE"
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     direction = (
-        "LONG" if net > _DIRECTION_THRESHOLD
-        else "SHORT" if net < -_DIRECTION_THRESHOLD
+        "LONG"
+        if net > _DIRECTION_THRESHOLD
+        else "SHORT"
+        if net < -_DIRECTION_THRESHOLD
         else "NEUTRAL"
     )
     return ShortSellingScore(
-        code=code, latest_balance_qty=latest_balance,
-        balance_3d_delta=balance_3d_delta, short_ratio_pct=short_ratio,
-        price_trend=price_trend, raw_score=raw, net_score=net,
-        direction=direction, signal=signal,
+        code=code,
+        latest_balance_qty=latest_balance,
+        balance_3d_delta=balance_3d_delta,
+        short_ratio_pct=short_ratio,
+        price_trend=price_trend,
+        raw_score=raw,
+        net_score=net,
+        direction=direction,
+        signal=signal,
     )
 
 
 def _rolling_balance_delta(
-    bars: Sequence[KrxShortBalanceBar], *, window: int,
+    bars: Sequence[KrxShortBalanceBar],
+    *,
+    window: int,
 ) -> float:
     if len(bars) < window + 1:
         return 0.0
@@ -137,7 +145,9 @@ def _classify_price(pct: float) -> str:
 
 
 def _is_above_percentile(
-    value: float, history: list[float], percentile: float,
+    value: float,
+    history: list[float],
+    percentile: float,
 ) -> bool:
     if not history:
         return False
@@ -150,9 +160,15 @@ def _is_above_percentile(
 
 def _neutral(code: str) -> ShortSellingScore:
     return ShortSellingScore(
-        code=code, latest_balance_qty=0.0, balance_3d_delta=0.0,
-        short_ratio_pct=0.0, price_trend="FLAT", raw_score=0.0, net_score=0.0,
-        direction="NEUTRAL", signal="NEUTRAL",
+        code=code,
+        latest_balance_qty=0.0,
+        balance_3d_delta=0.0,
+        short_ratio_pct=0.0,
+        price_trend="FLAT",
+        raw_score=0.0,
+        net_score=0.0,
+        direction="NEUTRAL",
+        signal="NEUTRAL",
     )
 
 
@@ -179,7 +195,9 @@ class EShortSellingKrExpert:
 
     @classmethod
     def from_env(
-        cls, *, kospi200: frozenset[str] | None = None,
+        cls,
+        *,
+        kospi200: frozenset[str] | None = None,
     ) -> EShortSellingKrExpert | None:
         # KRX has no API key — always available, but we keep the from_env shape
         # for parity with the other KR experts.
@@ -188,25 +206,23 @@ class EShortSellingKrExpert:
 
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         if self._krx is None:
-            raise ExpertSkipError(
-                "E_SHORT_SELLING_KR: KRX client not configured"
-            )
+            raise ExpertSkipError("E_SHORT_SELLING_KR: KRX client not configured")
         if not is_kr_ticker(ticker):
-            raise ExpertSkipError(
-                f"E_SHORT_SELLING_KR: ticker {ticker!r} not KR equity"
-            )
+            raise ExpertSkipError(f"E_SHORT_SELLING_KR: ticker {ticker!r} not KR equity")
         code = normalize_kr_ticker(ticker)
         if self._kospi200 and code not in self._kospi200:
-            raise ExpertSkipError(
-                f"E_SHORT_SELLING_KR: {code} not in KOSPI 200 universe"
-            )
+            raise ExpertSkipError(f"E_SHORT_SELLING_KR: {code} not in KOSPI 200 universe")
         as_of = ts.date()
         try:
             balances = await self._krx.get_short_balance(
-                code, days_back=_LOOKBACK_DAYS, end=as_of,
+                code,
+                days_back=_LOOKBACK_DAYS,
+                end=as_of,
             )
             volumes = await self._krx.get_short_volume(
-                code, days_back=_LOOKBACK_DAYS, end=as_of,
+                code,
+                days_back=_LOOKBACK_DAYS,
+                end=as_of,
             )
         except KrxShortError as exc:
             raise ExpertSkipError(
@@ -224,31 +240,39 @@ class EShortSellingKrExpert:
         # caller wires in the price change explicitly.
         price_change_pct = 0.0
         score = score_short_selling(
-            balance_bars=balances, volume_bars=volumes,
-            price_change_pct=price_change_pct, code=code,
+            balance_bars=balances,
+            volume_bars=volumes,
+            price_change_pct=price_change_pct,
+            code=code,
         )
         snap_id = self._krx.last_snapshot_id or "krx.short"
         return _build_signal(code=code, ts=ts, score=score, snap_id=snap_id)
 
 
 def _build_signal(
-    *, code: str, ts: datetime, score: ShortSellingScore, snap_id: str,
+    *,
+    code: str,
+    ts: datetime,
+    score: ShortSellingScore,
+    snap_id: str,
 ) -> ExpertSignal:
     basis = (
         f"KRX short — signal={score.signal} balance={int(score.latest_balance_qty):,} "
         f"Δ3d={int(score.balance_3d_delta):+,} ratio={score.short_ratio_pct:.2f}%"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
-        sorted({
-            "signal": score.signal,
-            "latest_balance_qty": f"{score.latest_balance_qty:.0f}",
-            "balance_3d_delta": f"{score.balance_3d_delta:.0f}",
-            "short_ratio_pct": f"{score.short_ratio_pct:.4f}",
-            "price_trend": score.price_trend,
-            "raw_score": f"{score.raw_score:.4f}",
-            "net_score": f"{score.net_score:.4f}",
-            "code": code,
-        }.items())
+        sorted(
+            {
+                "signal": score.signal,
+                "latest_balance_qty": f"{score.latest_balance_qty:.0f}",
+                "balance_3d_delta": f"{score.balance_3d_delta:.0f}",
+                "short_ratio_pct": f"{score.short_ratio_pct:.4f}",
+                "price_trend": score.price_trend,
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "code": code,
+            }.items()
+        )
     )
     return ExpertSignal(
         expert_name="E_SHORT_SELLING_KR",  # type: ignore[arg-type]

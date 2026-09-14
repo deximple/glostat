@@ -57,6 +57,7 @@ def assert_phase_2_or_later(*, budget_yaml: Path | None = None) -> None:
             f"Unknown GLOSTAT_PHASE={phase!r}. Expected one of: mvp, phase_2, phase_3."
         )
 
+
 ToolName = Literal[
     "find_companies",
     "bigdata_company_tearsheet",
@@ -69,12 +70,12 @@ ToolName = Literal[
 SearchMode = Literal["fast", "smart"]
 
 _TOOL_TTL: Final[Mapping[ToolName, timedelta]] = {
-    "find_companies":             timedelta(days=365),  # entity_id permanent (INV-GS-002)
-    "bigdata_company_tearsheet":  timedelta(hours=1),
-    "bigdata_country_tearsheet":  timedelta(hours=6),
-    "bigdata_market_tearsheet":   timedelta(minutes=15),
-    "bigdata_search":             timedelta(hours=1),
-    "bigdata_events_calendar":    timedelta(hours=24),
+    "find_companies": timedelta(days=365),  # entity_id permanent (INV-GS-002)
+    "bigdata_company_tearsheet": timedelta(hours=1),
+    "bigdata_country_tearsheet": timedelta(hours=6),
+    "bigdata_market_tearsheet": timedelta(minutes=15),
+    "bigdata_search": timedelta(hours=1),
+    "bigdata_events_calendar": timedelta(hours=24),
 }
 
 _FAST_QUOTA_PCT: Final[float] = 0.70
@@ -90,8 +91,9 @@ class BigdataToolCall:
     cost_units: float = 1.0
 
     def cache_key(self) -> str:
-        canonical = json.dumps({"tool": self.tool, "params": self.params},
-                               sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(
+            {"tool": self.tool, "params": self.params}, sort_keys=True, separators=(",", ":")
+        )
         return canonical
 
 
@@ -107,9 +109,7 @@ class BigdataBudget:
     def can_allocate(self, call: BigdataToolCall) -> bool:
         if self.used_calls >= self.monthly_call_cap:
             return False
-        smart_overflow = (
-            call.search_mode == "smart" and self.used_smart >= self.monthly_smart_cap
-        )
+        smart_overflow = call.search_mode == "smart" and self.used_smart >= self.monthly_smart_cap
         return not smart_overflow
 
     def reserve(self, call: BigdataToolCall) -> None:
@@ -155,9 +155,7 @@ class BigdataClient:
     # Sprint 0: stubs raise NotImplementedError.
     # Sprint 1: wire via Anthropic MCP client (`mcp__..._bigdata_*`).
 
-    async def find_companies(
-        self, *, query: str, max_results: int = 10
-    ) -> list[dict[str, Any]]:
+    async def find_companies(self, *, query: str, max_results: int = 10) -> list[dict[str, Any]]:
         assert_phase_2_or_later()
         call = BigdataToolCall(
             tool="find_companies",
@@ -202,9 +200,7 @@ class BigdataClient:
         self._budget.reserve(call)
         raise NotImplementedError("MCP wired in S1 / Phase 2: bigdata_country_tearsheet")
 
-    async def bigdata_market_tearsheet(
-        self, *, asset_class: str = "equity"
-    ) -> dict[str, Any]:
+    async def bigdata_market_tearsheet(self, *, asset_class: str = "equity") -> dict[str, Any]:
         assert_phase_2_or_later()
         call = BigdataToolCall(
             tool="bigdata_market_tearsheet",

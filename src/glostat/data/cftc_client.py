@@ -44,20 +44,20 @@ class CftcDataError(GlostatError):
 # CFTC uses inconsistent naming across years; we match permissively then dedupe.
 # WHY tuple-of-tuples: explicit, ordered, immutable. No regex — substring-only.
 CONTRACT_PATTERNS: Final[dict[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
-    "WTI_CRUDE":   (("CRUDE OIL, LIGHT SWEET",), ("FINANCIAL",)),
-    "NAT_GAS":     (("NAT GAS NYME",), ()),
-    "GOLD":        (("GOLD - COMMODITY EXCHANGE",), ()),
-    "SILVER":      (("SILVER - COMMODITY EXCHANGE",), ()),
-    "COPPER":      (("COPPER- #1",), ()),
-    "CORN":        (("CORN - CHICAGO",), ()),
-    "WHEAT":       (("WHEAT-SRW",), ()),
+    "WTI_CRUDE": (("CRUDE OIL, LIGHT SWEET",), ("FINANCIAL",)),
+    "NAT_GAS": (("NAT GAS NYME",), ()),
+    "GOLD": (("GOLD - COMMODITY EXCHANGE",), ()),
+    "SILVER": (("SILVER - COMMODITY EXCHANGE",), ()),
+    "COPPER": (("COPPER- #1",), ()),
+    "CORN": (("CORN - CHICAGO",), ()),
+    "WHEAT": (("WHEAT-SRW",), ()),
 }
 
 
 @dataclass(frozen=True, slots=True)
 class CotRecord:
-    contract: str                 # canonical name (key from CONTRACT_PATTERNS)
-    market_name: str              # raw CFTC contract name
+    contract: str  # canonical name (key from CONTRACT_PATTERNS)
+    market_name: str  # raw CFTC contract name
     report_date: date
     open_interest: int
     commercial_long: int
@@ -121,9 +121,7 @@ class CftcClient:
         self._record_snapshot(year, records)
         return records
 
-    async def fetch_range(
-        self, start: date, end: date
-    ) -> tuple[CotRecord, ...]:
+    async def fetch_range(self, start: date, end: date) -> tuple[CotRecord, ...]:
         years = list(range(start.year, end.year + 1))
         all_recs: list[CotRecord] = []
         for y in years:
@@ -147,9 +145,7 @@ class CftcClient:
             raise CftcDataError(f"CFTC fetch failed for {year}: {exc}") from exc
         body = resp.content
         if len(body) < 1024:
-            raise CftcDataError(
-                f"CFTC archive {year} too small ({len(body)} bytes); rejected"
-            )
+            raise CftcDataError(f"CFTC archive {year} too small ({len(body)} bytes); rejected")
         tmp = dest.with_suffix(dest.suffix + ".tmp")
         tmp.write_bytes(body)
         tmp.replace(dest)
@@ -257,10 +253,7 @@ def commercial_net_percentile(
     # 5y rolling percentile rank (0-1) of latest commercial_net_pct vs history.
     # Returns None if < 26 weekly samples (~6mo) — too thin to rank.
     cutoff = date(as_of.year - lookback_years, as_of.month, as_of.day)
-    series = [
-        r for r in records
-        if r.contract == contract and cutoff <= r.report_date <= as_of
-    ]
+    series = [r for r in records if r.contract == contract and cutoff <= r.report_date <= as_of]
     if len(series) < 26:
         return None
     series.sort(key=lambda r: r.report_date)

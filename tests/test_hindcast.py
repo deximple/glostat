@@ -36,9 +36,7 @@ def _market_meta() -> Any:
     return _load_market_meta("XNAS")
 
 
-def _build_hindcast(
-    *, universe: tuple[str, ...] | None = None, horizon: int = 30
-) -> Hindcast:
+def _build_hindcast(*, universe: tuple[str, ...] | None = None, horizon: int = 30) -> Hindcast:
     universe = universe or ("AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMZN")
     market_meta = _market_meta()
     builder = _MockHindcastVerdictBuilder(market_meta=market_meta, horizon_days=horizon)
@@ -198,12 +196,58 @@ def test_hindcast_deterministic_same_seed() -> None:
 
 def test_hindcast_mock_passes_cautious_thresholds_50_universe() -> None:
     # The headline acceptance: 50-ticker mock universe over 90 days → cautious gate PASS.
-    universe = ("AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMZN", "TSLA", "JPM",
-                "V", "MA", "BRK.B", "UNH", "LLY", "JNJ", "ABBV", "MRK", "TMO",
-                "ABT", "PG", "WMT", "COST", "KO", "PEP", "HD", "MCD", "AVGO",
-                "ORCL", "CRM", "AMD", "ADBE", "CSCO", "ACN", "IBM", "NOW", "INTU",
-                "NFLX", "DIS", "T", "BAC", "WFC", "AXP", "MS", "GS", "XOM",
-                "CVX", "GE", "CAT", "RTX", "LIN", "ISRG")
+    universe = (
+        "AAPL",
+        "MSFT",
+        "NVDA",
+        "GOOGL",
+        "META",
+        "AMZN",
+        "TSLA",
+        "JPM",
+        "V",
+        "MA",
+        "BRK.B",
+        "UNH",
+        "LLY",
+        "JNJ",
+        "ABBV",
+        "MRK",
+        "TMO",
+        "ABT",
+        "PG",
+        "WMT",
+        "COST",
+        "KO",
+        "PEP",
+        "HD",
+        "MCD",
+        "AVGO",
+        "ORCL",
+        "CRM",
+        "AMD",
+        "ADBE",
+        "CSCO",
+        "ACN",
+        "IBM",
+        "NOW",
+        "INTU",
+        "NFLX",
+        "DIS",
+        "T",
+        "BAC",
+        "WFC",
+        "AXP",
+        "MS",
+        "GS",
+        "XOM",
+        "CVX",
+        "GE",
+        "CAT",
+        "RTX",
+        "LIN",
+        "ISRG",
+    )
     hc = _build_hindcast(universe=universe)
     report = hc.run(start_date=date(2026, 1, 29), end_date=date(2026, 4, 28), split=0.7)
     # Acceptance: Sharpe ≥ 0.8, ≤ 1.5; AUC ≥ 0.62; OOS deg ≤ 30%; reproducibility ≥ 99.9%.
@@ -214,14 +258,11 @@ def test_hindcast_mock_passes_cautious_thresholds_50_universe() -> None:
     assert report.reproducibility >= 0.999
     # Sprint 5 PR #1 cost_gate retune (NET_SCORE_TO_BPS halved 100 → 50)
     # nudges the mock cost_passed pct down ~50% → wider band 30-65%.
-    assert 0.30 <= report.cost_passed_pct <= 0.65, (
-        f"cost_passed {report.cost_passed_pct:.4f}"
-    )
+    assert 0.30 <= report.cost_passed_pct <= 0.65, f"cost_passed {report.cost_passed_pct:.4f}"
 
 
 def test_hindcast_pipeline_none_returns_stub() -> None:
-    hc = Hindcast(pipeline=None, universe=("AAPL",), verdict_for_day=None,
-                  actual_return_for=None)
+    hc = Hindcast(pipeline=None, universe=("AAPL",), verdict_for_day=None, actual_return_for=None)
     report = hc.run(start_date=date(2026, 1, 5), end_date=date(2026, 1, 30))
     assert report.n_verdicts == 0
     assert "stub" in report.notes[0]
@@ -235,7 +276,10 @@ def test_hindcast_pass_criteria_evaluate_pass() -> None:
 def test_hindcast_pass_criteria_evaluate_fail() -> None:
     # All checks fail → FAIL. Force determinism off so every check is False.
     report = _fake_report(
-        is_sharpe=0.1, oos_sharpe=0.05, auc=0.50, cost=0.10,
+        is_sharpe=0.1,
+        oos_sharpe=0.05,
+        auc=0.50,
+        cost=0.10,
         determinism=False,
     )
     assert PassCriteria().evaluate(report) == "FAIL"

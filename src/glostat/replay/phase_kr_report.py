@@ -29,9 +29,12 @@ def persist_phase_kr_reports(
     out.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
     for report in (
-        result.fundamental_kr, result.time_kr,
-        result.foreign_reversal, result.pead_kr,
-        result.fundamental_kr_cyclical, result.commodity_index_kr,
+        result.fundamental_kr,
+        result.time_kr,
+        result.foreign_reversal,
+        result.pead_kr,
+        result.fundamental_kr_cyclical,
+        result.commodity_index_kr,
         result.insider_velocity_kr,
     ):
         slug = report.thesis.lower()
@@ -59,9 +62,12 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     reports = (
-        result.fundamental_kr, result.time_kr,
-        result.foreign_reversal, result.pead_kr,
-        result.fundamental_kr_cyclical, result.commodity_index_kr,
+        result.fundamental_kr,
+        result.time_kr,
+        result.foreign_reversal,
+        result.pead_kr,
+        result.fundamental_kr_cyclical,
+        result.commodity_index_kr,
         result.insider_velocity_kr,
     )
     lines.extend(_render_metric_rows(reports))
@@ -79,9 +85,7 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
     ):
         lines.append(f"- {thesis_name}: {', '.join(report.notes)}")
         if report.skip_breakdown:
-            top = sorted(
-                report.skip_breakdown.items(), key=lambda kv: -kv[1]
-            )[:5]
+            top = sorted(report.skip_breakdown.items(), key=lambda kv: -kv[1])[:5]
             top_fmt = "; ".join(f"{k}={v}" for k, v in top)
             lines.append(f"  - top skips: {top_fmt}")
     lines.append("")
@@ -89,9 +93,7 @@ def render_phase_kr_comparison(result: PhaseKrHindcastResult) -> str:
         preview = ", ".join(result.skipped_tickers[:10])
         skipped_n = len(result.skipped_tickers)
         more = "" if skipped_n <= 10 else f" (+{skipped_n - 10} more)"
-        lines.append(
-            f"## Tickers fully skipped (Naver fetch failed): {skipped_n}"
-        )
+        lines.append(f"## Tickers fully skipped (Naver fetch failed): {skipped_n}")
         lines.append("")
         lines.append(f"`{preview}{more}`")
         lines.append("")

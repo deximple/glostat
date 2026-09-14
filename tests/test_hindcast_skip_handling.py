@@ -63,9 +63,7 @@ class _StubExpert:
         return self._signal
 
 
-def _patch_experts(
-    monkeypatch: pytest.MonkeyPatch, sequence: tuple[_StubExpert, ...]
-) -> None:
+def _patch_experts(monkeypatch: pytest.MonkeyPatch, sequence: tuple[_StubExpert, ...]) -> None:
     iterator = iter(sequence)
 
     def _fund(*_a: Any, **_kw: Any) -> _StubExpert:
@@ -86,14 +84,20 @@ def _builder() -> LiveHindcastVerdictBuilder:
     fake_yf = MagicMock(spec=YFinanceClient)
     fake_yf.throttle = MagicMock(acquire_count=0, throttled_count=0)
     fake_yf.retry_stats = MagicMock(
-        retry_count=0, retry_429_count=0, retry_5xx_count=0,
-        retry_empty_count=0, retry_timeout_count=0,
+        retry_count=0,
+        retry_429_count=0,
+        retry_5xx_count=0,
+        retry_empty_count=0,
+        retry_timeout_count=0,
     )
     fake_sec = MagicMock()
     fake_sec.throttle = MagicMock(acquire_count=0, throttled_count=0)
     fake_sec.retry_stats = MagicMock(
-        retry_count=0, retry_429_count=0, retry_5xx_count=0,
-        retry_empty_count=0, retry_timeout_count=0,
+        retry_count=0,
+        retry_429_count=0,
+        retry_5xx_count=0,
+        retry_empty_count=0,
+        retry_timeout_count=0,
     )
     return LiveHindcastVerdictBuilder(
         market_meta=_market_meta(),
@@ -105,28 +109,36 @@ def _builder() -> LiveHindcastVerdictBuilder:
 
 
 def test_hindcast_drops_when_all_experts_skip(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_experts(monkeypatch, (
-        _StubExpert("E_FUNDAMENTAL", "skip"),
-        _StubExpert("E_TIME", "skip"),
-        _StubExpert("E_FUND_FLOW", "skip"),
-    ))
+    _patch_experts(
+        monkeypatch,
+        (
+            _StubExpert("E_FUNDAMENTAL", "skip"),
+            _StubExpert("E_TIME", "skip"),
+            _StubExpert("E_FUND_FLOW", "skip"),
+        ),
+    )
     builder = _builder()
     verdict = asyncio.run(builder.build("AAPL", _DAY))
     assert verdict is None
     assert builder.skipped_count == 1
     assert builder.build_count == 0
     assert builder.expert_skip_breakdown == {
-        "E_FUNDAMENTAL": 1, "E_TIME": 1, "E_FUND_FLOW": 1,
+        "E_FUNDAMENTAL": 1,
+        "E_TIME": 1,
+        "E_FUND_FLOW": 1,
     }
 
 
 def test_hindcast_partial_when_some_experts_skip(monkeypatch: pytest.MonkeyPatch) -> None:
     # 1 expert skips, 2 emit → verdict should still build (verdict_builder accepts ≥1 signal).
-    _patch_experts(monkeypatch, (
-        _StubExpert("E_FUNDAMENTAL", "ok", signal=_make_signal("E_FUNDAMENTAL")),
-        _StubExpert("E_TIME", "skip"),
-        _StubExpert("E_FUND_FLOW", "ok", signal=_make_signal("E_FUND_FLOW", net=1.2)),
-    ))
+    _patch_experts(
+        monkeypatch,
+        (
+            _StubExpert("E_FUNDAMENTAL", "ok", signal=_make_signal("E_FUNDAMENTAL")),
+            _StubExpert("E_TIME", "skip"),
+            _StubExpert("E_FUND_FLOW", "ok", signal=_make_signal("E_FUND_FLOW", net=1.2)),
+        ),
+    )
     builder = _builder()
     verdict = asyncio.run(builder.build("AAPL", _DAY))
     assert verdict is not None
@@ -141,14 +153,17 @@ def test_hindcast_partial_when_some_experts_skip(monkeypatch: pytest.MonkeyPatch
 def test_metric_denominator_excludes_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
     # Skipped verdicts must not increment build_count, so the harness sees only
     # the trades that actually happened.
-    _patch_experts(monkeypatch, (
-        _StubExpert("E_FUNDAMENTAL", "skip"),
-        _StubExpert("E_TIME", "skip"),
-        _StubExpert("E_FUND_FLOW", "skip"),
-        _StubExpert("E_FUNDAMENTAL", "ok", signal=_make_signal("E_FUNDAMENTAL")),
-        _StubExpert("E_TIME", "ok", signal=_make_signal("E_TIME", net=1.4)),
-        _StubExpert("E_FUND_FLOW", "ok", signal=_make_signal("E_FUND_FLOW", net=1.6)),
-    ))
+    _patch_experts(
+        monkeypatch,
+        (
+            _StubExpert("E_FUNDAMENTAL", "skip"),
+            _StubExpert("E_TIME", "skip"),
+            _StubExpert("E_FUND_FLOW", "skip"),
+            _StubExpert("E_FUNDAMENTAL", "ok", signal=_make_signal("E_FUNDAMENTAL")),
+            _StubExpert("E_TIME", "ok", signal=_make_signal("E_TIME", net=1.4)),
+            _StubExpert("E_FUND_FLOW", "ok", signal=_make_signal("E_FUND_FLOW", net=1.6)),
+        ),
+    )
     builder = _builder()
     v_skip = asyncio.run(builder.build("XYZ", _DAY))
     v_ok = asyncio.run(builder.build("AAPL", _DAY + timedelta(days=1)))
@@ -159,15 +174,19 @@ def test_metric_denominator_excludes_skipped(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_network_summary_reports_skip_breakdown(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_experts(monkeypatch, (
-        _StubExpert("E_FUNDAMENTAL", "skip"),
-        _StubExpert("E_TIME", "ok", signal=_make_signal("E_TIME")),
-        _StubExpert("E_FUND_FLOW", "skip"),
-    ))
+    _patch_experts(
+        monkeypatch,
+        (
+            _StubExpert("E_FUNDAMENTAL", "skip"),
+            _StubExpert("E_TIME", "ok", signal=_make_signal("E_TIME")),
+            _StubExpert("E_FUND_FLOW", "skip"),
+        ),
+    )
     builder = _builder()
     asyncio.run(builder.build("AAPL", _DAY))
     fetcher = LiveActualReturnFetcher(
-        yf_client=builder.yf_client, cache_path=Path("/tmp/glostat_skip_handling.parquet"),
+        yf_client=builder.yf_client,
+        cache_path=Path("/tmp/glostat_skip_handling.parquet"),
     )
     summary = summarize_network(builder, fetcher)
     assert summary["verdicts_built"] == 1
@@ -181,11 +200,14 @@ def test_network_summary_reports_skip_breakdown(monkeypatch: pytest.MonkeyPatch)
 
 def test_failure_path_does_not_increment_skip(monkeypatch: pytest.MonkeyPatch) -> None:
     # A pure RuntimeError must NOT count as a skip; it's a hard failure.
-    _patch_experts(monkeypatch, (
-        _StubExpert("E_FUNDAMENTAL", "raise"),
-        _StubExpert("E_TIME", "raise"),
-        _StubExpert("E_FUND_FLOW", "raise"),
-    ))
+    _patch_experts(
+        monkeypatch,
+        (
+            _StubExpert("E_FUNDAMENTAL", "raise"),
+            _StubExpert("E_TIME", "raise"),
+            _StubExpert("E_FUND_FLOW", "raise"),
+        ),
+    )
     builder = _builder()
     verdict = asyncio.run(builder.build("AAPL", _DAY))
     assert verdict is None

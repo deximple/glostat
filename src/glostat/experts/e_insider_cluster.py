@@ -71,12 +71,18 @@ class EInsiderClusterExpert:
             return len(cached)
         try:
             txns = await get_form4_transactions(
-                self._sec, cik, days_back=days_back, limit=80, parallel=3,
+                self._sec,
+                cik,
+                days_back=days_back,
+                limit=80,
+                parallel=3,
             )
         except Exception as exc:
             log.warning(
                 "insider.warm_failed",
-                ticker=ticker_u, cik=cik, err=str(exc),
+                ticker=ticker_u,
+                cik=cik,
+                err=str(exc),
             )
             self._txn_cache[ticker_u] = []
             return 0
@@ -109,8 +115,7 @@ class EInsiderClusterExpert:
     def signal_at(self, ticker: str, day: date) -> PhaseSignal:
         s = self.score_at(ticker, day)
         confidence = (
-            min(1.0, _CONFIDENCE_BASE + 0.1 * s.cluster_buyers)
-            if s.direction != "NEUTRAL" else 0.0
+            min(1.0, _CONFIDENCE_BASE + 0.1 * s.cluster_buyers) if s.direction != "NEUTRAL" else 0.0
         )
         return PhaseSignal(
             expert=self.name,

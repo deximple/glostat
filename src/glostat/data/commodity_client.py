@@ -35,26 +35,26 @@ if TYPE_CHECKING:
 
 log: Final = structlog.get_logger(__name__)
 
-_PCTILE_LOOKBACK_DAYS: Final[int] = 730   # ~2 years of daily bars
+_PCTILE_LOOKBACK_DAYS: Final[int] = 730  # ~2 years of daily bars
 _MOMENTUM_LOOKBACK_DAYS: Final[int] = 30
 _CACHE_TTL_HOURS: Final[float] = 6.0
 
 
 class CommodityKey(StrEnum):
-    WTI       = "WTI"
-    BRENT     = "BRENT"
-    GASOLINE  = "GASOLINE"
-    IRON_ORE  = "IRON_ORE"
-    COPPER    = "COPPER"
-    DRY_BULK  = "DRY_BULK"
+    WTI = "WTI"
+    BRENT = "BRENT"
+    GASOLINE = "GASOLINE"
+    IRON_ORE = "IRON_ORE"
+    COPPER = "COPPER"
+    DRY_BULK = "DRY_BULK"
 
 
 _YFINANCE_TICKER: Final[dict[CommodityKey, str]] = {
-    CommodityKey.WTI:      "CL=F",
-    CommodityKey.BRENT:    "BZ=F",
+    CommodityKey.WTI: "CL=F",
+    CommodityKey.BRENT: "BZ=F",
     CommodityKey.GASOLINE: "RB=F",
     CommodityKey.IRON_ORE: "TIO=F",
-    CommodityKey.COPPER:   "HG=F",
+    CommodityKey.COPPER: "HG=F",
     CommodityKey.DRY_BULK: "BDRY",
 }
 
@@ -63,8 +63,8 @@ _YFINANCE_TICKER: Final[dict[CommodityKey, str]] = {
 class CommodityCycle:
     key: CommodityKey
     last_close: float
-    cycle_percentile: float       # [0, 1] — where last_close sits in 730d distribution
-    momentum_30d: float           # (last - 30d_ago) / 30d_ago
+    cycle_percentile: float  # [0, 1] — where last_close sits in 730d distribution
+    momentum_30d: float  # (last - 30d_ago) / 30d_ago
     snapshot_id: str | None = None
     n_observations: int = 0
 
@@ -141,7 +141,9 @@ class CommodityClient:
         )
 
     async def get_crack_spread(
-        self, *, as_of: date | None = None,
+        self,
+        *,
+        as_of: date | None = None,
     ) -> CrackSpread:
         wti, gasoline = await asyncio.gather(
             self._fetch_series(CommodityKey.WTI, as_of=as_of),
@@ -149,11 +151,13 @@ class CommodityClient:
         )
         # Slice both series to bars on/before as_of (point-in-time correctness).
         wti_sliced = OhlcvSeries(
-            ticker=wti.ticker, interval=wti.interval,
+            ticker=wti.ticker,
+            interval=wti.interval,
             bars=tuple(_bars_on_or_before(wti.bars, as_of)),
         )
         gas_sliced = OhlcvSeries(
-            ticker=gasoline.ticker, interval=gasoline.interval,
+            ticker=gasoline.ticker,
+            interval=gasoline.interval,
             bars=tuple(_bars_on_or_before(gasoline.bars, as_of)),
         )
         spreads = _aligned_crack_spreads(wti_sliced, gas_sliced)
@@ -173,7 +177,10 @@ class CommodityClient:
         )
 
     async def _fetch_series(
-        self, key: CommodityKey, *, as_of: date | None = None,
+        self,
+        key: CommodityKey,
+        *,
+        as_of: date | None = None,
     ) -> OhlcvSeries:
         # WHY: cache stores the FULL fetched series (start = today - lookback,
         # end = today). When `as_of` is in the past, we still need bars from
@@ -200,7 +207,9 @@ class CommodityClient:
         except Exception as exc:
             log.warning(
                 "commodity_client.fetch_failed",
-                key=key.value, ticker=ticker, err=str(exc),
+                key=key.value,
+                ticker=ticker,
+                err=str(exc),
             )
             raise CommodityDataError(
                 f"yfinance fetch failed for {key.value} ({ticker}): {exc}"
@@ -221,7 +230,10 @@ class CommodityClient:
             await self._fetch_series(k, as_of=earliest_as_of)
 
     def _record_snapshot(
-        self, key: CommodityKey, series: OhlcvSeries, ticker: str,
+        self,
+        key: CommodityKey,
+        series: OhlcvSeries,
+        ticker: str,
     ) -> None:
         if self._broker is None:
             return
@@ -256,7 +268,8 @@ class CommodityDataError(RuntimeError):
 
 
 def _bars_on_or_before(
-    bars: tuple[OhlcvBar, ...], as_of: date | None,
+    bars: tuple[OhlcvBar, ...],
+    as_of: date | None,
 ) -> list[OhlcvBar]:
     if as_of is None:
         return list(bars)
@@ -264,7 +277,8 @@ def _bars_on_or_before(
 
 
 def _closes_on_or_before(
-    bars: tuple[OhlcvBar, ...], as_of: date | None,
+    bars: tuple[OhlcvBar, ...],
+    as_of: date | None,
 ) -> tuple[float, ...]:
     out: list[float] = []
     for b in _bars_on_or_before(bars, as_of):
@@ -305,7 +319,8 @@ def _momentum(values: tuple[float, ...], lookback_days: int) -> float:
 
 
 def _aligned_crack_spreads(
-    wti: OhlcvSeries, gasoline: OhlcvSeries,
+    wti: OhlcvSeries,
+    gasoline: OhlcvSeries,
 ) -> tuple[float, ...]:
     # WHY: yfinance returns daily bars indexed by date; we align by date so
     # missing days on one leg don't pull stale prices into the spread.

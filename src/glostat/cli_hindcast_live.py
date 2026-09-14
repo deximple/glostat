@@ -169,8 +169,10 @@ def _run_with_close(
     async def _runner() -> HindcastReport:
         try:
             return await hc._run_async(
-                start_date=start_date, end_date=end_date,
-                split=split, seed_namespace=None,
+                start_date=start_date,
+                end_date=end_date,
+                split=split,
+                seed_namespace=None,
             )
         finally:
             try:

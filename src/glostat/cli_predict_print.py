@@ -70,17 +70,11 @@ def print_prediction(p: Prediction) -> None:
     # X1: CI label clarifies the 1-sigma (~68%) interval; flag CI-includes-0.
     low, high = p.confidence_interval_bps
     ci_flag = "  *** includes 0 -> no clear direction" if ci_includes_zero(low, high) else ""
-    print(
-        f"  CI 1-sigma (68%): {low:+.0f}bps .. {high:+.0f}bps"
-        f"{ci_flag}"
-    )
+    print(f"  CI 1-sigma (68%): {low:+.0f}bps .. {high:+.0f}bps{ci_flag}")
     print(f"  base rate up  : {p.base_rate_up * 100:.1f}%")
     print(f"  edge over baseline: {p.edge_over_baseline_pp:+.1f}pp")
     print()
-    print(
-        f"Contributing signals (active {p.active_signal_count} / "
-        f"total {p.total_signal_count}):"
-    )
+    print(f"Contributing signals (active {p.active_signal_count} / total {p.total_signal_count}):")
     for s in p.contributing_signals:
         _print_signal_line(s)
     print()
@@ -95,9 +89,7 @@ def print_prediction(p: Prediction) -> None:
     _maybe_print_universe_note(p)
     cal_start, cal_end = p.calibration_period
     print(p.disclaimer)
-    print(
-        f"Calibration period: {cal_start.isoformat()} -> {cal_end.isoformat()}"
-    )
+    print(f"Calibration period: {cal_start.isoformat()} -> {cal_end.isoformat()}")
     print(f"evidence_hash: sha256:{p.evidence_hash[:16]}...")
     print(f"issued_at:     {p.issued_at.isoformat()}")
     print(f"git_commit:    {p.git_commit[:12]}")
@@ -124,10 +116,7 @@ def _print_signal_line(s: SignalContribution) -> None:
         if s.n_samples == 0
         else format_significance(s.calibration_auc, s.n_samples)
     )
-    line = (
-        f"  {s.name:<22} {arrow} {val:>7}  "
-        f"(AUC {s.calibration_auc:.3f}, n={s.n_samples}, {sig}"
-    )
+    line = f"  {s.name:<22} {arrow} {val:>7}  (AUC {s.calibration_auc:.3f}, n={s.n_samples}, {sig}"
     if s.confidence_v2 is not None:
         line += f", conf_v2={s.confidence_v2.composite_confidence:.3f}"
     line += ")"

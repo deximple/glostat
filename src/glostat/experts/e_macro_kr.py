@@ -33,17 +33,17 @@ from glostat.data.ecos_types import EcosSeries
 log: Final = structlog.get_logger(__name__)
 
 # Aggregation weights (see report; reviewable). Net score in [-3, +3].
-_WEIGHT_BASE_RATE: Final[float] = 1.0      # cuts → equity bullish (sign-flipped)
-_WEIGHT_FX: Final[float] = 0.5             # KRW weakening → exporter bullish
-_WEIGHT_CPI: Final[float] = 0.7            # above-trend CPI → tightening fear, bearish
-_WEIGHT_KOSPI: Final[float] = 0.8          # index momentum continuation
+_WEIGHT_BASE_RATE: Final[float] = 1.0  # cuts → equity bullish (sign-flipped)
+_WEIGHT_FX: Final[float] = 0.5  # KRW weakening → exporter bullish
+_WEIGHT_CPI: Final[float] = 0.7  # above-trend CPI → tightening fear, bearish
+_WEIGHT_KOSPI: Final[float] = 0.8  # index momentum continuation
 _SCORE_CLIP: Final[float] = 3.0
-_DIRECTION_THRESHOLD: Final[float] = 0.6   # KR macro is steady; relax bar
+_DIRECTION_THRESHOLD: Final[float] = 0.6  # KR macro is steady; relax bar
 
-_BASE_RATE_LOOKBACK_M: Final[int] = 4      # 3-month change needs 4 months of data
-_FX_LOOKBACK_D: Final[int] = 90            # 60-day window + buffer for weekends
-_CPI_LOOKBACK_M: Final[int] = 14           # 12-month trailing avg + 2 months margin
-_KOSPI_LOOKBACK_D: Final[int] = 90         # 60-day momentum + buffer
+_BASE_RATE_LOOKBACK_M: Final[int] = 4  # 3-month change needs 4 months of data
+_FX_LOOKBACK_D: Final[int] = 90  # 60-day window + buffer for weekends
+_CPI_LOOKBACK_M: Final[int] = 14  # 12-month trailing avg + 2 months margin
+_KOSPI_LOOKBACK_D: Final[int] = 90  # 60-day momentum + buffer
 
 _HORIZON_DAYS: Final[int] = 30
 # Default per-stock export exposure (megacap exporters dominate the KOSPI 200).
@@ -53,10 +53,10 @@ _EXPORT_EXPOSURE_DEFAULT: Final[float] = 1.0
 
 @dataclass(frozen=True, slots=True)
 class MacroKrInputs:
-    base_rate_change_3m: float | None       # latest minus 3 months ago, in %-points
-    krw_usd_trend_60d: float | None         # (latest / 60d-ago) - 1, signed
-    cpi_surprise: float | None              # latest CPI minus trailing 12m mean
-    kospi_momentum_60d: float | None        # (latest / 60d-ago) - 1, signed
+    base_rate_change_3m: float | None  # latest minus 3 months ago, in %-points
+    krw_usd_trend_60d: float | None  # (latest / 60d-ago) - 1, signed
+    cpi_surprise: float | None  # latest CPI minus trailing 12m mean
+    kospi_momentum_60d: float | None  # (latest / 60d-ago) - 1, signed
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,46 +125,59 @@ class EMacroKrExpert:
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         if self._ecos is None:
             raise ExpertSkipError(
-                "E_MACRO_KR: ECOS client not configured "
-                "(see docs/ECOS_API_SETUP.md)"
+                "E_MACRO_KR: ECOS client not configured (see docs/ECOS_API_SETUP.md)"
             )
         if not is_kr_ticker(ticker):
-            raise ExpertSkipError(
-                f"E_MACRO_KR: ticker {ticker!r} not KR equity"
-            )
+            raise ExpertSkipError(f"E_MACRO_KR: ticker {ticker!r} not KR equity")
         code = normalize_kr_ticker(ticker)
         sources: list[_Source] = []
         as_of = ts.date()
         inputs = await self._fetch_inputs(as_of, sources)
         if _all_inputs_missing(inputs):
-            raise ExpertSkipError(
-                f"E_MACRO_KR: no usable ECOS series for {as_of.isoformat()}"
-            )
+            raise ExpertSkipError(f"E_MACRO_KR: no usable ECOS series for {as_of.isoformat()}")
         score = score_macro_kr(inputs, export_exposure=self._export_exposure)
         return _build_signal(
-            code=code, ts=ts, inputs=inputs, score=score, sources=sources,
+            code=code,
+            ts=ts,
+            inputs=inputs,
+            score=score,
+            sources=sources,
         )
 
     async def _fetch_inputs(
-        self, as_of: date, sources: list[_Source],
+        self,
+        as_of: date,
+        sources: list[_Source],
     ) -> MacroKrInputs:
         # Each fetch is best-effort; failures degrade to None so a partial
         # macro picture still produces a signal.
         base = await self._safe_series(
-            "ecos.base_rate", sources,
-            self._ecos.get_base_rate, as_of - timedelta(days=_BASE_RATE_LOOKBACK_M * 35), as_of,
+            "ecos.base_rate",
+            sources,
+            self._ecos.get_base_rate,
+            as_of - timedelta(days=_BASE_RATE_LOOKBACK_M * 35),
+            as_of,
         )
         fx = await self._safe_series(
-            "ecos.krw_usd", sources,
-            self._ecos.get_krw_usd, as_of - timedelta(days=_FX_LOOKBACK_D), as_of,
+            "ecos.krw_usd",
+            sources,
+            self._ecos.get_krw_usd,
+            as_of - timedelta(days=_FX_LOOKBACK_D),
+            as_of,
         )
         cpi = await self._safe_series(
-            "ecos.cpi", sources,
-            self._ecos.get_cpi, as_of - timedelta(days=_CPI_LOOKBACK_M * 35), as_of,
+            "ecos.cpi",
+            sources,
+            self._ecos.get_cpi,
+            as_of - timedelta(days=_CPI_LOOKBACK_M * 35),
+            as_of,
         )
         kospi = await self._safe_series(
-            "ecos.kospi", sources,
-            self._ecos.get_kospi_index, as_of - timedelta(days=_KOSPI_LOOKBACK_D), as_of,
+            "ecos.kospi",
+            sources,
+            self._ecos.get_kospi_index,
+            as_of - timedelta(days=_KOSPI_LOOKBACK_D),
+            as_of,
         )
         return MacroKrInputs(
             base_rate_change_3m=_rolling_change(base, periods=3),
@@ -188,8 +201,7 @@ class EMacroKrExpert:
             return None
         snap_id = self._ecos.last_snapshot_id if self._ecos else None
         if snap_id is not None:
-            sources.append(_Source(name=snap_name, snapshot_id=snap_id,
-                                   ts=datetime.now(tz=UTC)))
+            sources.append(_Source(name=snap_name, snapshot_id=snap_id, ts=datetime.now(tz=UTC)))
         return series
 
 
@@ -198,9 +210,12 @@ class EMacroKrExpert:
 
 def _all_inputs_missing(inputs: MacroKrInputs) -> bool:
     return all(
-        v is None for v in (
-            inputs.base_rate_change_3m, inputs.krw_usd_trend_60d,
-            inputs.cpi_surprise, inputs.kospi_momentum_60d,
+        v is None
+        for v in (
+            inputs.base_rate_change_3m,
+            inputs.krw_usd_trend_60d,
+            inputs.cpi_surprise,
+            inputs.kospi_momentum_60d,
         )
     )
 
@@ -238,7 +253,7 @@ def _cpi_surprise(series: EcosSeries | None, *, trailing_n: int) -> float | None
     if len(vals) <= 1:
         return None
     latest = vals[-1]
-    sample = vals[-(trailing_n + 1):-1] or vals[:-1]
+    sample = vals[-(trailing_n + 1) : -1] or vals[:-1]
     mean = sum(sample) / len(sample)
     if mean == 0:
         return None
@@ -253,29 +268,47 @@ def score_macro_kr(
 ) -> MacroKrScore:
     # Each term is bounded so a single fat tail can't dominate.
     base_term = _signed_term(
-        inputs.base_rate_change_3m, scale_pp=0.50, weight=_WEIGHT_BASE_RATE,
+        inputs.base_rate_change_3m,
+        scale_pp=0.50,
+        weight=_WEIGHT_BASE_RATE,
         invert=True,
     )
     fx_term = _signed_term(
-        inputs.krw_usd_trend_60d, scale_pp=0.05, weight=_WEIGHT_FX * export_exposure,
+        inputs.krw_usd_trend_60d,
+        scale_pp=0.05,
+        weight=_WEIGHT_FX * export_exposure,
         invert=False,
     )
     cpi_term = _signed_term(
-        inputs.cpi_surprise, scale_pp=0.02, weight=_WEIGHT_CPI, invert=True,
+        inputs.cpi_surprise,
+        scale_pp=0.02,
+        weight=_WEIGHT_CPI,
+        invert=True,
     )
     kospi_term = _signed_term(
-        inputs.kospi_momentum_60d, scale_pp=0.05, weight=_WEIGHT_KOSPI, invert=False,
+        inputs.kospi_momentum_60d,
+        scale_pp=0.05,
+        weight=_WEIGHT_KOSPI,
+        invert=False,
     )
     raw = base_term + fx_term + cpi_term + kospi_term
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     return MacroKrScore(
-        base_rate_term=base_term, fx_term=fx_term, cpi_term=cpi_term,
-        kospi_term=kospi_term, raw_score=raw, net_score=net,
+        base_rate_term=base_term,
+        fx_term=fx_term,
+        cpi_term=cpi_term,
+        kospi_term=kospi_term,
+        raw_score=raw,
+        net_score=net,
     )
 
 
 def _signed_term(
-    value: float | None, *, scale_pp: float, weight: float, invert: bool,
+    value: float | None,
+    *,
+    scale_pp: float,
+    weight: float,
+    invert: bool,
 ) -> float:
     if value is None:
         return 0.0
@@ -302,24 +335,26 @@ def _build_signal(
         f"KOSPI 60d={_fmt_pct(inputs.kospi_momentum_60d)}"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
-        sorted({
-            "base_rate_change_3m": _fmt(inputs.base_rate_change_3m),
-            "krw_usd_trend_60d": _fmt(inputs.krw_usd_trend_60d),
-            "cpi_surprise": _fmt(inputs.cpi_surprise),
-            "kospi_momentum_60d": _fmt(inputs.kospi_momentum_60d),
-            "base_term": f"{score.base_rate_term:.4f}",
-            "fx_term": f"{score.fx_term:.4f}",
-            "cpi_term": f"{score.cpi_term:.4f}",
-            "kospi_term": f"{score.kospi_term:.4f}",
-            "raw_score": f"{score.raw_score:.4f}",
-            "net_score": f"{score.net_score:.4f}",
-            "clipped": str(score.clipped),
-            "code": code,
-        }.items())
+        sorted(
+            {
+                "base_rate_change_3m": _fmt(inputs.base_rate_change_3m),
+                "krw_usd_trend_60d": _fmt(inputs.krw_usd_trend_60d),
+                "cpi_surprise": _fmt(inputs.cpi_surprise),
+                "kospi_momentum_60d": _fmt(inputs.kospi_momentum_60d),
+                "base_term": f"{score.base_rate_term:.4f}",
+                "fx_term": f"{score.fx_term:.4f}",
+                "cpi_term": f"{score.cpi_term:.4f}",
+                "kospi_term": f"{score.kospi_term:.4f}",
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "clipped": str(score.clipped),
+                "code": code,
+            }.items()
+        )
     )
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_macro_kr.synthetic",)
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_macro_kr.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_MACRO_KR",  # type: ignore[arg-type]
         ticker=code,

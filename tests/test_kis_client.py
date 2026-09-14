@@ -90,35 +90,48 @@ def _token_handler_factory():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/oauth2/tokenP"):
             calls["token"] += 1
-            return httpx.Response(200, json={
-                "access_token": "tok-123",
-                "token_type": "Bearer",
-                "expires_in": 3600,
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "access_token": "tok-123",
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                },
+            )
         if "inquire-investor" in request.url.path:
             calls["investor"] += 1
-            return httpx.Response(200, json={
-                "rt_cd": "0",
-                "msg1": "OK",
-                "output": [{
-                    "frgn_ntby_qty": "1,500",
-                    "orgn_ntby_qty": "-300",
-                    "prsn_ntby_qty": "500",
-                    "pgm_ntby_qty": "200",
-                }],
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "rt_cd": "0",
+                    "msg1": "OK",
+                    "output": [
+                        {
+                            "frgn_ntby_qty": "1,500",
+                            "orgn_ntby_qty": "-300",
+                            "prsn_ntby_qty": "500",
+                            "pgm_ntby_qty": "200",
+                        }
+                    ],
+                },
+            )
         if "inquire-daily-trade" in request.url.path:
             calls["daily"] += 1
-            return httpx.Response(200, json={
-                "rt_cd": "0",
-                "msg1": "OK",
-                "output": [{
-                    "stck_bsop_date": "20260415",
-                    "frgn_ntby_tr_pbmn": "1500000000",
-                    "orgn_ntby_tr_pbmn": "-300000000",
-                    "prsn_ntby_tr_pbmn": "500000000",
-                }],
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "rt_cd": "0",
+                    "msg1": "OK",
+                    "output": [
+                        {
+                            "stck_bsop_date": "20260415",
+                            "frgn_ntby_tr_pbmn": "1500000000",
+                            "orgn_ntby_tr_pbmn": "-300000000",
+                            "prsn_ntby_tr_pbmn": "500000000",
+                        }
+                    ],
+                },
+            )
         return httpx.Response(404, json={"rt_cd": "1", "msg1": "not found"})
 
     return handler, calls
@@ -179,13 +192,23 @@ async def test_kis_business_error_raises(monkeypatch) -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/oauth2/tokenP"):
-            return httpx.Response(200, json={
-                "access_token": "tok", "token_type": "Bearer", "expires_in": 3600,
-            })
-        return httpx.Response(200, json={
-            "rt_cd": "1", "msg1": "한도 초과", "msg_cd": "EGW00100",
-            "output": [],
-        })
+            return httpx.Response(
+                200,
+                json={
+                    "access_token": "tok",
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "rt_cd": "1",
+                "msg1": "한도 초과",
+                "msg_cd": "EGW00100",
+                "output": [],
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:

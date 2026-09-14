@@ -106,7 +106,7 @@ def test_compute_t_single_match() -> None:
 def test_compute_t_double_match() -> None:
     today = date(2026, 4, 28)
     # Two anchors: each hits one base. Union → 2 matches.
-    anchors = [date(2026, 1, 27), date(2025, 10, 29)]   # 65 + 129
+    anchors = [date(2026, 1, 27), date(2025, 10, 29)]  # 65 + 129
     t, matched = compute_time_convergence_t(today, anchors)
     assert t == 1.5
     assert matched == [65, 129]
@@ -115,9 +115,9 @@ def test_compute_t_double_match() -> None:
 def test_compute_t_triple_match() -> None:
     today = date(2026, 4, 28)
     anchors = [
-        date(2026, 1, 27),   # n=65
+        date(2026, 1, 27),  # n=65
         date(2025, 10, 29),  # n=129
-        date(2025, 8, 29),   # n=172
+        date(2025, 8, 29),  # n=172
     ]
     t, matched = compute_time_convergence_t(today, anchors)
     assert t == 2.0
@@ -127,10 +127,10 @@ def test_compute_t_triple_match() -> None:
 def test_compute_t_quadruple_capped_at_two() -> None:
     today = date(2026, 4, 28)
     anchors = [
-        date(2026, 1, 27),   # n=65
+        date(2026, 1, 27),  # n=65
         date(2025, 10, 29),  # n=129
-        date(2025, 8, 29),   # n=172
-        date(2025, 7, 22),   # n=200
+        date(2025, 8, 29),  # n=172
+        date(2025, 7, 22),  # n=200
     ]
     t, matched = compute_time_convergence_t(today, anchors)
     assert t == 2.0  # cap at 2.0 for ≥3 matches
@@ -144,7 +144,7 @@ def test_find_anchor_low_returns_correct_date() -> None:
     bars = [
         (date(2026, 4, 1), 200.0),
         (date(2026, 4, 2), 195.0),
-        (date(2026, 4, 3), 180.0),   # the low
+        (date(2026, 4, 3), 180.0),  # the low
         (date(2026, 4, 4), 190.0),
         (date(2026, 4, 5), 205.0),
     ]
@@ -157,7 +157,7 @@ def test_find_anchor_low_empty_returns_none() -> None:
 
 def test_find_anchor_low_respects_lookback() -> None:
     bars = [
-        (date(2024, 1, 1), 100.0),    # absolute low, but outside 100-day lookback
+        (date(2024, 1, 1), 100.0),  # absolute low, but outside 100-day lookback
         (date(2026, 4, 25), 195.0),
         (date(2026, 4, 28), 200.0),
     ]
@@ -173,7 +173,7 @@ def test_find_anchor_lows_separates_by_min_gap() -> None:
     bars = [
         (date(2026, 4, 1), 200.0),
         (date(2026, 4, 2), 150.0),
-        (date(2026, 4, 3), 152.0),    # close to first low → excluded by gap
+        (date(2026, 4, 3), 152.0),  # close to first low → excluded by gap
         (date(2026, 4, 28), 200.0),
     ]
     out = find_anchor_lows(bars, k=3, min_gap_bdays=21)

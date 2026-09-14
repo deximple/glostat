@@ -53,7 +53,7 @@ class AnalystRecommendationEvent:
     firm: str
     from_grade: str
     to_grade: str
-    action: str   # 'up' / 'down' / 'reit' / 'init' / ''
+    action: str  # 'up' / 'down' / 'reit' / 'init' / ''
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +64,7 @@ class AnalystRecommendationHistory:
     def in_window(self, days: int) -> tuple[AnalystRecommendationEvent, ...]:
         from datetime import UTC, timedelta  # noqa: PLC0415
         from datetime import datetime as _dt  # noqa: PLC0415
+
         cutoff = _dt.now(tz=UTC) - timedelta(days=days)
         return tuple(e for e in self.events if e.ts >= cutoff)
 
@@ -99,7 +100,7 @@ class EarningsCalendar:
 class HoldersSnapshot:
     ticker: str
     kind: HoldersKind
-    holders: tuple[tuple[str, float], ...]   # (holder_name, pct_held) — back-compat surface
+    holders: tuple[tuple[str, float], ...]  # (holder_name, pct_held) — back-compat surface
     fetched_at: datetime
     # Sprint 5 PR #1: full holders payload includes shares + reported_at so the
     # E_FUND_FLOW delta classifier can detect institutional accumulation/distribution

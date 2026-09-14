@@ -27,7 +27,7 @@ _HEADERS: Final[dict[str, str]] = {
     "Referer": "https://finance.naver.com/",
 }
 
-_ROW_RE: Final = re.compile(r'<tr[^>]*onMouseOver[^>]*>(.*?)</tr>', re.DOTALL)
+_ROW_RE: Final = re.compile(r"<tr[^>]*onMouseOver[^>]*>(.*?)</tr>", re.DOTALL)
 _DATE_RE: Final = re.compile(r'<span class="tah p10 gray03">(\d{4})\.(\d{2})\.(\d{2})</span>')
 _NUM_RE: Final = re.compile(r'<span class="tah p11[^"]*">\s*([\-\+0-9,\.]+)%?\s*</span>')
 
@@ -43,8 +43,8 @@ class KrFlowBar:
     code: str
     bar_date: date
     close_price: float
-    organ_net: float       # 기관 순매수 (shares)
-    foreign_net: float     # 외국인 순매수 (shares)
+    organ_net: float  # 기관 순매수 (shares)
+    foreign_net: float  # 외국인 순매수 (shares)
     foreign_holdings: float
     foreign_hold_pct: float
 
@@ -96,15 +96,17 @@ def parse_frgn_page(html: str, code: str) -> list[KrFlowBar]:
             organ_net = _parse_signed_int(nums[-4])
         except (ValueError, IndexError):
             continue
-        bars.append(KrFlowBar(
-            code=code,
-            bar_date=bar_date,
-            close_price=close,
-            organ_net=organ_net,
-            foreign_net=foreign_net,
-            foreign_holdings=foreign_holdings,
-            foreign_hold_pct=foreign_pct,
-        ))
+        bars.append(
+            KrFlowBar(
+                code=code,
+                bar_date=bar_date,
+                close_price=close,
+                organ_net=organ_net,
+                foreign_net=foreign_net,
+                foreign_holdings=foreign_holdings,
+                foreign_hold_pct=foreign_pct,
+            )
+        )
     return bars
 
 
@@ -191,15 +193,17 @@ class NaverKrClient:
                     bd = bd_raw
                 else:
                     bd = date.fromisoformat(str(bd_raw))
-                out.append(KrFlowBar(
-                    code=str(r.get("code", code)),
-                    bar_date=bd,
-                    close_price=float(r.get("close_price", 0) or 0),
-                    organ_net=float(r.get("organ_net", 0) or 0),
-                    foreign_net=float(r.get("foreign_net", 0) or 0),
-                    foreign_holdings=float(r.get("foreign_holdings", 0) or 0),
-                    foreign_hold_pct=float(r.get("foreign_hold_pct", 0) or 0),
-                ))
+                out.append(
+                    KrFlowBar(
+                        code=str(r.get("code", code)),
+                        bar_date=bd,
+                        close_price=float(r.get("close_price", 0) or 0),
+                        organ_net=float(r.get("organ_net", 0) or 0),
+                        foreign_net=float(r.get("foreign_net", 0) or 0),
+                        foreign_holdings=float(r.get("foreign_holdings", 0) or 0),
+                        foreign_hold_pct=float(r.get("foreign_hold_pct", 0) or 0),
+                    )
+                )
             return out
         except Exception as exc:
             log.warning("naver_kr.cache_load_failed", code=code, err=str(exc))
@@ -213,15 +217,18 @@ class NaverKrClient:
             import pyarrow as pa  # noqa: PLC0415
             import pyarrow.parquet as pq  # noqa: PLC0415
 
-            payload = [{
-                "code": b.code,
-                "bar_date": b.bar_date.isoformat(),
-                "close_price": b.close_price,
-                "organ_net": b.organ_net,
-                "foreign_net": b.foreign_net,
-                "foreign_holdings": b.foreign_holdings,
-                "foreign_hold_pct": b.foreign_hold_pct,
-            } for b in sorted(bars, key=lambda x: x.bar_date)]
+            payload = [
+                {
+                    "code": b.code,
+                    "bar_date": b.bar_date.isoformat(),
+                    "close_price": b.close_price,
+                    "organ_net": b.organ_net,
+                    "foreign_net": b.foreign_net,
+                    "foreign_holdings": b.foreign_holdings,
+                    "foreign_hold_pct": b.foreign_hold_pct,
+                }
+                for b in sorted(bars, key=lambda x: x.bar_date)
+            ]
             table = pa.Table.from_pylist(payload)
             tmp = path.with_suffix(path.suffix + ".tmp")
             pq.write_table(table, tmp, compression="zstd")
@@ -261,19 +268,19 @@ _DISAGREEMENT_THRESHOLD: Final[float] = 0.50  # 50%
 class FusedFlowBar:
     bar_date: date
     code: str
-    foreign_net: float           # shares (Naver/KIS) or KRW (Toss); see `units`
+    foreign_net: float  # shares (Naver/KIS) or KRW (Toss); see `units`
     organ_net: float
-    sources: tuple[str, ...]     # ordered "kis" / "toss" / "naver" subset
-    units: str                   # "shares" or "won"
-    cross_validated: bool        # True when ≥ 2 sources contributed for the date
+    sources: tuple[str, ...]  # ordered "kis" / "toss" / "naver" subset
+    units: str  # "shares" or "won"
+    cross_validated: bool  # True when ≥ 2 sources contributed for the date
 
 
 def fuse_three_source_flows(
     *,
     code: str,
     naver_bars: list[KrFlowBar] | None = None,
-    toss_bars: list | None = None,         # list[TossInvestorBar]
-    kis_daily: list | None = None,         # list[KisDailySummary]
+    toss_bars: list | None = None,  # list[TossInvestorBar]
+    kis_daily: list | None = None,  # list[KisDailySummary]
     disagreement_threshold: float = _DISAGREEMENT_THRESHOLD,
 ) -> list[FusedFlowBar]:
     """Merge three KR investor-flow sources into a single per-date series.
@@ -287,7 +294,9 @@ def fuse_three_source_flows(
     for bar in naver_bars or []:
         slot = by_date.setdefault(bar.bar_date, {})
         slot["naver"] = {
-            "foreign": bar.foreign_net, "organ": bar.organ_net, "units": 0,
+            "foreign": bar.foreign_net,
+            "organ": bar.organ_net,
+            "units": 0,
         }
     for bar in toss_bars or []:
         slot = by_date.setdefault(bar.bar_date, {})
@@ -315,9 +324,7 @@ def fuse_three_source_flows(
         for s in sources_present:
             e = entries[s]
             # Skip mismatched units when picking the median.
-            if (units == "shares" and e["units"] == 1) or (
-                units == "won" and e["units"] == 0
-            ):
+            if (units == "shares" and e["units"] == 1) or (units == "won" and e["units"] == 0):
                 continue
             foreign_vals.append(e["foreign"])
             organ_vals.append(e["organ"])
@@ -332,14 +339,18 @@ def fuse_three_source_flows(
         if cross_validated and _disagree(foreign_vals, disagreement_threshold):
             log.warning(
                 "naver_kr.fusion_disagreement",
-                code=code, bar_date=d.isoformat(),
-                sources=sources_present, foreign_vals=foreign_vals,
+                code=code,
+                bar_date=d.isoformat(),
+                sources=sources_present,
+                foreign_vals=foreign_vals,
             )
         fused = FusedFlowBar(
-            bar_date=d, code=code,
+            bar_date=d,
+            code=code,
             foreign_net=_median(foreign_vals) if foreign_vals else 0.0,
             organ_net=_median(organ_vals) if organ_vals else 0.0,
-            sources=sources_present, units=units,
+            sources=sources_present,
+            units=units,
             cross_validated=cross_validated,
         )
         out.append(fused)

@@ -37,23 +37,47 @@ def add_scan_subparser(sub: Any) -> None:
         "scan",
         help="Rank a universe by composite edge over baseline.",
     )
-    p.add_argument("--universe", default=_DEFAULT_UNIVERSE,
-                   help=f"Universe name (default {_DEFAULT_UNIVERSE}).")
-    p.add_argument("--top", type=int, default=_DEFAULT_TOP_N,
-                   help=f"Show top N tickers. Default {_DEFAULT_TOP_N}.")
-    p.add_argument("--horizon", default=_DEFAULT_HORIZON,
-                   choices=["intraday", "swing_5d", "swing_30d", "long_3y"],
-                   help="Prediction horizon. Default swing_30d.")
-    p.add_argument("--significant", action="store_true",
-                   help="Filter to tickers where at least one active signal "
-                        "has p<0.05 (statistically significant AUC).")
-    p.add_argument("--min-edge", type=float, default=None,
-                   help="Filter to tickers with abs(edge_over_baseline_pp) >= this.")
-    p.add_argument("--max-concurrent", type=int, default=3,
-                   help="Parallel ticker semaphore. Default 3 (yfinance throttle).")
-    p.add_argument("--jurisdiction", default="US",
-                   choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
-                   help="Compliance disclaimer jurisdiction. Default US.")
+    p.add_argument(
+        "--universe",
+        default=_DEFAULT_UNIVERSE,
+        help=f"Universe name (default {_DEFAULT_UNIVERSE}).",
+    )
+    p.add_argument(
+        "--top",
+        type=int,
+        default=_DEFAULT_TOP_N,
+        help=f"Show top N tickers. Default {_DEFAULT_TOP_N}.",
+    )
+    p.add_argument(
+        "--horizon",
+        default=_DEFAULT_HORIZON,
+        choices=["intraday", "swing_5d", "swing_30d", "long_3y"],
+        help="Prediction horizon. Default swing_30d.",
+    )
+    p.add_argument(
+        "--significant",
+        action="store_true",
+        help="Filter to tickers where at least one active signal "
+        "has p<0.05 (statistically significant AUC).",
+    )
+    p.add_argument(
+        "--min-edge",
+        type=float,
+        default=None,
+        help="Filter to tickers with abs(edge_over_baseline_pp) >= this.",
+    )
+    p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=3,
+        help="Parallel ticker semaphore. Default 3 (yfinance throttle).",
+    )
+    p.add_argument(
+        "--jurisdiction",
+        default="US",
+        choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
+        help="Compliance disclaimer jurisdiction. Default US.",
+    )
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
@@ -63,7 +87,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 2
 
     ctx = ComplianceContext(
-        user_profile_hash="0" * 64, jurisdiction=args.jurisdiction,
+        user_profile_hash="0" * 64,
+        jurisdiction=args.jurisdiction,
     )
     assert_personal_use(ctx)
 
@@ -82,26 +107,31 @@ def cmd_scan(args: argparse.Namespace) -> int:
     print()
 
     try:
-        results = asyncio.run(_scan_universe(
-            tickers=universe.tickers, horizon=args.horizon,
-            broker=broker, cal_table=cal_table,
-            max_concurrent=args.max_concurrent,
-        ))
+        results = asyncio.run(
+            _scan_universe(
+                tickers=universe.tickers,
+                horizon=args.horizon,
+                broker=broker,
+                cal_table=cal_table,
+                max_concurrent=args.max_concurrent,
+            )
+        )
     finally:
         broker.close()
 
     filtered = _apply_filters(
-        results, significant=args.significant, min_edge=args.min_edge,
+        results,
+        significant=args.significant,
+        min_edge=args.min_edge,
     )
     if not filtered:
-        print(
-            f"[scan] no tickers passed filters "
-            f"({len(results)} predictions, 0 surviving)"
-        )
+        print(f"[scan] no tickers passed filters ({len(results)} predictions, 0 surviving)")
         return 0
 
     ranked = sorted(
-        filtered, key=lambda r: r[1].edge_over_baseline_pp, reverse=True,
+        filtered,
+        key=lambda r: r[1].edge_over_baseline_pp,
+        reverse=True,
     )
     _print_scan_table(ranked[: args.top])
     print()
@@ -127,9 +157,11 @@ async def _scan_universe(
         async with semaphore:
             try:
                 pred = await _predict_live(
-                    ticker=ticker, horizon=horizon,  # type: ignore[arg-type]
+                    ticker=ticker,
+                    horizon=horizon,  # type: ignore[arg-type]
                     ts=datetime.now(tz=UTC),
-                    broker=broker, cal_table=cal_table,
+                    broker=broker,
+                    cal_table=cal_table,
                 )
                 results.append((ticker, pred))
             except Exception as exc:
@@ -168,10 +200,7 @@ def _has_significant_signal(pred: Prediction) -> bool:
 
 
 def _print_scan_table(ranked: list[tuple[str, Prediction]]) -> None:
-    print(
-        f"  {'RANK':>4}  {'TICKER':<8}  {'p_up':>5}  {'edge':>6}  "
-        f"{'net_bps':>8}  top_signal"
-    )
+    print(f"  {'RANK':>4}  {'TICKER':<8}  {'p_up':>5}  {'edge':>6}  {'net_bps':>8}  top_signal")
     print("  " + "-" * 80)
     for i, (ticker, pred) in enumerate(ranked, 1):
         net_bps = pred.expected_return_bps  # already net of expected return
@@ -193,9 +222,12 @@ def _top_active_signal(pred: Prediction) -> str:
             continue
         score = abs(sig.value)
         sig_marker = (
-            "p<0.05" if is_statistically_significant(
-                sig.calibration_auc, sig.n_samples,
-            ) else "n.s."
+            "p<0.05"
+            if is_statistically_significant(
+                sig.calibration_auc,
+                sig.n_samples,
+            )
+            else "n.s."
         )
         label = (
             f"{sig.name} ({sig_marker}) "

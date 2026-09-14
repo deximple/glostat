@@ -29,8 +29,13 @@ def _run_predict(ticker: str, *extra_args: str) -> subprocess.CompletedProcess[s
     env["NETWORK_TESTS"] = "1"
     args = [sys.executable, "-m", "glostat.cli", "predict", ticker, *extra_args]
     return subprocess.run(
-        args, cwd=str(_REPO_ROOT), env=env,
-        capture_output=True, text=True, timeout=180, check=False,
+        args,
+        cwd=str(_REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
     )
 
 
@@ -52,9 +57,7 @@ def test_predict_sk_innovation_has_three_active_signals() -> None:
     assert r.returncode == 0, f"stderr: {r.stderr}"
     active = _count_active_signals(r.stdout)
     # E_FUNDAMENTAL_KR + E_FOREIGN_REVERSAL + E_TIME → 3.
-    assert active >= 3, (
-        f"expected ≥3 active signals, got {active}\n--- stdout ---\n{r.stdout}"
-    )
+    assert active >= 3, f"expected ≥3 active signals, got {active}\n--- stdout ---\n{r.stdout}"
     assert "096770" in r.stdout
     assert "XKRX" in r.stdout
     # Edge_pp must be non-zero (signals are influencing the prediction).
@@ -65,9 +68,7 @@ def test_predict_samsung_has_three_active_signals() -> None:
     r = _run_predict("005930")
     assert r.returncode == 0, f"stderr: {r.stderr}"
     active = _count_active_signals(r.stdout)
-    assert active >= 3, (
-        f"expected ≥3 active signals, got {active}\n--- stdout ---\n{r.stdout}"
-    )
+    assert active >= 3, f"expected ≥3 active signals, got {active}\n--- stdout ---\n{r.stdout}"
     assert "005930" in r.stdout
     assert "XKRX" in r.stdout
 
@@ -76,9 +77,7 @@ def test_predict_sk_innovation_does_not_show_baseline_fallback() -> None:
     # The baseline fallback (no contributing signals → 50/50) used to print
     # "active 0 / total 11". v1.1 K1 must avoid that for KOSPI 200 megacaps.
     r = _run_predict("096770")
-    assert "active 0" not in r.stdout, (
-        f"baseline fallback path still triggered:\n{r.stdout}"
-    )
+    assert "active 0" not in r.stdout, f"baseline fallback path still triggered:\n{r.stdout}"
 
 
 def test_predict_aapl_still_works_after_kr_changes() -> None:

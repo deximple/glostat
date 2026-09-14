@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from glostat.experts.e_analyst_revision import (
+    AnalystRevisionScore,
+    EAnalystRevisionExpert,
+)
+from glostat.experts.e_commodity_index_kr import (
+    CommodityIndexScore,
+    ECommodityIndexKrExpert,
+)
 from glostat.experts.e_commodity_ts import (
     CommodityTsSnapshot,
     ECommodityTsExpert,
@@ -8,14 +16,6 @@ from glostat.experts.e_fomc_drift import EFomcDriftExpert
 from glostat.experts.e_foreign_reversal import (
     EForeignReversalExpert,
     ForeignReversalScore,
-)
-from glostat.experts.e_analyst_revision import (
-    AnalystRevisionScore,
-    EAnalystRevisionExpert,
-)
-from glostat.experts.e_commodity_index_kr import (
-    CommodityIndexScore,
-    ECommodityIndexKrExpert,
 )
 from glostat.experts.e_fund_flow import EFundFlowExpert, FundFlowScore
 from glostat.experts.e_fundamental import EFundamentalExpert, FundamentalScore

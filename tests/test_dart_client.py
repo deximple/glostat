@@ -102,12 +102,22 @@ def _make_corp_code_zip(entries: list[CorpCodeEntry]) -> bytes:
 
 
 def test_parse_corp_code_zip_extracts_entries() -> None:
-    zipped = _make_corp_code_zip([
-        CorpCodeEntry(corp_code="00126380", corp_name="삼성전자",
-                       stock_code="005930", modify_date="20240101"),
-        CorpCodeEntry(corp_code="00164742", corp_name="SK이노베이션",
-                       stock_code="096770", modify_date="20240105"),
-    ])
+    zipped = _make_corp_code_zip(
+        [
+            CorpCodeEntry(
+                corp_code="00126380",
+                corp_name="삼성전자",
+                stock_code="005930",
+                modify_date="20240101",
+            ),
+            CorpCodeEntry(
+                corp_code="00164742",
+                corp_name="SK이노베이션",
+                stock_code="096770",
+                modify_date="20240105",
+            ),
+        ]
+    )
     parsed = _parse_corp_code_zip(zipped)
     assert len(parsed) == 2
     assert parsed[0].stock_code == "005930"
@@ -125,8 +135,10 @@ def test_parse_corp_code_zip_handles_bad_zip() -> None:
 def test_parse_financial_items_basic() -> None:
     rows = [
         {
-            "account_id": "ifrs-full_Revenue", "account_nm": "수익",
-            "fs_div": "CFS", "sj_div": "IS",
+            "account_id": "ifrs-full_Revenue",
+            "account_nm": "수익",
+            "fs_div": "CFS",
+            "sj_div": "IS",
             "thstrm_amount": "279,604,799,000,000",
             "frmtrm_amount": "258,935,494,000,000",
             "bfefrmtrm_amount": "0",
@@ -142,14 +154,24 @@ def test_parse_financial_items_basic() -> None:
 
 
 def test_financial_statements_find_by_id() -> None:
-    items = _parse_financial_items([
-        {"account_id": "ifrs-full_Revenue", "account_nm": "매출액",
-         "fs_div": "CFS", "sj_div": "IS", "thstrm_amount": "100",
-         "frmtrm_amount": "90", "bfefrmtrm_amount": "0",
-         "thstrm_nm": "당기"},
-    ])
+    items = _parse_financial_items(
+        [
+            {
+                "account_id": "ifrs-full_Revenue",
+                "account_nm": "매출액",
+                "fs_div": "CFS",
+                "sj_div": "IS",
+                "thstrm_amount": "100",
+                "frmtrm_amount": "90",
+                "bfefrmtrm_amount": "0",
+                "thstrm_nm": "당기",
+            },
+        ]
+    )
     statements = DartFinancialStatements(
-        corp_code="x", bsns_year="2024", reprt_code="11011",
+        corp_code="x",
+        bsns_year="2024",
+        reprt_code="11011",
         items=tuple(items),
     )
     assert statements.find("Revenue") is not None
@@ -162,12 +184,15 @@ def test_financial_statements_find_by_id() -> None:
 
 def test_build_executive_txn_classifies_buy_from_irds_cnt() -> None:
     row = {
-        "repror": "홍길동", "isu_exctv_rgist_at": "Y",
+        "repror": "홍길동",
+        "isu_exctv_rgist_at": "Y",
         "isu_exctv_ofcps": "이사",
         "isu_main_shrholdr": "본인",
-        "sp_stock_lmp_cnt": "10000", "sp_stock_lmp_irds_cnt": "1000",
+        "sp_stock_lmp_cnt": "10000",
+        "sp_stock_lmp_irds_cnt": "1000",
         "sp_stock_lmp_irds_rate": "0.10",
-        "bsis_dt": "20260101", "rcept_dt": "20260103",
+        "bsis_dt": "20260101",
+        "rcept_dt": "20260103",
         "trd_kind": "장내매수",
     }
     txn = _build_executive_txn("00126380", row)
@@ -178,8 +203,11 @@ def test_build_executive_txn_classifies_buy_from_irds_cnt() -> None:
 
 def test_build_executive_txn_classifies_sell_from_negative_irds() -> None:
     row = {
-        "repror": "임원", "sp_stock_lmp_irds_cnt": "-5000",
-        "trd_kind": "장내매도", "bsis_dt": "20260201", "rcept_dt": "20260203",
+        "repror": "임원",
+        "sp_stock_lmp_irds_cnt": "-5000",
+        "trd_kind": "장내매도",
+        "bsis_dt": "20260201",
+        "rcept_dt": "20260203",
     }
     txn = _build_executive_txn("xx", row)
     assert txn is not None
@@ -189,8 +217,10 @@ def test_build_executive_txn_classifies_sell_from_negative_irds() -> None:
 
 def test_build_executive_txn_handles_korean_kind() -> None:
     row = {
-        "repror": "Lee", "sp_stock_lmp_irds_cnt": "0",
-        "trd_kind": "취득(증여)", "bsis_dt": "20250901",
+        "repror": "Lee",
+        "sp_stock_lmp_irds_cnt": "0",
+        "trd_kind": "취득(증여)",
+        "bsis_dt": "20250901",
     }
     txn = _build_executive_txn("yy", row)
     assert txn is not None
@@ -205,14 +235,21 @@ async def test_get_company_overview_mocked(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_DART_API_KEY", "k1")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={
-            "status": "000", "message": "OK",
-            "corp_code": "00126380", "corp_name": "삼성전자",
-            "corp_name_eng": "Samsung Electronics",
-            "stock_code": "005930", "ceo_nm": "이재용",
-            "est_dt": "19690113", "induty_code": "264",
-            "corp_cls": "Y",
-        })
+        return httpx.Response(
+            200,
+            json={
+                "status": "000",
+                "message": "OK",
+                "corp_code": "00126380",
+                "corp_name": "삼성전자",
+                "corp_name_eng": "Samsung Electronics",
+                "stock_code": "005930",
+                "ceo_nm": "이재용",
+                "est_dt": "19690113",
+                "induty_code": "264",
+                "corp_cls": "Y",
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw_client:
@@ -227,17 +264,25 @@ async def test_get_financial_statements_mocked(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_DART_API_KEY", "k1")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={
-            "status": "000", "message": "OK",
-            "list": [
-                {"account_id": "ifrs-full_Revenue", "account_nm": "수익",
-                 "fs_div": "CFS", "sj_div": "IS",
-                 "thstrm_amount": "300000000000",
-                 "frmtrm_amount": "250000000000",
-                 "bfefrmtrm_amount": "200000000000",
-                 "thstrm_nm": "2024"},
-            ],
-        })
+        return httpx.Response(
+            200,
+            json={
+                "status": "000",
+                "message": "OK",
+                "list": [
+                    {
+                        "account_id": "ifrs-full_Revenue",
+                        "account_nm": "수익",
+                        "fs_div": "CFS",
+                        "sj_div": "IS",
+                        "thstrm_amount": "300000000000",
+                        "frmtrm_amount": "250000000000",
+                        "bfefrmtrm_amount": "200000000000",
+                        "thstrm_nm": "2024",
+                    },
+                ],
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw_client:
@@ -266,15 +311,21 @@ async def test_dart_api_error_when_status_non_zero(tmp_path, monkeypatch) -> Non
 async def test_get_corp_code_uses_cache(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_DART_API_KEY", "k1")
     # Pre-seed the cache with one entry so we never need to fetch.
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    import pyarrow as pa  # noqa: PLC0415
+    import pyarrow.parquet as pq  # noqa: PLC0415
 
     cache_path = tmp_path / "cc.parquet"
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    table = pa.Table.from_pylist([{
-        "corp_code": "00126380", "corp_name": "삼성전자",
-        "stock_code": "005930", "modify_date": "20240101",
-    }])
+    table = pa.Table.from_pylist(
+        [
+            {
+                "corp_code": "00126380",
+                "corp_name": "삼성전자",
+                "stock_code": "005930",
+                "modify_date": "20240101",
+            }
+        ]
+    )
     pq.write_table(table, cache_path, compression="zstd")
 
     # Transport that should NOT be called (we want cache to win).

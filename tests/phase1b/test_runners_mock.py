@@ -93,7 +93,9 @@ def test_run_fomc_drift_hindcast_smoke():
 
     rep = asyncio.run(
         run_fomc_drift_hindcast(
-            cache=cache, start=date(2024, 1, 1), end=date(2024, 12, 31),
+            cache=cache,
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
             horizon_days=5,
         )
     )
@@ -108,26 +110,34 @@ def test_run_pead_hindcast_smoke():
     class _StubYF:
         async def get_earnings_calendar(self, ticker):
             from glostat.data.yfinance_types import EarningsCalendar, EarningsEvent
+
             return EarningsCalendar(
                 ticker=ticker,
                 upcoming=(
                     EarningsEvent(
                         ticker=ticker,
                         earnings_date=datetime(2024, 5, 1, 12, tzinfo=UTC),
-                        eps_estimate=1.5, eps_actual=1.8, revenue_estimate=None,
+                        eps_estimate=1.5,
+                        eps_actual=1.8,
+                        revenue_estimate=None,
                     ),
                     EarningsEvent(
                         ticker=ticker,
                         earnings_date=datetime(2024, 8, 1, 12, tzinfo=UTC),
-                        eps_estimate=1.6, eps_actual=1.0, revenue_estimate=None,
+                        eps_estimate=1.6,
+                        eps_actual=1.0,
+                        revenue_estimate=None,
                     ),
                 ),
             )
 
     rep = asyncio.run(
         run_pead_hindcast(
-            universe=["AAPL"], yf_client=_StubYF(), cache=cache,
-            start=date(2024, 1, 1), end=date(2024, 12, 31),
+            universe=["AAPL"],
+            yf_client=_StubYF(),
+            cache=cache,
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
         )
     )
     assert rep.expert == "E_PEAD"
@@ -136,14 +146,20 @@ def test_run_pead_hindcast_smoke():
 
 def test_run_insider_cluster_hindcast_smoke(monkeypatch):
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", code="P",
-        shares=100.0, price=10.0, value_usd=1000.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        code="P",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
     )
     txns = [
         Form4Transaction(
             transaction_date=date(2024, 6, 10),
-            reporter_name=f"R{i}", reporter_cik=str(i),
+            reporter_name=f"R{i}",
+            reporter_cik=str(i),
             **base,
         )
         for i in range(1, 5)  # 4 unique buyers in same week → cluster
@@ -163,7 +179,8 @@ def test_run_insider_cluster_hindcast_smoke(monkeypatch):
             universe_with_cik=[("TEST", "0001")],
             sec_client=None,  # not used after monkeypatch
             cache=cache,
-            start=date(2024, 1, 1), end=date(2024, 12, 31),
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
         )
     )
     assert rep.expert == "E_INSIDER_CLUSTER"

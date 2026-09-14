@@ -28,7 +28,7 @@ class MetricCheck:
     name: str
     actual: float
     threshold: float
-    operator: str          # "≥" or "≤" or "∈[lo,hi]"
+    operator: str  # "≥" or "≤" or "∈[lo,hi]"
     passed: bool
     borderline: bool = False
     note: str = ""
@@ -74,9 +74,7 @@ def _load_profile_bundle(
     raw = yaml.safe_load(config_path.read_text("utf-8")) or {}
     profiles = raw.get("profiles", {}) or {}
     if profile not in profiles:
-        raise ConfigError(
-            f"sprint4_gate: profile {profile!r} not in {sorted(profiles)}"
-        )
+        raise ConfigError(f"sprint4_gate: profile {profile!r} not in {sorted(profiles)}")
     cautious = KillThresholds.from_mapping(profiles[profile])
     pivot_raw = raw.get("v031_pivot", {}) or {}
     pivot_full = {
@@ -121,9 +119,7 @@ def evaluate_sprint4_gate(
     profile: str = "cautious",
     config_path: Path | None = None,
 ) -> Sprint4Gate:
-    bundle = _load_profile_bundle(
-        profile, config_path or _KILL_CRITERIA_YAML_DEFAULT
-    )
+    bundle = _load_profile_bundle(profile, config_path or _KILL_CRITERIA_YAML_DEFAULT)
     t = bundle.cautious
     inputs = _GateInputs(
         sharpe=sharpe,
@@ -152,8 +148,7 @@ def evaluate_sprint4_gate(
         status = "FAIL"
         names = ", ".join(c.name for c in failed)
         reasoning = (
-            f"INV-GS-033: Sprint 4 gate FAIL — automatic shutdown (no override). "
-            f"Failed: {names}"
+            f"INV-GS-033: Sprint 4 gate FAIL — automatic shutdown (no override). Failed: {names}"
         )
 
     pivot_eligible = _v031_eligibility(inputs, bundle, status)
@@ -187,9 +182,7 @@ def _build_checks(inputs: _GateInputs, t: KillThresholds) -> tuple[MetricCheck, 
         threshold=t.oos_degradation_max,
         operator="≤",
         passed=inputs.oos_degradation <= t.oos_degradation_max,
-        borderline=_borderline(
-            t.oos_degradation_max, inputs.oos_degradation, tol=0.03
-        ),
+        borderline=_borderline(t.oos_degradation_max, inputs.oos_degradation, tol=0.03),
         note=f"actual {inputs.oos_degradation * 100:.2f}% vs threshold "
         f"{t.oos_degradation_max * 100:.2f}%",
     )
@@ -211,8 +204,7 @@ def _build_checks(inputs: _GateInputs, t: KillThresholds) -> tuple[MetricCheck, 
         passed=in_band,
         borderline=(not in_band)
         and (
-            (lo - 0.05 <= inputs.cost_passed_pct < lo)
-            or (hi < inputs.cost_passed_pct <= hi + 0.05)
+            (lo - 0.05 <= inputs.cost_passed_pct < lo) or (hi < inputs.cost_passed_pct <= hi + 0.05)
         ),
         note=f"actual {inputs.cost_passed_pct * 100:.2f}% vs band "
         f"[{lo * 100:.0f}%, {hi * 100:.0f}%]",
@@ -233,9 +225,7 @@ def _borderline(a: float, b: float, *, tol: float) -> bool:
     return abs(a - b) <= tol
 
 
-def _v031_eligibility(
-    inputs: _GateInputs, bundle: _ProfileBundle, status: GateStatus
-) -> bool:
+def _v031_eligibility(inputs: _GateInputs, bundle: _ProfileBundle, status: GateStatus) -> bool:
     if status != "PASS":
         return False
     p = bundle.pivot
@@ -257,9 +247,7 @@ def render_gate_table(gate: Sprint4Gate) -> str:
     lines.append(
         f"=== Sprint 4 Gate {badge} (profile={gate.profile}, n_verdicts={gate.sample_size}) ==="
     )
-    lines.append(
-        f"  {'METRIC':<18} {'ACTUAL':>10} {'OP':<5} {'THRESHOLD':>10}  PASS  NOTE"
-    )
+    lines.append(f"  {'METRIC':<18} {'ACTUAL':>10} {'OP':<5} {'THRESHOLD':>10}  PASS  NOTE")
     lines.append("  " + "-" * 90)
     for c in gate.per_metric_breakdown:
         flag = "OK " if c.passed else "FAIL"

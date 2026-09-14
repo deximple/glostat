@@ -24,12 +24,20 @@ _NOW = datetime(2026, 4, 28, 14, 30, tzinfo=UTC)
 
 def _xnas() -> MarketMeta:
     return MarketMeta(
-        mic="XNAS", name="NASDAQ", country="US", currency="USD",
+        mic="XNAS",
+        name="NASDAQ",
+        country="US",
+        currency="USD",
         tz="America/New_York",
         sessions=(SessionWindow("regular", "09:30", "16:00", "14:30", "21:00"),),
-        settlement_days=1, fee_bps=0.6, tax_bps_buy=0.0, tax_bps_sell=0.24,
-        tick_size="1c", holidays_calendar="us_2026.yaml",
-        bigdata_mcp_coverage="HIGH", foreign_access="open",
+        settlement_days=1,
+        fee_bps=0.6,
+        tax_bps_buy=0.0,
+        tax_bps_sell=0.24,
+        tick_size="1c",
+        holidays_calendar="us_2026.yaml",
+        bigdata_mcp_coverage="HIGH",
+        foreign_access="open",
     )
 
 
@@ -70,14 +78,21 @@ def test_inv_gs_001_cost_gate_enforced_on_aapl_mock(tmp_path: Path) -> None:
 def test_inv_gs_001_demotion_when_edge_too_small(tmp_path: Path) -> None:
     broker = SnapshotBroker(root=tmp_path / "snap")
     weak = ExpertSignal(
-        expert_name="E_FUNDAMENTAL", ticker="AAPL",
-        direction="LONG", net_score=0.005, confidence=0.05,
-        archetype="continuation", basis="weak",
+        expert_name="E_FUNDAMENTAL",
+        ticker="AAPL",
+        direction="LONG",
+        net_score=0.005,
+        confidence=0.05,
+        archetype="continuation",
+        basis="weak",
         sources=("yfinance.info#xx",),
         expires_at=_NOW + timedelta(days=30),
     )
     v = build_verdict(
-        ticker="AAPL", signals=[weak], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[weak],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     assert v.cost_passed is False
@@ -94,7 +109,10 @@ def test_inv_gs_022_evidence_hash_uses_snapshot_leaves(tmp_path: Path) -> None:
     expert, _ = _build_aapl_pipeline(broker)
     sig = asyncio.run(expert.compute("AAPL", _NOW))
     v = build_verdict(
-        ticker="AAPL", signals=[sig], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[sig],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     # Re-running the pipeline + builder with the same fixtures yields the same hash.
@@ -102,7 +120,10 @@ def test_inv_gs_022_evidence_hash_uses_snapshot_leaves(tmp_path: Path) -> None:
     expert2, _ = _build_aapl_pipeline(broker2)
     sig2 = asyncio.run(expert2.compute("AAPL", _NOW))
     v2 = build_verdict(
-        ticker="AAPL", signals=[sig2], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[sig2],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     assert v.evidence_hash == v2.evidence_hash
@@ -120,7 +141,10 @@ def test_inv_gs_023_prompt_versions_populated(tmp_path: Path) -> None:
     expert, _ = _build_aapl_pipeline(broker)
     sig = asyncio.run(expert.compute("AAPL", _NOW))
     v = build_verdict(
-        ticker="AAPL", signals=[sig], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[sig],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     pv = dict(v.prompt_versions)
@@ -137,7 +161,10 @@ def test_inv_gs_024_cli_disclaimer_in_output(tmp_path: Path) -> None:
     r = subprocess.run(
         [sys.executable, "-m", "glostat.cli", "predict", "AAPL", "--mock"],
         cwd=tmp_path,
-        capture_output=True, text=True, check=False, timeout=30,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
     )
     assert r.returncode == 0
     assert "personal use" in r.stdout.lower()
@@ -159,7 +186,10 @@ def test_inv_gs_010_pipeline_deterministic(tmp_path: Path) -> None:
         r = subprocess.run(
             [sys.executable, "-m", "glostat.cli", "predict", "AAPL", "--mock", "--json"],
             cwd=rundir,
-            capture_output=True, text=True, check=False, timeout=30,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
         )
         assert r.returncode == 0, r.stderr
         parsed.append(json.loads(r.stdout.strip().splitlines()[-1]))

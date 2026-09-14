@@ -105,13 +105,18 @@ def score_insider_kr(
     raw = (buy_signal - sell_signal) * _SCORE_PER_BUYER
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     direction = (
-        "LONG" if net > _DIRECTION_THRESHOLD
-        else "SHORT" if net < -_DIRECTION_THRESHOLD
+        "LONG"
+        if net > _DIRECTION_THRESHOLD
+        else "SHORT"
+        if net < -_DIRECTION_THRESHOLD
         else "NEUTRAL"
     )
     return InsiderKrScore(
-        cluster_buyers=n_buyers, cluster_sells=n_sellers,
-        raw_score=raw, net_score=net, direction=direction,
+        cluster_buyers=n_buyers,
+        cluster_sells=n_sellers,
+        raw_score=raw,
+        net_score=net,
+        direction=direction,
     )
 
 
@@ -154,38 +159,41 @@ class EInsiderKrExpert:
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         if self._dart is None:
             raise ExpertSkipError(
-                "E_INSIDER_KR: DART client not configured "
-                "(see docs/DART_API_SETUP.md)"
+                "E_INSIDER_KR: DART client not configured (see docs/DART_API_SETUP.md)"
             )
         code = normalize_kr_ticker(ticker)
         if self._kospi200 and code not in self._kospi200:
-            raise ExpertSkipError(
-                f"E_INSIDER_KR: {code} not in KOSPI 200 universe"
-            )
+            raise ExpertSkipError(f"E_INSIDER_KR: {code} not in KOSPI 200 universe")
         try:
             corp_code = await self._dart.get_corp_code(code)
         except (DartApiError, DartApiKeyMissingError) as exc:
             raise ExpertSkipError(f"E_INSIDER_KR: corp_code lookup failed: {exc}") from exc
         try:
             txns = await self._dart.get_executive_transactions(
-                corp_code, days_back=_LOOKBACK_DAYS,
+                corp_code,
+                days_back=_LOOKBACK_DAYS,
             )
         except (DartApiError, DartApiKeyMissingError) as exc:
-            raise ExpertSkipError(
-                f"E_INSIDER_KR: elestock fetch failed for {code}: {exc}"
-            ) from exc
+            raise ExpertSkipError(f"E_INSIDER_KR: elestock fetch failed for {code}: {exc}") from exc
         as_of = ts.date()
         score = score_insider_kr(txns, as_of=as_of)
         snap_id = self._dart.last_snapshot_id or "dart.elestock"
         return _signal_from_score(
-            code=code, ts=ts, score=score, snap_id=snap_id,
+            code=code,
+            ts=ts,
+            score=score,
+            snap_id=snap_id,
             n_txns=len(txns),
         )
 
 
 def _signal_from_score(
-    *, code: str, ts: datetime, score: InsiderKrScore,
-    snap_id: str, n_txns: int,
+    *,
+    code: str,
+    ts: datetime,
+    score: InsiderKrScore,
+    snap_id: str,
+    n_txns: int,
 ) -> ExpertSignal:
     basis = (
         f"DART elestock cluster — buyers={score.cluster_buyers}, "
@@ -193,15 +201,17 @@ def _signal_from_score(
         f"(out of {n_txns} txns over {_LOOKBACK_DAYS}d)"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
-        sorted({
-            "cluster_buyers": str(score.cluster_buyers),
-            "cluster_sells": str(score.cluster_sells),
-            "n_txns_180d": str(n_txns),
-            "raw_score": f"{score.raw_score:.4f}",
-            "net_score": f"{score.net_score:.4f}",
-            "confidence": f"{score.confidence:.4f}",
-            "code": code,
-        }.items())
+        sorted(
+            {
+                "cluster_buyers": str(score.cluster_buyers),
+                "cluster_sells": str(score.cluster_sells),
+                "n_txns_180d": str(n_txns),
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "confidence": f"{score.confidence:.4f}",
+                "code": code,
+            }.items()
+        )
     )
     return ExpertSignal(
         expert_name="E_INSIDER_KR",  # type: ignore[arg-type]

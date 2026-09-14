@@ -37,36 +37,36 @@ _MIN_AGREEING_HOLDERS: Final[int] = 5
 _PRIOR_MIN_GAP_DAYS: Final[int] = 1
 
 _PATTERN_SCORE: Final[dict[str, float]] = {
-    "NET_BUY":      1.5,
-    "NET_SELL":    -1.5,
-    "MIXED":        0.0,
+    "NET_BUY": 1.5,
+    "NET_SELL": -1.5,
+    "MIXED": 0.0,
     "INSUFFICIENT": 0.0,
     # Back-compat: legacy 13F patterns keep their score table entries so older
     # consumers (tests, dashboards) still resolve to a number when reading the map.
-    "REVERSAL_BUY":   2.0,
-    "ACCUMULATING":   1.5,
-    "DISTRIBUTION":  -1.5,
+    "REVERSAL_BUY": 2.0,
+    "ACCUMULATING": 1.5,
+    "DISTRIBUTION": -1.5,
     "REVERSAL_SELL": -1.0,
 }
 
 _PATTERN_ARCHETYPE: Final[dict[str, str]] = {
-    "NET_BUY":      "continuation",
-    "NET_SELL":     "continuation",
-    "MIXED":        "mixed",
+    "NET_BUY": "continuation",
+    "NET_SELL": "continuation",
+    "MIXED": "mixed",
     "INSUFFICIENT": "mixed",
-    "REVERSAL_BUY":   "contrarian",
-    "REVERSAL_SELL":  "contrarian",
-    "ACCUMULATING":   "continuation",
-    "DISTRIBUTION":   "continuation",
+    "REVERSAL_BUY": "contrarian",
+    "REVERSAL_SELL": "contrarian",
+    "ACCUMULATING": "continuation",
+    "DISTRIBUTION": "continuation",
 }
 
 
 @dataclass(frozen=True, slots=True)
 class FundFlowScore:
     pattern: str
-    quarter_directions: tuple[str, ...]   # holder-level: ("in", "in", "out", ...)
+    quarter_directions: tuple[str, ...]  # holder-level: ("in", "in", "out", ...)
     pattern_score: float
-    option_proxy: float                   # always 0 in v2 (option flow not in MVP)
+    option_proxy: float  # always 0 in v2 (option flow not in MVP)
     net_score: float
     top_holder: str
     top_holder_pct: float
@@ -125,23 +125,18 @@ class EFundFlowExpert:
         score = self._score(holders, prior)
         if score.pattern == "INSUFFICIENT":
             raise ExpertSkipError(
-                f"E_FUND_FLOW: INSUFFICIENT prior snapshot for "
-                f"{ticker}@{ts.date().isoformat()}"
+                f"E_FUND_FLOW: INSUFFICIENT prior snapshot for {ticker}@{ts.date().isoformat()}"
             )
         return _build_signal(ticker=ticker, ts=ts, score=score, sources=sources)
 
-    async def _fetch_holders(
-        self, ticker: str, sources: list[_Source]
-    ) -> HoldersSnapshot | None:
+    async def _fetch_holders(self, ticker: str, sources: list[_Source]) -> HoldersSnapshot | None:
         try:
             client, method = self._router.route(self.name, "institutional_holders")
         except Exception as exc:
             log.warning("e_fund_flow.holders_route_failed", err=str(exc))
             return None
         try:
-            result: HoldersSnapshot = await getattr(client, method)(
-                ticker, kind="institutional"
-            )
+            result: HoldersSnapshot = await getattr(client, method)(ticker, kind="institutional")
         except Exception as exc:
             log.warning("e_fund_flow.holders_fetch_failed", ticker=ticker, err=str(exc))
             return None
@@ -156,9 +151,7 @@ class EFundFlowExpert:
             )
         return result
 
-    def _load_prior_holders(
-        self, ticker: str, ts: datetime
-    ) -> HoldersSnapshot | None:
+    def _load_prior_holders(self, ticker: str, ts: datetime) -> HoldersSnapshot | None:
         # WHY: cross-day delta requires a prior holders snapshot. The yfinance
         # client persists every fetch into the broker via SnapshotBroker (INV-GS-022),
         # so look back for the most recent snapshot whose ts < current ts.
@@ -198,9 +191,13 @@ class EFundFlowExpert:
         top_holder, top_pct = _top_holder(holders)
         log.debug(
             "e_fund_flow.score",
-            pattern=pattern, agg_delta=agg_delta,
-            inc=increasing, dec=decreasing, score=net,
-            top_holder=top_holder, top_pct=top_pct,
+            pattern=pattern,
+            agg_delta=agg_delta,
+            inc=increasing,
+            dec=decreasing,
+            score=net,
+            top_holder=top_holder,
+            top_pct=top_pct,
         )
         return FundFlowScore(
             pattern=pattern,
@@ -228,7 +225,7 @@ def _holder_deltas(
     agg = 0
     inc = 0
     dec = 0
-    for (name, _pct, shares, _ts) in current.rows:
+    for name, _pct, shares, _ts in current.rows:
         prior_shares = int(prior_by_name.get(name, 0))
         delta = int(shares) - prior_shares
         agg += delta
@@ -319,9 +316,9 @@ def _build_signal(
     sources: list[_Source],
 ) -> ExpertSignal:
     direction_word = {
-        "NET_BUY":      "net institutional buying",
-        "NET_SELL":     "net institutional selling",
-        "MIXED":        "mixed institutional flow",
+        "NET_BUY": "net institutional buying",
+        "NET_SELL": "net institutional selling",
+        "MIXED": "mixed institutional flow",
         "INSUFFICIENT": "insufficient prior snapshot",
         "REVERSAL_BUY": "selling then BUY",
         "ACCUMULATING": "buying",
@@ -352,9 +349,9 @@ def _build_signal(
             }.items()
         )
     )
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_fund_flow.synthetic",)
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_fund_flow.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_FUND_FLOW",
         ticker=ticker,

@@ -46,8 +46,10 @@ def test_fix1_holders_based_no_skip_when_prior_present(tmp_path: Path) -> None:
         ],
     }
     key = SnapshotKey(
-        uaid="XNAS.AAPL", edge_type="holders.institutional",
-        ts_utc=_NOW - timedelta(days=14), tool="yfinance.holders.test",
+        uaid="XNAS.AAPL",
+        edge_type="holders.institutional",
+        ts_utc=_NOW - timedelta(days=14),
+        tool="yfinance.holders.test",
         params_canon='{"ticker":"AAPL","kind":"institutional"}',
     )
     broker.save_snapshot(key, prior_payload)
@@ -79,20 +81,34 @@ def test_fix1_skip_when_no_prior_snapshot(tmp_path: Path) -> None:
 def test_fix1_holder_deltas_classifies_mixed_under_threshold() -> None:
     # Only 4 holders increasing → not enough to trigger NET_BUY (≥5 required).
     current = HoldersSnapshot(
-        ticker="X", kind="institutional", holders=(),
+        ticker="X",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW,
         rows=tuple(
-            (n, 0.0, s, "") for (n, s) in [
-                ("A", 110), ("B", 120), ("C", 130), ("D", 105), ("E", 95),
+            (n, 0.0, s, "")
+            for (n, s) in [
+                ("A", 110),
+                ("B", 120),
+                ("C", 130),
+                ("D", 105),
+                ("E", 95),
             ]
         ),
     )
     prior = HoldersSnapshot(
-        ticker="X", kind="institutional", holders=(),
+        ticker="X",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW - timedelta(days=14),
         rows=tuple(
-            (n, 0.0, s, "") for (n, s) in [
-                ("A", 100), ("B", 100), ("C", 100), ("D", 100), ("E", 100),
+            (n, 0.0, s, "")
+            for (n, s) in [
+                ("A", 100),
+                ("B", 100),
+                ("C", 100),
+                ("D", 100),
+                ("E", 100),
             ]
         ),
     )
@@ -116,8 +132,7 @@ def test_fix2_e_time_returns_neutral_when_no_anchors_no_earnings(tmp_path: Path)
     fixture = dict(fixture)
     # Flatten OHLCV to defeat anchor detection (all closes equal).
     fixture["ohlcv"] = [
-        {**b, "low": 100.0, "close": 100.0, "high": 100.0, "open": 100.0}
-        for b in fixture["ohlcv"]
+        {**b, "low": 100.0, "close": 100.0, "high": 100.0, "open": 100.0} for b in fixture["ohlcv"]
     ]
     fixture["earnings_calendar"] = {"ticker": "AAPL", "upcoming": []}
     broker = SnapshotBroker(root=tmp_path / "snap")
@@ -145,18 +160,25 @@ def test_fix3_sector_stats_injected_into_expert(tmp_path: Path) -> None:
     # PE 28.0 reads as +1.5 z (signal). With the empty/fallback bundle the
     # stddev is 8 which would yield z=0.75 — observable difference.
     bundle = SectorStatsBundle(
-        fetched_at=_NOW, universe="test",
+        fetched_at=_NOW,
+        universe="test",
         by_sector={
             "Technology": SectorStats(
-                sector="Technology", sample_size=12,
-                per_median=22.0, per_stddev=4.0,
-                roe_median=0.30, roe_stddev=0.15,
+                sector="Technology",
+                sample_size=12,
+                per_median=22.0,
+                per_stddev=4.0,
+                roe_median=0.30,
+                roe_stddev=0.15,
                 is_fallback=False,
             ),
             "UNKNOWN": SectorStats(
-                sector="UNKNOWN", sample_size=0,
-                per_median=22.0, per_stddev=8.0,
-                roe_median=0.18, roe_stddev=0.12,
+                sector="UNKNOWN",
+                sample_size=0,
+                per_median=22.0,
+                per_stddev=8.0,
+                roe_median=0.18,
+                roe_stddev=0.12,
                 is_fallback=True,
             ),
         },
@@ -166,7 +188,9 @@ def test_fix3_sector_stats_injected_into_expert(tmp_path: Path) -> None:
         return "Technology"
 
     expert = EFundamentalExpert(
-        router=router, sector_stats=bundle, sector_resolver=resolver,
+        router=router,
+        sector_stats=bundle,
+        sector_resolver=resolver,
     )
     sig = asyncio.run(expert.compute("AAPL", _NOW))
     md = dict(sig.metadata)
@@ -196,12 +220,20 @@ def test_fix3_fallback_used_when_sector_unknown(tmp_path: Path) -> None:
 
 def _xnas() -> MarketMeta:
     return MarketMeta(
-        mic="XNAS", name="NASDAQ", country="US", currency="USD",
+        mic="XNAS",
+        name="NASDAQ",
+        country="US",
+        currency="USD",
         tz="America/New_York",
         sessions=(SessionWindow("regular", "09:30", "16:00", "14:30", "21:00"),),
-        settlement_days=1, fee_bps=0.6, tax_bps_buy=0.0, tax_bps_sell=0.24,
-        tick_size="1c", holidays_calendar="us_2026.yaml",
-        bigdata_mcp_coverage="HIGH", foreign_access="open",
+        settlement_days=1,
+        fee_bps=0.6,
+        tax_bps_buy=0.0,
+        tax_bps_sell=0.24,
+        tick_size="1c",
+        holidays_calendar="us_2026.yaml",
+        bigdata_mcp_coverage="HIGH",
+        foreign_access="open",
     )
 
 
@@ -217,14 +249,21 @@ def test_fix4_marginal_signal_now_demoted() -> None:
     # which beats 1.5 * 1.44 = 2.16. The retune (50 bps/unit) makes the same
     # net_score yield only 2.5bps — still passes — but a smaller score does not.
     weak = ExpertSignal(
-        expert_name="E_FUNDAMENTAL", ticker="AAPL",
-        direction="LONG", net_score=0.02, confidence=0.10,
-        archetype="continuation", basis="weak",
+        expert_name="E_FUNDAMENTAL",
+        ticker="AAPL",
+        direction="LONG",
+        net_score=0.02,
+        confidence=0.10,
+        archetype="continuation",
+        basis="weak",
         sources=("yfinance.info#xx",),
         expires_at=_NOW + timedelta(days=30),
     )
     v = build_verdict(
-        ticker="AAPL", signals=[weak], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[weak],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     assert v.cost_passed is False
@@ -233,14 +272,21 @@ def test_fix4_marginal_signal_now_demoted() -> None:
 
 def test_fix4_strong_signal_still_passes() -> None:
     strong = ExpertSignal(
-        expert_name="E_FUNDAMENTAL", ticker="AAPL",
-        direction="LONG", net_score=2.0, confidence=0.85,
-        archetype="continuation", basis="strong",
+        expert_name="E_FUNDAMENTAL",
+        ticker="AAPL",
+        direction="LONG",
+        net_score=2.0,
+        confidence=0.85,
+        archetype="continuation",
+        basis="strong",
         sources=("yfinance.info#xx",),
         expires_at=_NOW + timedelta(days=30),
     )
     v = build_verdict(
-        ticker="AAPL", signals=[strong], market_meta=_xnas(), ts=_NOW,
+        ticker="AAPL",
+        signals=[strong],
+        market_meta=_xnas(),
+        ts=_NOW,
         prompt_versions={},
     )
     assert v.cost_passed is True

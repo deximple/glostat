@@ -23,7 +23,7 @@ from glostat.phase1b.types import PhaseHindcastReport, PhaseTradeRow
 
 log: Final = structlog.get_logger(__name__)
 
-_REBAL_DAYS: Final[int] = 21         # ~monthly rebalance
+_REBAL_DAYS: Final[int] = 21  # ~monthly rebalance
 _HORIZON_DAYS: Final[int] = 30
 
 

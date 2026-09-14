@@ -125,9 +125,7 @@ class ETimeExpert:
         end_d = ts.date()
         start_d = end_d - timedelta(days=_OHLCV_LOOKBACK_CALENDAR_DAYS)
         try:
-            result: OhlcvSeries = await getattr(client, method)(
-                ticker, start=start_d, end=end_d
-            )
+            result: OhlcvSeries = await getattr(client, method)(ticker, start=start_d, end=end_d)
         except Exception as exc:
             log.warning("e_time.ohlcv_fetch_failed", ticker=ticker, err=str(exc))
             return None
@@ -178,8 +176,12 @@ class ETimeExpert:
         net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
         log.debug(
             "e_time.score",
-            t=t, matched=matched, anchors=[a.isoformat() for a in anchors],
-            days_to=days_to, earnings_p=earnings_p, net=net,
+            t=t,
+            matched=matched,
+            anchors=[a.isoformat() for a in anchors],
+            days_to=days_to,
+            earnings_p=earnings_p,
+            net=net,
         )
         return TimeScore(
             t_value=t,
@@ -209,9 +211,7 @@ def _compute_earnings_proximity(
 ) -> tuple[int | None, float]:
     if calendar is None or not calendar.upcoming:
         return (None, 0.0)
-    next_evt = next(
-        (e for e in calendar.upcoming if e.earnings_date.date() >= today), None
-    )
+    next_evt = next((e for e in calendar.upcoming if e.earnings_date.date() >= today), None)
     if next_evt is None:
         return (None, 0.0)
     days_to = (next_evt.earnings_date.date() - today).days
@@ -228,18 +228,13 @@ def _build_signal(
     sources: list[_Source],
 ) -> ExpertSignal:
     matched_str = ", ".join(str(n) for n in score.matched_bases) or "none"
-    days_str = (
-        f"in {score.days_to_earnings}d" if score.days_to_earnings is not None
-        else "n/a"
-    )
+    days_str = f"in {score.days_to_earnings}d" if score.days_to_earnings is not None else "n/a"
     basis = (
         f"T={score.t_value:.1f} ({len(score.matched_bases)} converge: [{matched_str}]), "
         f"earnings {days_str}"
     )
     archetype = (
-        "continuation"
-        if score.t_value * _T_WEIGHT >= score.earnings_proximity
-        else "impulse"
+        "continuation" if score.t_value * _T_WEIGHT >= score.earnings_proximity else "impulse"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
         sorted(
@@ -248,8 +243,7 @@ def _build_signal(
                 "matched_bases": ",".join(str(n) for n in score.matched_bases),
                 "earnings_proximity": f"{score.earnings_proximity:.4f}",
                 "days_to_earnings": (
-                    str(score.days_to_earnings)
-                    if score.days_to_earnings is not None else "n/a"
+                    str(score.days_to_earnings) if score.days_to_earnings is not None else "n/a"
                 ),
                 "net_score": f"{score.net_score:.4f}",
                 "raw_score": f"{score.raw_score:.4f}",
@@ -261,9 +255,9 @@ def _build_signal(
             }.items()
         )
     )
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_time.synthetic",)
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_time.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_TIME",
         ticker=ticker,

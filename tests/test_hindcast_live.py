@@ -57,7 +57,8 @@ def test_live_actual_return_fetcher_drops_future_days(
 
 
 def test_live_actual_return_fetcher_caches_per_key(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # Two consecutive fetches for same (ticker, day) → only one yfinance call.
     fake_yf = MagicMock(spec=YFinanceClient)
@@ -102,15 +103,18 @@ def test_summarize_network_includes_all_counters() -> None:
     fake_sec.throttle = MagicMock(acquire_count=5, throttled_count=0)
     market_meta = _load_market_meta("XNAS")
     builder = LiveHindcastVerdictBuilder(
-        market_meta=market_meta, horizon_days=30,
-        yf_client=fake_yf, sec_client=fake_sec,
+        market_meta=market_meta,
+        horizon_days=30,
+        yf_client=fake_yf,
+        sec_client=fake_sec,
         router=MagicMock(),
     )
     builder._build_count = 3
     builder._failure_count = 1
     builder._failed_tickers.add("XYZ")
     fetcher = LiveActualReturnFetcher(
-        yf_client=fake_yf, cache_path=Path("/tmp/x.parquet"),
+        yf_client=fake_yf,
+        cache_path=Path("/tmp/x.parquet"),
     )
     fetcher.fetch_count = 4
     fetcher.cache_hit_count = 2
@@ -233,9 +237,7 @@ def test_live_snapshot_persistence(tmp_path: Path) -> None:
     assert result["report"] is not None
     broker = SnapshotBroker(root=snapshot_root)
     try:
-        rows = list(broker._db.execute(
-            "SELECT COUNT(*) AS n FROM snapshots"
-        ).fetchall())
+        rows = list(broker._db.execute("SELECT COUNT(*) AS n FROM snapshots").fetchall())
     finally:
         broker.close()
     assert rows and int(rows[0]["n"]) > 0

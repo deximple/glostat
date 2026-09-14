@@ -31,7 +31,7 @@ log: Final = structlog.get_logger(__name__)
 _BASE: Final = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd"
 _HEADERS: Final[dict[str, str]] = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0",
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0",
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "Referer": "http://data.krx.co.kr/",
     "X-Requested-With": "XMLHttpRequest",
@@ -52,20 +52,20 @@ class KrxShortError(GlostatError):
 class KrxShortBalanceBar:
     bar_date: date
     code: str
-    short_balance_qty: float       # 공매도 잔고 수량
-    short_balance_won: float       # 공매도 잔고 금액 (KRW)
-    listed_qty: float              # 상장주식 수
-    short_balance_ratio: float     # 잔고 / 상장 (%)
+    short_balance_qty: float  # 공매도 잔고 수량
+    short_balance_won: float  # 공매도 잔고 금액 (KRW)
+    listed_qty: float  # 상장주식 수
+    short_balance_ratio: float  # 잔고 / 상장 (%)
 
 
 @dataclass(frozen=True, slots=True)
 class KrxShortVolumeBar:
     bar_date: date
     code: str
-    short_volume: float            # 공매도 거래량 (shares)
-    short_value_won: float         # 공매도 거래대금 (KRW)
-    total_volume: float            # 전체 거래량
-    short_ratio_pct: float         # 공매도/전체 (%)
+    short_volume: float  # 공매도 거래량 (shares)
+    short_value_won: float  # 공매도 거래대금 (KRW)
+    total_volume: float  # 전체 거래량
+    short_ratio_pct: float  # 공매도/전체 (%)
 
 
 class _Throttle:
@@ -121,7 +121,11 @@ class KrxShortClient:
     # ── public read methods ──────────────────────────────────────────────
 
     async def get_short_balance(
-        self, ticker: str, *, days_back: int = 30, end: date | None = None,
+        self,
+        ticker: str,
+        *,
+        days_back: int = 30,
+        end: date | None = None,
     ) -> tuple[KrxShortBalanceBar, ...]:
         code = _normalize_code(ticker)
         end_d = end or date.today()
@@ -138,14 +142,17 @@ class KrxShortClient:
             uaid=f"XKRX.{code}",
             edge_type="short_balance",
             ts=datetime.now(tz=UTC),
-            params={"code": code, "start": start_d.isoformat(),
-                    "end": end_d.isoformat()},
+            params={"code": code, "start": start_d.isoformat(), "end": end_d.isoformat()},
             payload={"code": code, "n_rows": len(out)},
         )
         return tuple(out)
 
     async def get_short_volume(
-        self, ticker: str, *, days_back: int = 30, end: date | None = None,
+        self,
+        ticker: str,
+        *,
+        days_back: int = 30,
+        end: date | None = None,
     ) -> tuple[KrxShortVolumeBar, ...]:
         code = _normalize_code(ticker)
         end_d = end or date.today()
@@ -162,8 +169,7 @@ class KrxShortClient:
             uaid=f"XKRX.{code}",
             edge_type="short_volume",
             ts=datetime.now(tz=UTC),
-            params={"code": code, "start": start_d.isoformat(),
-                    "end": end_d.isoformat()},
+            params={"code": code, "start": start_d.isoformat(), "end": end_d.isoformat()},
             payload={"code": code, "n_rows": len(out)},
         )
         return tuple(out)
@@ -171,7 +177,11 @@ class KrxShortClient:
     # ── http + snapshot helpers ──────────────────────────────────────────
 
     async def _fetch_rows(
-        self, bld: str, code: str, start: date, end: date,
+        self,
+        bld: str,
+        code: str,
+        start: date,
+        end: date,
     ) -> list[dict[str, Any]]:
         await self._throttle.acquire()
         payload = {
@@ -188,7 +198,9 @@ class KrxShortClient:
         }
         try:
             resp = await self._client.post(
-                _BASE, data=payload, headers=_HEADERS,
+                _BASE,
+                data=payload,
+                headers=_HEADERS,
             )
             resp.raise_for_status()
         except httpx.HTTPError as exc:
@@ -203,14 +215,23 @@ class KrxShortClient:
         return rows
 
     def _record_snapshot(
-        self, *, tool: str, uaid: str, edge_type: str, ts: datetime,
-        params: dict[str, Any], payload: dict[str, Any],
+        self,
+        *,
+        tool: str,
+        uaid: str,
+        edge_type: str,
+        ts: datetime,
+        params: dict[str, Any],
+        payload: dict[str, Any],
     ) -> None:
         if self._broker is None:
             return
         try:
             key = SnapshotKey(
-                uaid=uaid, edge_type=edge_type, ts_utc=ts, tool=tool,
+                uaid=uaid,
+                edge_type=edge_type,
+                ts_utc=ts,
+                tool=tool,
                 params_canon=json.dumps(params, sort_keys=True, separators=(",", ":")),
             )
             record = self._broker.save_snapshot(key, payload)
@@ -224,9 +245,7 @@ def _normalize_code(ticker: str) -> str:
     if t.endswith(".KS") or t.endswith(".KQ"):
         t = t[:-3]
     if not (len(t) == 6 and t.isdigit()):
-        raise KrxShortError(
-            f"KRX expects 6-digit KRX code, got {ticker!r}"
-        )
+        raise KrxShortError(f"KRX expects 6-digit KRX code, got {ticker!r}")
     return t
 
 
@@ -236,7 +255,8 @@ def _row_to_balance(row: dict[str, Any], code: str) -> KrxShortBalanceBar | None
         return None
     try:
         return KrxShortBalanceBar(
-            bar_date=bd, code=code,
+            bar_date=bd,
+            code=code,
             short_balance_qty=_parse_signed(row.get("BAL_QTY", "0")),
             short_balance_won=_parse_signed(row.get("BAL_AMT", "0")),
             listed_qty=_parse_signed(row.get("LIST_SHRS", "0")),
@@ -252,7 +272,8 @@ def _row_to_volume(row: dict[str, Any], code: str) -> KrxShortVolumeBar | None:
         return None
     try:
         return KrxShortVolumeBar(
-            bar_date=bd, code=code,
+            bar_date=bd,
+            code=code,
             short_volume=_parse_signed(row.get("CVSRTSELL_TRDVOL", "0")),
             short_value_won=_parse_signed(row.get("CVSRTSELL_TRDVAL", "0")),
             total_volume=_parse_signed(row.get("ACC_TRDVOL", "0")),

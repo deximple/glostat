@@ -38,10 +38,14 @@ def test_is_above_percentile_empty_history_false() -> None:
 
 def test_rolling_balance_delta_window_3() -> None:
     bars = [
-        KrxShortBalanceBar(bar_date=date(2026, 4, i), code="005930",
-                            short_balance_qty=float(100 + i * 10),
-                            short_balance_won=0, listed_qty=10000,
-                            short_balance_ratio=1.0)
+        KrxShortBalanceBar(
+            bar_date=date(2026, 4, i),
+            code="005930",
+            short_balance_qty=float(100 + i * 10),
+            short_balance_won=0,
+            listed_qty=10000,
+            short_balance_ratio=1.0,
+        )
         for i in range(1, 6)
     ]
     delta = _rolling_balance_delta(bars, window=3)
@@ -51,9 +55,14 @@ def test_rolling_balance_delta_window_3() -> None:
 
 def test_rolling_balance_delta_short_history_zero() -> None:
     bars = [
-        KrxShortBalanceBar(bar_date=date(2026, 4, 1), code="005930",
-                            short_balance_qty=100, short_balance_won=0,
-                            listed_qty=1000, short_balance_ratio=1.0),
+        KrxShortBalanceBar(
+            bar_date=date(2026, 4, 1),
+            code="005930",
+            short_balance_qty=100,
+            short_balance_won=0,
+            listed_qty=1000,
+            short_balance_ratio=1.0,
+        ),
     ]
     assert _rolling_balance_delta(bars, window=3) == 0.0
 
@@ -63,16 +72,22 @@ def test_rolling_balance_delta_short_history_zero() -> None:
 
 def _balance(d: date, qty: float) -> KrxShortBalanceBar:
     return KrxShortBalanceBar(
-        bar_date=d, code="005930", short_balance_qty=qty,
-        short_balance_won=qty * 50000, listed_qty=100000000,
+        bar_date=d,
+        code="005930",
+        short_balance_qty=qty,
+        short_balance_won=qty * 50000,
+        listed_qty=100000000,
         short_balance_ratio=qty / 1000000,
     )
 
 
 def _volume(d: date, ratio_pct: float) -> KrxShortVolumeBar:
     return KrxShortVolumeBar(
-        bar_date=d, code="005930", short_volume=10000,
-        short_value_won=500000000, total_volume=100000,
+        bar_date=d,
+        code="005930",
+        short_volume=10000,
+        short_value_won=500000000,
+        total_volume=100000,
         short_ratio_pct=ratio_pct,
     )
 
@@ -81,7 +96,10 @@ def test_score_short_cover_when_balance_decreases() -> None:
     bars = [_balance(date(2026, 4, i), 1500000 - i * 50000) for i in range(1, 8)]
     vols = [_volume(date(2026, 4, 7), 5.0)]
     score = score_short_selling(
-        balance_bars=bars, volume_bars=vols, price_change_pct=0.0, code="005930",
+        balance_bars=bars,
+        volume_bars=vols,
+        price_change_pct=0.0,
+        code="005930",
     )
     assert score.balance_3d_delta < 0
     assert score.signal in {"SHORT_COVER", "SHORT_SQUEEZE_RISK"}
@@ -91,7 +109,10 @@ def test_score_squeeze_risk_when_balance_down_and_price_up() -> None:
     bars = [_balance(date(2026, 4, i), 1500000 - i * 100000) for i in range(1, 8)]
     vols = [_volume(date(2026, 4, 7), 5.0)]
     score = score_short_selling(
-        balance_bars=bars, volume_bars=vols, price_change_pct=2.5, code="005930",
+        balance_bars=bars,
+        volume_bars=vols,
+        price_change_pct=2.5,
+        code="005930",
     )
     assert score.signal == "SHORT_SQUEEZE_RISK"
     assert score.direction == "LONG"
@@ -103,7 +124,10 @@ def test_score_short_pressure_when_balance_increases_above_percentile() -> None:
     latest_bar = _balance(date(2026, 4, 1), 3000000)
     bars = [*history_bars, latest_bar]
     score = score_short_selling(
-        balance_bars=bars, volume_bars=[], price_change_pct=0.0, code="005930",
+        balance_bars=bars,
+        volume_bars=[],
+        price_change_pct=0.0,
+        code="005930",
     )
     assert score.balance_3d_delta > 0
     assert score.signal == "SHORT_PRESSURE"
@@ -111,9 +135,12 @@ def test_score_short_pressure_when_balance_increases_above_percentile() -> None:
 
 def test_score_high_short_ratio_with_price_down_short_pressure() -> None:
     bars = [_balance(date(2026, 4, i), 1000000) for i in range(1, 8)]
-    vols = [_volume(date(2026, 4, 7), 12.0)]   # > 10% threshold
+    vols = [_volume(date(2026, 4, 7), 12.0)]  # > 10% threshold
     score = score_short_selling(
-        balance_bars=bars, volume_bars=vols, price_change_pct=-1.5, code="005930",
+        balance_bars=bars,
+        volume_bars=vols,
+        price_change_pct=-1.5,
+        code="005930",
     )
     assert score.short_ratio_pct == 12.0
     assert score.raw_score < 0
@@ -122,7 +149,10 @@ def test_score_high_short_ratio_with_price_down_short_pressure() -> None:
 
 def test_score_neutral_on_empty_inputs() -> None:
     score = score_short_selling(
-        balance_bars=[], volume_bars=[], price_change_pct=0.0, code="005930",
+        balance_bars=[],
+        volume_bars=[],
+        price_change_pct=0.0,
+        code="005930",
     )
     assert score.direction == "NEUTRAL"
     assert score.signal == "NEUTRAL"
@@ -134,16 +164,25 @@ def test_score_clipped_at_three() -> None:
     bars = [_balance(date(2026, 4, i), 5000000 - i * 500000) for i in range(1, 8)]
     vols = [_volume(date(2026, 4, 7), 25.0)]
     score = score_short_selling(
-        balance_bars=bars, volume_bars=vols, price_change_pct=10.0, code="005930",
+        balance_bars=bars,
+        volume_bars=vols,
+        price_change_pct=10.0,
+        code="005930",
     )
     assert -3.0 <= score.net_score <= 3.0
 
 
 def test_short_selling_score_confidence_in_unit_range() -> None:
     s = ShortSellingScore(
-        code="005930", latest_balance_qty=0, balance_3d_delta=0,
-        short_ratio_pct=0, price_trend="FLAT", raw_score=2.5, net_score=2.5,
-        direction="LONG", signal="SHORT_COVER",
+        code="005930",
+        latest_balance_qty=0,
+        balance_3d_delta=0,
+        short_ratio_pct=0,
+        price_trend="FLAT",
+        raw_score=2.5,
+        net_score=2.5,
+        direction="LONG",
+        signal="SHORT_COVER",
     )
     assert 0.0 <= s.confidence <= 1.0
 

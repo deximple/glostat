@@ -68,8 +68,12 @@ def test_t_score_calculation_high_t(tmp_path: Path) -> None:
     bars = tuple(
         OhlcvBar(
             ts=datetime.fromisoformat(b["ts"] + "T00:00:00+00:00"),
-            open=b["open"], high=b["high"], low=b["low"],
-            close=b["close"], volume=b["volume"], adj_close=b["close"],
+            open=b["open"],
+            high=b["high"],
+            low=b["low"],
+            close=b["close"],
+            volume=b["volume"],
+            adj_close=b["close"],
         )
         for b in fixture["ohlcv"]
     )
@@ -95,11 +99,15 @@ def test_earnings_proximity_pre_earnings_bonus() -> None:
     # Sprint 5 PR #1: earnings 7 days out → in [0, 30] → +0.3 (was 14d / +0.5).
     cal = EarningsCalendar(
         ticker="AAPL",
-        upcoming=(EarningsEvent(
-            ticker="AAPL",
-            earnings_date=datetime(2026, 5, 5, tzinfo=UTC),
-            eps_estimate=1.5, eps_actual=None, revenue_estimate=80e9,
-        ),),
+        upcoming=(
+            EarningsEvent(
+                ticker="AAPL",
+                earnings_date=datetime(2026, 5, 5, tzinfo=UTC),
+                eps_estimate=1.5,
+                eps_actual=None,
+                revenue_estimate=80e9,
+            ),
+        ),
     )
     days_to, p = _compute_earnings_proximity(cal, today)
     assert days_to == 7
@@ -111,11 +119,15 @@ def test_earnings_proximity_window_extends_to_30_days() -> None:
     # Sprint 5 PR #1 — 21d still inside the 30d window → +0.3 bonus.
     cal = EarningsCalendar(
         ticker="AAPL",
-        upcoming=(EarningsEvent(
-            ticker="AAPL",
-            earnings_date=datetime(2026, 5, 19, tzinfo=UTC),
-            eps_estimate=None, eps_actual=None, revenue_estimate=None,
-        ),),
+        upcoming=(
+            EarningsEvent(
+                ticker="AAPL",
+                earnings_date=datetime(2026, 5, 19, tzinfo=UTC),
+                eps_estimate=None,
+                eps_actual=None,
+                revenue_estimate=None,
+            ),
+        ),
     )
     days_to, p = _compute_earnings_proximity(cal, today)
     assert days_to == 21
@@ -127,11 +139,15 @@ def test_earnings_proximity_far_future_no_bonus() -> None:
     # Sprint 5 PR #1: 90 days out → outside relaxed 30d window → 0.0.
     cal = EarningsCalendar(
         ticker="AAPL",
-        upcoming=(EarningsEvent(
-            ticker="AAPL",
-            earnings_date=datetime(2026, 7, 27, tzinfo=UTC),
-            eps_estimate=None, eps_actual=None, revenue_estimate=None,
-        ),),
+        upcoming=(
+            EarningsEvent(
+                ticker="AAPL",
+                earnings_date=datetime(2026, 7, 27, tzinfo=UTC),
+                eps_estimate=None,
+                eps_actual=None,
+                revenue_estimate=None,
+            ),
+        ),
     )
     days_to, p = _compute_earnings_proximity(cal, today)
     assert days_to == 90
@@ -148,11 +164,15 @@ def test_earnings_proximity_skips_past_events() -> None:
     today = date(2026, 4, 28)
     cal = EarningsCalendar(
         ticker="AAPL",
-        upcoming=(EarningsEvent(
-            ticker="AAPL",
-            earnings_date=datetime(2026, 4, 1, tzinfo=UTC),
-            eps_estimate=None, eps_actual=None, revenue_estimate=None,
-        ),),
+        upcoming=(
+            EarningsEvent(
+                ticker="AAPL",
+                earnings_date=datetime(2026, 4, 1, tzinfo=UTC),
+                eps_estimate=None,
+                eps_actual=None,
+                revenue_estimate=None,
+            ),
+        ),
     )
     days_to, p = _compute_earnings_proximity(cal, today)
     assert days_to is None  # no future event
@@ -164,8 +184,10 @@ def test_earnings_proximity_skips_past_events() -> None:
 
 def test_direction_long_when_score_positive() -> None:
     s = TimeScore(
-        t_value=2.0, matched_bases=(65, 129, 172),
-        earnings_proximity=0.5, days_to_earnings=7,
+        t_value=2.0,
+        matched_bases=(65, 129, 172),
+        earnings_proximity=0.5,
+        days_to_earnings=7,
         net_score=2.0,
     )
     assert s.direction == "LONG"
@@ -174,8 +196,10 @@ def test_direction_long_when_score_positive() -> None:
 def test_direction_neutral_in_dead_zone() -> None:
     for v in (-1.0, -0.5, 0.0, 0.5, 1.0):
         s = TimeScore(
-            t_value=1.0, matched_bases=(65,),
-            earnings_proximity=0.0, days_to_earnings=None,
+            t_value=1.0,
+            matched_bases=(65,),
+            earnings_proximity=0.0,
+            days_to_earnings=None,
             net_score=v,
         )
         assert s.direction == "NEUTRAL", f"score={v}"
@@ -183,8 +207,10 @@ def test_direction_neutral_in_dead_zone() -> None:
 
 def test_direction_short_when_score_very_negative() -> None:
     s = TimeScore(
-        t_value=0.0, matched_bases=(),
-        earnings_proximity=0.0, days_to_earnings=None,
+        t_value=0.0,
+        matched_bases=(),
+        earnings_proximity=0.0,
+        days_to_earnings=None,
         net_score=-1.5,
     )
     assert s.direction == "SHORT"
@@ -195,8 +221,10 @@ def test_direction_short_when_score_very_negative() -> None:
 
 def test_inv_gs_008_bonus_eligible_when_t_high() -> None:
     s = TimeScore(
-        t_value=1.5, matched_bases=(65, 129),
-        earnings_proximity=0.0, days_to_earnings=None,
+        t_value=1.5,
+        matched_bases=(65, 129),
+        earnings_proximity=0.0,
+        days_to_earnings=None,
         net_score=1.125,
     )
     assert s.bonus_eligible_t is True
@@ -204,8 +232,10 @@ def test_inv_gs_008_bonus_eligible_when_t_high() -> None:
 
 def test_inv_gs_008_bonus_not_eligible_when_t_low() -> None:
     s = TimeScore(
-        t_value=1.0, matched_bases=(65,),
-        earnings_proximity=0.0, days_to_earnings=None,
+        t_value=1.0,
+        matched_bases=(65,),
+        earnings_proximity=0.0,
+        days_to_earnings=None,
         net_score=0.75,
     )
     assert s.bonus_eligible_t is False
@@ -244,8 +274,10 @@ def test_sources_populated_with_two_snapshots(tmp_path: Path) -> None:
 
 def test_confidence_caps_at_1() -> None:
     s = TimeScore(
-        t_value=2.0, matched_bases=(65, 129, 172),
-        earnings_proximity=0.5, days_to_earnings=7,
+        t_value=2.0,
+        matched_bases=(65, 129, 172),
+        earnings_proximity=0.5,
+        days_to_earnings=7,
         net_score=2.0,
     )
     assert s.confidence == 1.0
@@ -253,8 +285,10 @@ def test_confidence_caps_at_1() -> None:
 
 def test_confidence_zero_when_no_t() -> None:
     s = TimeScore(
-        t_value=0.0, matched_bases=(),
-        earnings_proximity=0.0, days_to_earnings=None,
+        t_value=0.0,
+        matched_bases=(),
+        earnings_proximity=0.0,
+        days_to_earnings=None,
         net_score=0.0,
     )
     assert s.confidence == 0.0

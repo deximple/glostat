@@ -123,8 +123,11 @@ async def wrap_fundamental_kr_cyclical(
     # 화학/운송/건설/자동차). Otherwise emits a universe-aware skip so the
     # user sees the slot exists.
     from glostat.data.sector_classifier_kr import (  # noqa: PLC0415 — cold import
-        cycle_class_of, CycleClass, sector_of,
+        CycleClass,
+        cycle_class_of,
+        sector_of,
     )
+
     if not is_kr_ticker(ticker):
         return _skip("E_FUNDAMENTAL_KR_CYCLICAL", "ticker not KR equity", cal_table)
     if not is_kospi200(ticker):
@@ -141,7 +144,11 @@ async def wrap_fundamental_kr_cyclical(
             cal_table,
         )
     return await _wrap_expert_compute(
-        "E_FUNDAMENTAL_KR_CYCLICAL", expert, ticker, ts, cal_table,
+        "E_FUNDAMENTAL_KR_CYCLICAL",
+        expert,
+        ticker,
+        ts,
+        cal_table,
     )
 
 
@@ -151,6 +158,7 @@ async def wrap_commodity_index_kr(
     # v1.5 P6 — KR refining-sector commodity-momentum expert (WTI + crack
     # spread). Universe-gated to refining tickers only.
     from glostat.data.sector_classifier_kr import is_refining  # noqa: PLC0415
+
     if not is_kr_ticker(ticker):
         return _skip("E_COMMODITY_INDEX_KR", "ticker not KR equity", cal_table)
     if not is_refining(ticker):
@@ -160,7 +168,11 @@ async def wrap_commodity_index_kr(
             cal_table,
         )
     return await _wrap_expert_compute(
-        "E_COMMODITY_INDEX_KR", expert, ticker, ts, cal_table,
+        "E_COMMODITY_INDEX_KR",
+        expert,
+        ticker,
+        ts,
+        cal_table,
     )
 
 
@@ -239,7 +251,11 @@ async def wrap_short_selling_kr(
             cal_table,
         )
     return await _wrap_expert_compute(
-        "E_SHORT_SELLING_KR", expert, ticker, ts, cal_table,
+        "E_SHORT_SELLING_KR",
+        expert,
+        ticker,
+        ts,
+        cal_table,
     )
 
 
@@ -257,7 +273,11 @@ async def wrap_intraday_flow_kr(
             cal_table,
         )
     return await _wrap_expert_compute(
-        "E_INTRADAY_FLOW_KR", expert, ticker, ts, cal_table,
+        "E_INTRADAY_FLOW_KR",
+        expert,
+        ticker,
+        ts,
+        cal_table,
     )
 
 
@@ -283,15 +303,15 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     fundamental_expert: Any | None = None,
     time_expert: Any | None = None,
     fund_flow_expert: Any | None = None,
-    fundamental_kr_expert: Any | None = None,         # v1.1 K1
-    foreign_reversal_expert: Any | None = None,       # v1.1 K1
-    insider_kr_expert: Any | None = None,             # v1.2 L2 (DART)
-    macro_kr_expert: Any | None = None,               # v1.3 M2 (ECOS)
-    short_selling_kr_expert: Any | None = None,       # v1.4 N2 (KRX)
-    intraday_flow_kr_expert: Any | None = None,       # v1.4 N2 (KIS+Naver)
-    fundamental_kr_cyclical_expert: Any | None = None,# v1.5 P6 (sector cycle)
-    commodity_index_kr_expert: Any | None = None,     # v1.5 P6 (WTI + crack)
-    pead_kr_expert: Any | None = None,                # v1.6 P5 (post-earnings drift)
+    fundamental_kr_expert: Any | None = None,  # v1.1 K1
+    foreign_reversal_expert: Any | None = None,  # v1.1 K1
+    insider_kr_expert: Any | None = None,  # v1.2 L2 (DART)
+    macro_kr_expert: Any | None = None,  # v1.3 M2 (ECOS)
+    short_selling_kr_expert: Any | None = None,  # v1.4 N2 (KRX)
+    intraday_flow_kr_expert: Any | None = None,  # v1.4 N2 (KIS+Naver)
+    fundamental_kr_cyclical_expert: Any | None = None,  # v1.5 P6 (sector cycle)
+    commodity_index_kr_expert: Any | None = None,  # v1.5 P6 (WTI + crack)
+    pead_kr_expert: Any | None = None,  # v1.6 P5 (post-earnings drift)
 ) -> tuple[SignalContribution, ...]:
     # WHY: gather every thesis's contribution. Live experts run when wired;
     # static-only theses (Phase 1B/C/D) emit skip with a universe-explanation
@@ -325,9 +345,7 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     else:
         out.append(_skip("E_FUNDAMENTAL_KR", "ticker not KR equity", cal_table))
     if foreign_reversal_expert is not None:
-        out.append(
-            await wrap_foreign_reversal_live(foreign_reversal_expert, ticker, ts, cal_table)
-        )
+        out.append(await wrap_foreign_reversal_live(foreign_reversal_expert, ticker, ts, cal_table))
     else:
         out.append(wrap_foreign_reversal_static(ticker, cal_table))
     # v1.2 L2: KR insider expert (DART elestock). Skip cleanly when DART is
@@ -335,11 +353,13 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     if insider_kr_expert is not None:
         out.append(await wrap_insider_kr(insider_kr_expert, ticker, ts, cal_table))
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_INSIDER_KR",
-            "DART API not configured (set GLOSTAT_DART_API_KEY)",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_INSIDER_KR",
+                "DART API not configured (set GLOSTAT_DART_API_KEY)",
+                cal_table,
+            )
+        )
     else:
         out.append(_skip("E_INSIDER_KR", "ticker not KR equity", cal_table))
     # v1.3 M2: KR macro expert (ECOS BoK OpenAPI). Universe = any KR ticker
@@ -347,78 +367,104 @@ async def collect_contributions(  # noqa: PLR0912, PLR0915 — orchestrator: 1 b
     if macro_kr_expert is not None:
         out.append(await wrap_macro_kr(macro_kr_expert, ticker, ts, cal_table))
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_MACRO_KR",
-            "ECOS API not configured (set GLOSTAT_ECOS_API_KEY)",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_MACRO_KR",
+                "ECOS API not configured (set GLOSTAT_ECOS_API_KEY)",
+                cal_table,
+            )
+        )
     else:
         out.append(_skip("E_MACRO_KR", "ticker not KR equity", cal_table))
     # v1.4 N2: KR short-selling expert (KRX). Free public; gracefully skips
     # when KRX scrape fails or universe excludes the ticker.
     if short_selling_kr_expert is not None:
-        out.append(
-            await wrap_short_selling_kr(short_selling_kr_expert, ticker, ts, cal_table)
-        )
+        out.append(await wrap_short_selling_kr(short_selling_kr_expert, ticker, ts, cal_table))
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_SHORT_SELLING_KR",
-            "KRX short client not wired",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_SHORT_SELLING_KR",
+                "KRX short client not wired",
+                cal_table,
+            )
+        )
     else:
         out.append(_skip("E_SHORT_SELLING_KR", "ticker not KR equity", cal_table))
     # v1.4 N2: KR intraday flow expert (Naver baseline + optional KIS overlay).
     if intraday_flow_kr_expert is not None:
-        out.append(
-            await wrap_intraday_flow_kr(intraday_flow_kr_expert, ticker, ts, cal_table)
-        )
+        out.append(await wrap_intraday_flow_kr(intraday_flow_kr_expert, ticker, ts, cal_table))
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_INTRADAY_FLOW_KR",
-            "Naver intraday client not wired",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_INTRADAY_FLOW_KR",
+                "Naver intraday client not wired",
+                cal_table,
+            )
+        )
     else:
         out.append(_skip("E_INTRADAY_FLOW_KR", "ticker not KR equity", cal_table))
     # v1.5 P6: cyclical-sector fundamental override + commodity-momentum.
     if fundamental_kr_cyclical_expert is not None:
-        out.append(await wrap_fundamental_kr_cyclical(
-            fundamental_kr_cyclical_expert, ticker, ts, cal_table,
-        ))
+        out.append(
+            await wrap_fundamental_kr_cyclical(
+                fundamental_kr_cyclical_expert,
+                ticker,
+                ts,
+                cal_table,
+            )
+        )
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_FUNDAMENTAL_KR_CYCLICAL",
-            "commodity client not wired (cyclical-sector override)",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_FUNDAMENTAL_KR_CYCLICAL",
+                "commodity client not wired (cyclical-sector override)",
+                cal_table,
+            )
+        )
     else:
-        out.append(_skip(
-            "E_FUNDAMENTAL_KR_CYCLICAL", "ticker not KR equity", cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_FUNDAMENTAL_KR_CYCLICAL",
+                "ticker not KR equity",
+                cal_table,
+            )
+        )
     if commodity_index_kr_expert is not None:
-        out.append(await wrap_commodity_index_kr(
-            commodity_index_kr_expert, ticker, ts, cal_table,
-        ))
+        out.append(
+            await wrap_commodity_index_kr(
+                commodity_index_kr_expert,
+                ticker,
+                ts,
+                cal_table,
+            )
+        )
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_COMMODITY_INDEX_KR",
-            "commodity client not wired (refining sector only)",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_COMMODITY_INDEX_KR",
+                "commodity client not wired (refining sector only)",
+                cal_table,
+            )
+        )
     else:
-        out.append(_skip(
-            "E_COMMODITY_INDEX_KR", "ticker not KR equity", cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_COMMODITY_INDEX_KR",
+                "ticker not KR equity",
+                cal_table,
+            )
+        )
     # v1.6 P5: KR Post-Earnings Announcement Drift expert.
     if pead_kr_expert is not None:
         out.append(await wrap_pead_kr(pead_kr_expert, ticker, ts, cal_table))
     elif is_kr_ticker(ticker):
-        out.append(_skip(
-            "E_PEAD_KR",
-            "calendar client not wired (post-earnings drift)",
-            cal_table,
-        ))
+        out.append(
+            _skip(
+                "E_PEAD_KR",
+                "calendar client not wired (post-earnings drift)",
+                cal_table,
+            )
+        )
     else:
         out.append(_skip("E_PEAD_KR", "ticker not KR equity", cal_table))
     return tuple(out)

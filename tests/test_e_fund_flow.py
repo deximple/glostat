@@ -79,7 +79,8 @@ def test_compute_returns_expert_signal_structure(tmp_path: Path) -> None:
     broker = SnapshotBroker(root=tmp_path / "snap")
     # Seed prior snapshot so the live path detects a delta and does not skip.
     _seed_prior(
-        broker, "AAPL",
+        broker,
+        "AAPL",
         [
             ("Vanguard Group Inc", 0.0840, 1_270_000_000),
             ("BlackRock Inc.", 0.0710, 1_073_000_000),
@@ -105,11 +106,13 @@ def test_compute_returns_expert_signal_structure(tmp_path: Path) -> None:
 
 def test_pattern_net_buy_when_five_or_more_holders_increase() -> None:
     current = HoldersSnapshot(
-        ticker="AAPL", kind="institutional",
+        ticker="AAPL",
+        kind="institutional",
         holders=(),
         fetched_at=_NOW,
         rows=tuple(
-            (n, 0.0, s, "2026-03-31") for (n, s) in [
+            (n, 0.0, s, "2026-03-31")
+            for (n, s) in [
                 ("Vanguard", 1_300_000_000),
                 ("BlackRock", 1_100_000_000),
                 ("Berkshire", 900_000_000),
@@ -119,11 +122,13 @@ def test_pattern_net_buy_when_five_or_more_holders_increase() -> None:
         ),
     )
     prior = HoldersSnapshot(
-        ticker="AAPL", kind="institutional",
+        ticker="AAPL",
+        kind="institutional",
         holders=(),
         fetched_at=_NOW - timedelta(days=14),
         rows=tuple(
-            (n, 0.0, s, "2026-03-31") for (n, s) in [
+            (n, 0.0, s, "2026-03-31")
+            for (n, s) in [
                 ("Vanguard", 1_270_000_000),
                 ("BlackRock", 1_073_000_000),
                 ("Berkshire", 880_000_000),
@@ -157,12 +162,16 @@ def test_pattern_net_sell_when_five_or_more_decrease() -> None:
         ("FMR", 320_000_000),
     ]
     current = HoldersSnapshot(
-        ticker="AAPL", kind="institutional", holders=(),
+        ticker="AAPL",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW,
         rows=tuple((n, 0.0, s, "2026-03-31") for (n, s) in current_rows),
     )
     prior = HoldersSnapshot(
-        ticker="AAPL", kind="institutional", holders=(),
+        ticker="AAPL",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW - timedelta(days=14),
         rows=tuple((n, 0.0, s, "2026-03-31") for (n, s) in prior_rows),
     )
@@ -176,18 +185,30 @@ def test_pattern_net_sell_when_five_or_more_decrease() -> None:
 
 def test_pattern_mixed_when_split() -> None:
     current_rows = [
-        ("A", 110), ("B", 120), ("C", 95), ("D", 85), ("E", 100),
+        ("A", 110),
+        ("B", 120),
+        ("C", 95),
+        ("D", 85),
+        ("E", 100),
     ]
     prior_rows = [
-        ("A", 100), ("B", 110), ("C", 100), ("D", 100), ("E", 100),
+        ("A", 100),
+        ("B", 110),
+        ("C", 100),
+        ("D", 100),
+        ("E", 100),
     ]
     current = HoldersSnapshot(
-        ticker="AAPL", kind="institutional", holders=(),
+        ticker="AAPL",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW,
         rows=tuple((n, 0.0, s, "") for (n, s) in current_rows),
     )
     prior = HoldersSnapshot(
-        ticker="AAPL", kind="institutional", holders=(),
+        ticker="AAPL",
+        kind="institutional",
+        holders=(),
         fetched_at=_NOW - timedelta(days=14),
         rows=tuple((n, 0.0, s, "") for (n, s) in prior_rows),
     )
@@ -216,11 +237,16 @@ def test_compute_skips_when_holders_below_min(tmp_path: Path) -> None:
     blank = {
         "fundamentals": {
             "ticker": "BLANK",
-            "pe_ratio": None, "forward_pe": None,
-            "eps": None, "forward_eps": None,
-            "roe": None, "market_cap": None,
-            "dividend_yield": None, "beta": None,
-            "fifty_two_week_high": None, "fifty_two_week_low": None,
+            "pe_ratio": None,
+            "forward_pe": None,
+            "eps": None,
+            "forward_eps": None,
+            "roe": None,
+            "market_cap": None,
+            "dividend_yield": None,
+            "beta": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
         },
         "company_facts": {"cik": "0000000000", "entity_name": "Blank Co", "facts": []},
         "institutional_holders": {"ticker": "BLANK", "kind": "institutional", "holders": []},
@@ -241,7 +267,8 @@ def test_compute_returns_net_buy_signal_with_seeded_prior(tmp_path: Path) -> Non
     # Seed a prior with materially smaller share counts so the delta classifier
     # observes 5 holders increasing → NET_BUY → score +1.5 → LONG.
     _seed_prior(
-        broker, "AAPL",
+        broker,
+        "AAPL",
         [
             ("Vanguard Group Inc", 0.0820, 1_200_000_000),
             ("BlackRock Inc.", 0.0700, 1_000_000_000),
@@ -266,18 +293,26 @@ def test_compute_returns_net_buy_signal_with_seeded_prior(tmp_path: Path) -> Non
 
 def test_direction_long_when_score_above_threshold() -> None:
     s = FundFlowScore(
-        pattern="NET_BUY", quarter_directions=("in",) * 5,
-        pattern_score=1.5, option_proxy=0.0,
-        net_score=1.5, top_holder="Vanguard", top_holder_pct=0.085,
+        pattern="NET_BUY",
+        quarter_directions=("in",) * 5,
+        pattern_score=1.5,
+        option_proxy=0.0,
+        net_score=1.5,
+        top_holder="Vanguard",
+        top_holder_pct=0.085,
     )
     assert s.direction == "LONG"
 
 
 def test_direction_short_when_score_below_neg_threshold() -> None:
     s = FundFlowScore(
-        pattern="NET_SELL", quarter_directions=("out",) * 5,
-        pattern_score=-1.5, option_proxy=0.0,
-        net_score=-1.5, top_holder="X", top_holder_pct=0.05,
+        pattern="NET_SELL",
+        quarter_directions=("out",) * 5,
+        pattern_score=-1.5,
+        option_proxy=0.0,
+        net_score=-1.5,
+        top_holder="X",
+        top_holder_pct=0.05,
     )
     assert s.direction == "SHORT"
 
@@ -285,33 +320,49 @@ def test_direction_short_when_score_below_neg_threshold() -> None:
 def test_direction_neutral_in_dead_zone() -> None:
     for v in (-1.0, -0.5, 0.0, 0.5, 1.0):
         s = FundFlowScore(
-            pattern="MIXED", quarter_directions=(),
-            pattern_score=0.0, option_proxy=0.0,
-            net_score=v, top_holder="X", top_holder_pct=0.0,
+            pattern="MIXED",
+            quarter_directions=(),
+            pattern_score=0.0,
+            option_proxy=0.0,
+            net_score=v,
+            top_holder="X",
+            top_holder_pct=0.0,
         )
         assert s.direction == "NEUTRAL", f"score={v}"
 
 
 def test_archetype_continuation_for_net_flows() -> None:
     s_buy = FundFlowScore(
-        pattern="NET_BUY", quarter_directions=("in",) * 5,
-        pattern_score=1.5, option_proxy=0.0, net_score=1.5,
-        top_holder="X", top_holder_pct=0.0,
+        pattern="NET_BUY",
+        quarter_directions=("in",) * 5,
+        pattern_score=1.5,
+        option_proxy=0.0,
+        net_score=1.5,
+        top_holder="X",
+        top_holder_pct=0.0,
     )
     assert s_buy.archetype == "continuation"
     s_sell = FundFlowScore(
-        pattern="NET_SELL", quarter_directions=("out",) * 5,
-        pattern_score=-1.5, option_proxy=0.0, net_score=-1.5,
-        top_holder="X", top_holder_pct=0.0,
+        pattern="NET_SELL",
+        quarter_directions=("out",) * 5,
+        pattern_score=-1.5,
+        option_proxy=0.0,
+        net_score=-1.5,
+        top_holder="X",
+        top_holder_pct=0.0,
     )
     assert s_sell.archetype == "continuation"
 
 
 def test_archetype_mixed_for_balanced() -> None:
     s = FundFlowScore(
-        pattern="MIXED", quarter_directions=("in", "out"),
-        pattern_score=0.0, option_proxy=0.0,
-        net_score=0.0, top_holder="X", top_holder_pct=0.0,
+        pattern="MIXED",
+        quarter_directions=("in", "out"),
+        pattern_score=0.0,
+        option_proxy=0.0,
+        net_score=0.0,
+        top_holder="X",
+        top_holder_pct=0.0,
     )
     assert s.archetype == "mixed"
 
@@ -321,7 +372,8 @@ def test_archetype_mixed_for_balanced() -> None:
 
 def test_top_holder_returns_name_and_pct() -> None:
     snap = HoldersSnapshot(
-        ticker="AAPL", kind="institutional",
+        ticker="AAPL",
+        kind="institutional",
         holders=(("Vanguard", 0.085), ("BlackRock", 0.072)),
         fetched_at=_NOW,
     )
@@ -355,6 +407,7 @@ def test_network_real_aapl_fund_flow(tmp_path: Path) -> None:
         # First call seeds the snapshot; second call sees a prior and emits a
         # MIXED/NET signal rather than INSUFFICIENT skip.
         import contextlib  # noqa: PLC0415
+
         with contextlib.suppress(ExpertSkipError):
             await expert.compute("AAPL", datetime.now(tz=UTC))
         sig = await expert.compute("AAPL", datetime.now(tz=UTC) + timedelta(seconds=1))

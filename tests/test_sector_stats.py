@@ -73,7 +73,7 @@ def test_sector_stats_fallback_when_too_few_samples() -> None:
     bundle = asyncio.run(compute_universe_stats(universe, resolve_ticker=resolver))
     tiny = bundle.by_sector["TinySector"]
     assert tiny.is_fallback is True
-    assert tiny.per_median == 22.0   # global fallback
+    assert tiny.per_median == 22.0  # global fallback
     assert tiny.roe_median == 0.18
 
 
@@ -164,9 +164,12 @@ def test_summarize_emits_one_line_per_sector() -> None:
         universe="x",
         by_sector={
             "Technology": SectorStats(
-                sector="Technology", sample_size=10,
-                per_median=30.0, per_stddev=5.0,
-                roe_median=0.30, roe_stddev=0.05,
+                sector="Technology",
+                sample_size=10,
+                per_median=30.0,
+                per_stddev=5.0,
+                roe_median=0.30,
+                roe_stddev=0.05,
                 is_fallback=False,
             ),
         },

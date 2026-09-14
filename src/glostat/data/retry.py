@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, TypeVar
 
 import httpx
 import structlog
@@ -75,7 +75,10 @@ async def _default_sleep(delay: float) -> None:
     await asyncio.sleep(delay)
 
 
-async def with_retry[T](
+T = TypeVar("T")
+
+
+async def with_retry(
     func: Callable[[], Awaitable[T]],
     *,
     stats: RetryStats,
@@ -104,7 +107,7 @@ async def with_retry[T](
             retryable, kind = _is_retryable(exc)
             if not retryable or attempt >= max_retries:
                 raise
-            delay = _retry_after_seconds(exc) or base_delay_s * (backoff_factor ** attempt)
+            delay = _retry_after_seconds(exc) or base_delay_s * (backoff_factor**attempt)
             stats.retry_count += 1
             if kind == "429":
                 stats.retry_429_count += 1
@@ -114,8 +117,11 @@ async def with_retry[T](
                 stats.retry_timeout_count += 1
             log.info(
                 "retry.transient",
-                operation=operation, kind=kind, attempt=attempt + 1,
-                delay_s=round(delay, 3), err=str(exc),
+                operation=operation,
+                kind=kind,
+                attempt=attempt + 1,
+                delay_s=round(delay, 3),
+                err=str(exc),
             )
             await sleep(delay)
             attempt += 1
@@ -123,12 +129,14 @@ async def with_retry[T](
         if is_empty is not None and is_empty(result):
             if attempt >= max_retries:
                 return result
-            delay = base_delay_s * (backoff_factor ** attempt)
+            delay = base_delay_s * (backoff_factor**attempt)
             stats.retry_count += 1
             stats.retry_empty_count += 1
             log.info(
                 "retry.empty",
-                operation=operation, attempt=attempt + 1, delay_s=round(delay, 3),
+                operation=operation,
+                attempt=attempt + 1,
+                delay_s=round(delay, 3),
             )
             await sleep(delay)
             attempt += 1

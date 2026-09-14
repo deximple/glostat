@@ -45,13 +45,17 @@ def test_save_and_load_roundtrip(tmp_path) -> None:
     client = TossClient(cache_dir=tmp_path)
     bars = [
         TossInvestorBar(
-            bar_date=date(2026, 4, 1), ticker="005930",
-            foreign_net_won=1.0e9, institutional_net_won=-2.0e8,
+            bar_date=date(2026, 4, 1),
+            ticker="005930",
+            foreign_net_won=1.0e9,
+            institutional_net_won=-2.0e8,
             retail_net_won=5.0e7,
         ),
         TossInvestorBar(
-            bar_date=date(2026, 4, 2), ticker="005930",
-            foreign_net_won=-3.0e8, institutional_net_won=4.0e8,
+            bar_date=date(2026, 4, 2),
+            ticker="005930",
+            foreign_net_won=-3.0e8,
+            institutional_net_won=4.0e8,
             retail_net_won=-1.0e8,
         ),
     ]
@@ -76,16 +80,25 @@ def test_load_with_days_back_filter(tmp_path) -> None:
     client = TossClient(cache_dir=tmp_path)
     bars = [
         TossInvestorBar(
-            bar_date=date(2026, 1, 1), ticker="005930",
-            foreign_net_won=0.0, institutional_net_won=0.0, retail_net_won=0.0,
+            bar_date=date(2026, 1, 1),
+            ticker="005930",
+            foreign_net_won=0.0,
+            institutional_net_won=0.0,
+            retail_net_won=0.0,
         ),
         TossInvestorBar(
-            bar_date=date(2026, 4, 14), ticker="005930",
-            foreign_net_won=0.0, institutional_net_won=0.0, retail_net_won=0.0,
+            bar_date=date(2026, 4, 14),
+            ticker="005930",
+            foreign_net_won=0.0,
+            institutional_net_won=0.0,
+            retail_net_won=0.0,
         ),
         TossInvestorBar(
-            bar_date=date(2026, 4, 15), ticker="005930",
-            foreign_net_won=0.0, institutional_net_won=0.0, retail_net_won=0.0,
+            bar_date=date(2026, 4, 15),
+            ticker="005930",
+            foreign_net_won=0.0,
+            institutional_net_won=0.0,
+            retail_net_won=0.0,
         ),
     ]
     client.save_investor_trend("005930", bars)

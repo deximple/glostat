@@ -20,7 +20,7 @@ class ComplianceError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class ComplianceContext:
-    user_profile_hash: str   # SHA256 of (user_id, jurisdiction, license tier)
+    user_profile_hash: str  # SHA256 of (user_id, jurisdiction, license tier)
     jurisdiction: Jurisdiction
     personal_use_only: bool = True
     license_tier: Literal["personal", "research", "commercial"] = "personal"
@@ -152,6 +152,5 @@ def mass_email(
         user_profile_hash=ctx.user_profile_hash[:12],
     )
     raise ComplianceError(
-        "INV-GS-024: mass_email is permanently forbidden. "
-        "GLOSTAT MVP is personal-use only."
+        "INV-GS-024: mass_email is permanently forbidden. GLOSTAT MVP is personal-use only."
     )

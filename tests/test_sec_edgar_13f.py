@@ -36,13 +36,17 @@ def _fake_submissions_payload() -> dict[str, Any]:
                 ],
                 "form": ["13F-HR", "13F-HR", "13F-HR", "13F-HR", "10-K"],
                 "filingDate": [
-                    "2026-04-15", "2026-01-15",
-                    "2025-10-15", "2025-07-15",
+                    "2026-04-15",
+                    "2026-01-15",
+                    "2025-10-15",
+                    "2025-07-15",
                     "2025-11-01",
                 ],
                 "primaryDocument": [
-                    "primary_doc.html", "primary_doc.html",
-                    "primary_doc.html", "primary_doc.html",
+                    "primary_doc.html",
+                    "primary_doc.html",
+                    "primary_doc.html",
+                    "primary_doc.html",
                     "aapl-20251101.htm",
                 ],
             }
@@ -52,43 +56,33 @@ def _fake_submissions_payload() -> dict[str, Any]:
 
 def test_get_filings_filters_by_form_type() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("13F",), limit=50
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("13F",), limit=50)
     assert len(filings) == 4
     assert all(f.form_type.startswith("13F") for f in filings)
 
 
 def test_get_filings_respects_limit() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("13F",), limit=2
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("13F",), limit=2)
     assert len(filings) == 2
 
 
 def test_get_filings_includes_10k_when_requested() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("10-K",), limit=10
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("10-K",), limit=10)
     assert len(filings) == 1
     assert filings[0].form_type == "10-K"
 
 
 def test_get_filings_empty_when_no_matches() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("4",), limit=10
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("4",), limit=10)
     assert filings == []
 
 
 def test_get_filings_url_constructed_correctly() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("13F",), limit=1
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("13F",), limit=1)
     f = filings[0]
     assert f.primary_doc_url.startswith("https://www.sec.gov/Archives/edgar/data/320193/")
     # Accession number with dashes removed: "0000320193-26-000020" → "000032019326000020".
@@ -221,9 +215,7 @@ def test_get_13f_holdings_end_to_end(tmp_path: Path) -> None:
 def test_snapshot_integration_for_13f(tmp_path: Path) -> None:
     payload = _fake_submissions_payload()
     xml = (_FIXTURES_DIR / "sample_13f_infotable.xml").read_text("utf-8")
-    index_payload = {
-        "directory": {"item": [{"name": "infotable.xml"}]}
-    }
+    index_payload = {"directory": {"item": [{"name": "infotable.xml"}]}}
 
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
@@ -254,9 +246,7 @@ def test_snapshot_integration_for_13f(tmp_path: Path) -> None:
 
 def test_filing_dates_are_dates() -> None:
     payload = _fake_submissions_payload()
-    filings = parse_submissions_filings(
-        "0000320193", payload, form_types=("13F",), limit=4
-    )
+    filings = parse_submissions_filings("0000320193", payload, form_types=("13F",), limit=4)
     for f in filings:
         assert isinstance(f.filing_date, date)
     # Latest first.
@@ -276,9 +266,7 @@ def test_network_real_aapl_13f(tmp_path: Path) -> None:
     async def _go() -> tuple:
         c = SecEdgarClient(snapshot_broker=broker)
         try:
-            return await c.get_filings(
-                "0000320193", form_types=("13F",), limit=2
-            )
+            return await c.get_filings("0000320193", form_types=("13F",), limit=2)
         finally:
             await c.aclose()
 

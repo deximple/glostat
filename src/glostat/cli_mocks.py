@@ -124,8 +124,7 @@ class MockYFinanceClient:
             {"ticker": ticker.upper(), "holders": []},
         )
         holders = tuple(
-            (str(h["name"]), float(h.get("pct_held", 0.0)))
-            for h in body.get("holders", [])
+            (str(h["name"]), float(h.get("pct_held", 0.0))) for h in body.get("holders", [])
         )
         rows = tuple(
             (
@@ -137,11 +136,17 @@ class MockYFinanceClient:
             for h in body.get("holders", [])
         )
         snap = HoldersSnapshot(
-            ticker=ticker.upper(), kind=kind, holders=holders, fetched_at=_FIXED_TS,
+            ticker=ticker.upper(),
+            kind=kind,
+            holders=holders,
+            fetched_at=_FIXED_TS,
             rows=rows,
         )
         self._save(
-            f"holders.{kind}", "yfinance.holders.mock", ticker, body,
+            f"holders.{kind}",
+            "yfinance.holders.mock",
+            ticker,
+            body,
             extra_params={"kind": kind},
         )
         return snap
@@ -184,7 +189,8 @@ class MockSecEdgarClient:
             tool="sec_edgar.company_tickers.mock",
             params_canon=json.dumps(
                 {"ticker": ticker.upper(), "mock": True},
-                sort_keys=True, separators=(",", ":"),
+                sort_keys=True,
+                separators=(",", ":"),
             ),
         )
         rec = self._broker.save_snapshot(key, {"ticker": ticker.upper(), "cik": cik})
@@ -224,7 +230,8 @@ class MockSecEdgarClient:
             tool="sec_edgar.submissions.mock",
             params_canon=json.dumps(
                 {"cik": cik, "form_types": sorted(wanted), "limit": limit, "mock": True},
-                sort_keys=True, separators=(",", ":"),
+                sort_keys=True,
+                separators=(",", ":"),
             ),
         )
         rec = self._broker.save_snapshot(
@@ -265,7 +272,8 @@ class MockSecEdgarClient:
                     "accession_number": filing.accession_number,
                     "mock": True,
                 },
-                sort_keys=True, separators=(",", ":"),
+                sort_keys=True,
+                separators=(",", ":"),
             ),
         )
         rec = self._broker.save_snapshot(
@@ -306,7 +314,8 @@ class MockSecEdgarClient:
             tool="sec_edgar.companyfacts.mock",
             params_canon=json.dumps(
                 {"cik": cik, "mock": True},
-                sort_keys=True, separators=(",", ":"),
+                sort_keys=True,
+                separators=(",", ":"),
             ),
         )
         rec = self._broker.save_snapshot(key, body)

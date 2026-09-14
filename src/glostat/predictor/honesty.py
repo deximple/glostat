@@ -51,9 +51,7 @@ def auc_p_value(auc: float, n: int) -> float:
     return max(0.0, min(1.0, 2.0 * (1.0 - phi)))
 
 
-def is_statistically_significant(
-    auc: float, n: int, *, alpha: float = _SIG_ALPHA
-) -> bool:
+def is_statistically_significant(auc: float, n: int, *, alpha: float = _SIG_ALPHA) -> bool:
     if n <= 0:
         return False
     return auc_p_value(auc, n) < alpha
@@ -122,10 +120,7 @@ def all_active_signals_are_noise(
     # Used by the CLI layer to decide whether to emit the warning footer.
     if not aucs_and_ns:
         return True
-    return all(
-        not is_statistically_significant(auc, n, alpha=alpha)
-        for auc, n in aucs_and_ns
-    )
+    return all(not is_statistically_significant(auc, n, alpha=alpha) for auc, n in aucs_and_ns)
 
 
 def ci_includes_zero(low_bps: float, high_bps: float) -> bool:

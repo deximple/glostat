@@ -167,11 +167,16 @@ def test_compose_records_minority_premium_can_be_empty_with_unanimity() -> None:
 
 def test_compose_uses_gating_yaml_weights(tmp_path: Path) -> None:
     cfg_path = tmp_path / "g.yaml"
-    cfg_path.write_text(yaml.safe_dump({
-        "initial_ic": {"E_FUNDAMENTAL": 0.10, "E_TIME": 0.90},
-        "weight_caps": {"E_FUNDAMENTAL": 1.0, "E_TIME": 1.0},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
-    }), encoding="utf-8")
+    cfg_path.write_text(
+        yaml.safe_dump(
+            {
+                "initial_ic": {"E_FUNDAMENTAL": 0.10, "E_TIME": 0.90},
+                "weight_caps": {"E_FUNDAMENTAL": 1.0, "E_TIME": 1.0},
+                "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
+            }
+        ),
+        encoding="utf-8",
+    )
     g = GatingNetwork(config_path=cfg_path)
     signals = [
         _sig("E_FUNDAMENTAL", "LONG", net_score=2.0, confidence=0.5),

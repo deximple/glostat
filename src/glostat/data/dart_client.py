@@ -171,10 +171,7 @@ class DartClient:
 
             table = pq.read_table(path)
             rows = table.to_pylist()
-            return {
-                str(r["stock_code"]): str(r["corp_code"])
-                for r in rows if r.get("stock_code")
-            }
+            return {str(r["stock_code"]): str(r["corp_code"]) for r in rows if r.get("stock_code")}
         except Exception as exc:
             log.warning("dart.corp_code_cache_load_failed", err=str(exc))
             return None
@@ -187,9 +184,12 @@ class DartClient:
             self._corp_code_cache.parent.mkdir(parents=True, exist_ok=True)
             payload = [
                 {
-                    "corp_code": e.corp_code, "corp_name": e.corp_name,
-                    "stock_code": e.stock_code, "modify_date": e.modify_date,
-                } for e in entries
+                    "corp_code": e.corp_code,
+                    "corp_name": e.corp_name,
+                    "stock_code": e.stock_code,
+                    "modify_date": e.modify_date,
+                }
+                for e in entries
             ]
             table = pa.Table.from_pylist(payload)
             pq.write_table(table, self._corp_code_cache, compression="zstd")
@@ -199,7 +199,11 @@ class DartClient:
     # ── financial statements ──────────────────────────────────────────────
 
     async def get_financial_statements(
-        self, corp_code: str, *, year: int, reprt_code: str = "11011",
+        self,
+        corp_code: str,
+        *,
+        year: int,
+        reprt_code: str = "11011",
         fs_div: str = "CFS",
     ) -> DartFinancialStatements:
         await self._throttle.acquire()
@@ -224,8 +228,12 @@ class DartClient:
             uaid=f"DART.CORP.{corp_code}",
             edge_type="financial_statements",
             ts=datetime.now(tz=UTC),
-            params={"corp_code": corp_code, "bsns_year": str(year),
-                    "reprt_code": reprt_code, "fs_div": fs_div},
+            params={
+                "corp_code": corp_code,
+                "bsns_year": str(year),
+                "reprt_code": reprt_code,
+                "fs_div": fs_div,
+            },
             payload={"corp_code": corp_code, "n_items": len(items)},
         )
         return statements
@@ -256,7 +264,10 @@ class DartClient:
         return ov
 
     async def get_executive_transactions(
-        self, corp_code: str, *, days_back: int = 180,
+        self,
+        corp_code: str,
+        *,
+        days_back: int = 180,
     ) -> tuple[DartExecutiveTransaction, ...]:
         await self._throttle.acquire()
         end = date.today()
@@ -305,9 +316,7 @@ class DartClient:
         try:
             data = resp.json()
         except ValueError:
-            raise DartApiError(
-                f"DART non-JSON response from {endpoint}"
-            ) from None
+            raise DartApiError(f"DART non-JSON response from {endpoint}") from None
         status = str(data.get("status", "000"))
         # 000 = OK, 013 = no data — both treated as success.
         if status not in {"000", "013"}:
@@ -316,14 +325,23 @@ class DartClient:
         return data
 
     def _record_snapshot(
-        self, *, tool: str, uaid: str, edge_type: str, ts: datetime,
-        params: dict[str, Any], payload: dict[str, Any],
+        self,
+        *,
+        tool: str,
+        uaid: str,
+        edge_type: str,
+        ts: datetime,
+        params: dict[str, Any],
+        payload: dict[str, Any],
     ) -> None:
         if self._broker is None:
             return
         try:
             key = SnapshotKey(
-                uaid=uaid, edge_type=edge_type, ts_utc=ts, tool=tool,
+                uaid=uaid,
+                edge_type=edge_type,
+                ts_utc=ts,
+                tool=tool,
                 params_canon=json.dumps(params, sort_keys=True, separators=(",", ":")),
             )
             record = self._broker.save_snapshot(key, payload)
@@ -355,29 +373,33 @@ def _parse_corp_code_zip(zipped_bytes: bytes) -> list[CorpCodeEntry]:
         log.warning("dart.corp_code_parse_failed", err=str(exc))
         return out
     for el in root.findall("list"):
-        out.append(CorpCodeEntry(
-            corp_code=(el.findtext("corp_code") or "").strip(),
-            corp_name=(el.findtext("corp_name") or "").strip(),
-            stock_code=(el.findtext("stock_code") or "").strip(),
-            modify_date=(el.findtext("modify_date") or "").strip(),
-        ))
+        out.append(
+            CorpCodeEntry(
+                corp_code=(el.findtext("corp_code") or "").strip(),
+                corp_name=(el.findtext("corp_name") or "").strip(),
+                stock_code=(el.findtext("stock_code") or "").strip(),
+                modify_date=(el.findtext("modify_date") or "").strip(),
+            )
+        )
     return out
 
 
 def _parse_financial_items(rows: list[dict[str, Any]]) -> list[DartFinancialItem]:
     out: list[DartFinancialItem] = []
     for r in rows:
-        out.append(DartFinancialItem(
-            account_id=str(r.get("account_id", "")),
-            account_name=str(r.get("account_nm", "")),
-            fs_div=str(r.get("fs_div", "")),
-            sj_div=str(r.get("sj_div", "")),
-            thstrm_amount=str(r.get("thstrm_amount", "")),
-            frmtrm_amount=str(r.get("frmtrm_amount", "")),
-            bfefrmtrm_amount=str(r.get("bfefrmtrm_amount", "")),
-            thstrm_nm=str(r.get("thstrm_nm", "")),
-            currency=str(r.get("currency", "KRW")),
-        ))
+        out.append(
+            DartFinancialItem(
+                account_id=str(r.get("account_id", "")),
+                account_name=str(r.get("account_nm", "")),
+                fs_div=str(r.get("fs_div", "")),
+                sj_div=str(r.get("sj_div", "")),
+                thstrm_amount=str(r.get("thstrm_amount", "")),
+                frmtrm_amount=str(r.get("frmtrm_amount", "")),
+                bfefrmtrm_amount=str(r.get("bfefrmtrm_amount", "")),
+                thstrm_nm=str(r.get("thstrm_nm", "")),
+                currency=str(r.get("currency", "KRW")),
+            )
+        )
     return out
 
 
@@ -386,7 +408,8 @@ def _market_from_code(corp_cls: str) -> str:
 
 
 def _build_executive_txn(
-    corp_code: str, row: dict[str, Any],
+    corp_code: str,
+    row: dict[str, Any],
 ) -> DartExecutiveTransaction | None:
     trd_kind = str(row.get("trd_kind", "")).strip()
     irds_cnt = _parse_number(str(row.get("sp_stock_lmp_irds_cnt", "")))

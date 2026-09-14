@@ -21,9 +21,7 @@ _SECTOR_ETFS: Final[frozenset[str]] = frozenset(
 _COMMODITY_ETFS: Final[frozenset[str]] = frozenset(
     {"USO", "UNG", "GLD", "SLV", "CPER", "URA", "CORN", "WEAT", "DBC", "GSG"}
 )
-_FX_CARRY_TARGETS: Final[frozenset[str]] = frozenset(
-    {"XLU", "XLV", "XLF", "XLE", "SPY"}
-)
+_FX_CARRY_TARGETS: Final[frozenset[str]] = frozenset({"XLU", "XLV", "XLF", "XLE", "SPY"})
 _FOMC_UNIVERSE: Final[frozenset[str]] = frozenset({"SPY", *_SECTOR_ETFS})
 _CRYPTO_SUFFIXES: Final[tuple[str, ...]] = (":USDT", "/USDT", "USDT")
 _KOSPI200_UNIVERSE: Final[frozenset[str]] = KOSPI200_UNIVERSE
@@ -32,7 +30,10 @@ _KOSPI200_UNIVERSE: Final[frozenset[str]] = KOSPI200_UNIVERSE
 def _is_crypto_ticker(ticker: str) -> bool:
     t = ticker.upper()
     return any(s in t for s in _CRYPTO_SUFFIXES) or t in {
-        "BTC", "ETH", "BTCUSDT", "ETHUSDT",
+        "BTC",
+        "ETH",
+        "BTCUSDT",
+        "ETHUSDT",
     }
 
 
@@ -60,14 +61,15 @@ def _make_contribution(
 
 def _skip(name: str, reason: str, cal_table: CalibrationTable) -> SignalContribution:
     return _make_contribution(
-        name=name, value=None, direction="skip",
-        cal_table=cal_table, skip_reason=reason,
+        name=name,
+        value=None,
+        direction="skip",
+        cal_table=cal_table,
+        skip_reason=reason,
     )
 
 
-def wrap_sector_rotation_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_sector_rotation_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     # WHY: E_SECTOR_ROTATION operates only on the 11 SPDR sector ETFs; for any
     # individual stock we report skip with a clear universe reason. No live call.
     if ticker.upper() not in _SECTOR_ETFS:
@@ -77,7 +79,9 @@ def wrap_sector_rotation_static(
             cal_table,
         )
     return _make_contribution(
-        name="E_SECTOR_ROTATION", value=0.0, direction="neutral",
+        name="E_SECTOR_ROTATION",
+        value=0.0,
+        direction="neutral",
         cal_table=cal_table,
     )
 
@@ -95,14 +99,10 @@ def wrap_pead_static(
             f"ticker {ticker.upper()} not in S&P 500 PEAD universe",
             cal_table,
         )
-    return _skip(
-        "E_PEAD", "no earnings event in evaluation window", cal_table
-    )
+    return _skip("E_PEAD", "no earnings event in evaluation window", cal_table)
 
 
-def wrap_fomc_drift_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_fomc_drift_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     if ticker.upper() not in _FOMC_UNIVERSE:
         return _skip(
             "E_FOMC_DRIFT",
@@ -112,9 +112,7 @@ def wrap_fomc_drift_static(
     return _skip("E_FOMC_DRIFT", "no FOMC event within drift window", cal_table)
 
 
-def wrap_insider_cluster_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_insider_cluster_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     # WHY: E_INSIDER_CLUSTER operates on Russell 2000 names with Form 4 activity.
     # Without a live SEC pull we cannot inspect cluster status. Report skip.
     if ticker.upper() in _SECTOR_ETFS or ticker.upper() in _COMMODITY_ETFS:
@@ -128,9 +126,7 @@ def wrap_insider_cluster_static(
     )
 
 
-def wrap_commodity_ts_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_commodity_ts_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     if ticker.upper() not in _COMMODITY_ETFS:
         return _skip(
             "E_COMMODITY_TS",
@@ -138,14 +134,14 @@ def wrap_commodity_ts_static(
             cal_table,
         )
     return _make_contribution(
-        name="E_COMMODITY_TS", value=0.0, direction="neutral",
+        name="E_COMMODITY_TS",
+        value=0.0,
+        direction="neutral",
         cal_table=cal_table,
     )
 
 
-def wrap_fx_carry_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_fx_carry_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     if ticker.upper() not in _FX_CARRY_TARGETS:
         return _skip(
             "E_FX_CARRY",
@@ -153,14 +149,14 @@ def wrap_fx_carry_static(
             cal_table,
         )
     return _make_contribution(
-        name="E_FX_CARRY", value=0.0, direction="neutral",
+        name="E_FX_CARRY",
+        value=0.0,
+        direction="neutral",
         cal_table=cal_table,
     )
 
 
-def wrap_funding_carry_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_funding_carry_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     if not _is_crypto_ticker(ticker):
         return _skip(
             "E_FUNDING_CARRY",
@@ -168,14 +164,14 @@ def wrap_funding_carry_static(
             cal_table,
         )
     return _make_contribution(
-        name="E_FUNDING_CARRY", value=0.0, direction="neutral",
+        name="E_FUNDING_CARRY",
+        value=0.0,
+        direction="neutral",
         cal_table=cal_table,
     )
 
 
-def wrap_foreign_reversal_static(
-    ticker: str, cal_table: CalibrationTable
-) -> SignalContribution:
+def wrap_foreign_reversal_static(ticker: str, cal_table: CalibrationTable) -> SignalContribution:
     # WHY: kept for back-compat + tests. The orchestrator (`collect_contributions`)
     # now prefers the live wrapper `wrap_foreign_reversal_live` when an expert
     # is injected. Static path emits neutral=0 for any KR universe member.
@@ -192,7 +188,9 @@ def wrap_foreign_reversal_static(
             cal_table,
         )
     return _make_contribution(
-        name="E_FOREIGN_REVERSAL", value=0.0, direction="neutral",
+        name="E_FOREIGN_REVERSAL",
+        value=0.0,
+        direction="neutral",
         cal_table=cal_table,
     )
 

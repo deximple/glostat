@@ -54,12 +54,8 @@ from glostat.risk.compliance_gate import ComplianceContext, assert_personal_use
 # under the 400-line house rule while leaving the legacy verdict surface intact.
 
 _DEFAULT_SNAPSHOT_ROOT: Final[Path] = Path("cache") / "snapshots"
-_BUDGET_YAML: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
-)
-_FIXTURES_DIR: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "tests" / "fixtures"
-)
+_BUDGET_YAML: Final[Path] = Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
+_FIXTURES_DIR: Final[Path] = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
 
 
 def add_predict_subparser(sub: Any) -> None:
@@ -68,16 +64,24 @@ def add_predict_subparser(sub: Any) -> None:
         help="Issue a Prediction (probability + evidence) for a ticker.",
     )
     p.add_argument("ticker")
-    p.add_argument("--mock", action="store_true",
-                   help="Use bundled fixtures instead of network calls.")
-    p.add_argument("--horizon", default="swing_30d",
-                   choices=["intraday", "swing_5d", "swing_30d", "long_3y"],
-                   help="Prediction horizon. Default swing_30d.")
-    p.add_argument("--jurisdiction", default="US",
-                   choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
-                   help="Compliance disclaimer jurisdiction. Default US.")
-    p.add_argument("--json", action="store_true",
-                   help="Emit prediction as canonical JSON (machine-readable).")
+    p.add_argument(
+        "--mock", action="store_true", help="Use bundled fixtures instead of network calls."
+    )
+    p.add_argument(
+        "--horizon",
+        default="swing_30d",
+        choices=["intraday", "swing_5d", "swing_30d", "long_3y"],
+        help="Prediction horizon. Default swing_30d.",
+    )
+    p.add_argument(
+        "--jurisdiction",
+        default="US",
+        choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
+        help="Compliance disclaimer jurisdiction. Default US.",
+    )
+    p.add_argument(
+        "--json", action="store_true", help="Emit prediction as canonical JSON (machine-readable)."
+    )
 
 
 def add_calibrate_subparser(sub: Any) -> None:
@@ -85,10 +89,15 @@ def add_calibrate_subparser(sub: Any) -> None:
         "calibrate",
         help="Refresh calibration_table.parquet from cached hindcast reports.",
     )
-    p.add_argument("--mock", action="store_true",
-                   help="Use synthetic calibration (no cache reads).")
-    p.add_argument("--out", type=Path, default=None,
-                   help="Output parquet path (default cache/calibration_table.parquet).")
+    p.add_argument(
+        "--mock", action="store_true", help="Use synthetic calibration (no cache reads)."
+    )
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output parquet path (default cache/calibration_table.parquet).",
+    )
 
 
 def cmd_predict(args: argparse.Namespace) -> int:
@@ -100,9 +109,7 @@ def cmd_predict(args: argparse.Namespace) -> int:
     assert_personal_use(ctx)
 
     broker = SnapshotBroker(root=_DEFAULT_SNAPSHOT_ROOT)
-    cal_table = (
-        synthetic_calibration_for_mock() if args.mock else load_calibration()
-    )
+    cal_table = synthetic_calibration_for_mock() if args.mock else load_calibration()
     try:
         if args.mock:
             prediction = asyncio.run(
@@ -158,8 +165,10 @@ async def _predict_live(
     fund_flow = EFundFlowExpert(router=router)
     fundamental_kr = EFundamentalKrExpert(router=router)
     foreign_reversal = EForeignReversalExpert(
-        router=router, kospi200=KOSPI200_UNIVERSE,
-        toss_client=toss_client, kis_client=kis_client,
+        router=router,
+        kospi200=KOSPI200_UNIVERSE,
+        toss_client=toss_client,
+        kis_client=kis_client,
     )
     # v1.2 L2 — wire DART-backed insider expert if API key is configured.
     insider_kr = EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE)
@@ -167,18 +176,22 @@ async def _predict_live(
     macro_kr = EMacroKrExpert.from_env()
     # v1.4 N2 — wire short-selling + intraday-flow KR experts.
     short_selling_kr = EShortSellingKrExpert(
-        krx_client=krx_short_client, kospi200=KOSPI200_UNIVERSE,
+        krx_client=krx_short_client,
+        kospi200=KOSPI200_UNIVERSE,
     )
     intraday_flow_kr = EIntradayFlowKrExpert(
-        naver_client=naver_client, kis_client=kis_client,
+        naver_client=naver_client,
+        kis_client=kis_client,
         kospi200=KOSPI200_UNIVERSE,
     )
     # v1.5 P6 — wire commodity client + cyclical/refining experts.
     commodity_client = CommodityClient(
-        yfinance_client=yf_client, snapshot_broker=broker,
+        yfinance_client=yf_client,
+        snapshot_broker=broker,
     )
     fundamental_kr_cyclical = EFundamentalKrCyclicalExpert(
-        router=router, commodity_client=commodity_client,
+        router=router,
+        commodity_client=commodity_client,
     )
     commodity_index_kr = ECommodityIndexKrExpert(
         commodity_client=commodity_client,
@@ -189,7 +202,9 @@ async def _predict_live(
     market = "XKRX" if is_kr_ticker(ticker) else "XNAS"
     try:
         contribs = await collect_contributions(
-            ticker=ticker, ts=ts, cal_table=cal_table,
+            ticker=ticker,
+            ts=ts,
+            cal_table=cal_table,
             fundamental_expert=fundamental,
             time_expert=time_expert,
             fund_flow_expert=fund_flow,
@@ -204,34 +219,57 @@ async def _predict_live(
             pead_kr_expert=pead_kr,
         )
     finally:
-        await sec_client.aclose()
-        if insider_kr is not None:
-            with contextlib.suppress(Exception):
-                await insider_kr._dart.aclose()  # type: ignore[union-attr]
-        if macro_kr is not None:
-            with contextlib.suppress(Exception):
-                await macro_kr._ecos.aclose()  # type: ignore[union-attr]
-        if kis_client is not None:
-            with contextlib.suppress(Exception):
-                await kis_client.aclose()
-        with contextlib.suppress(Exception):
-            await krx_short_client.aclose()
+        await _release_live_clients(
+            sec_client,
+            insider_kr,
+            macro_kr,
+            kis_client,
+            krx_short_client,
+        )
     # v1.6 P5 (INV-GS-120, INV-GS-121): pull upcoming events for next_triggers
     # and CI calendar widening. Failures degrade gracefully to the original
     # auto-derived next_triggers.
     next_triggers, days_to_imminent = await _build_calendar_overlay(
-        calendar_client, is_kr=is_kr_ticker(ticker),
+        calendar_client,
+        is_kr=is_kr_ticker(ticker),
     )
     return predict(
-        ticker=ticker, horizon=horizon, contributions=contribs,
-        cal_table=cal_table, issued_at=ts, market=market,
+        ticker=ticker,
+        horizon=horizon,
+        contributions=contribs,
+        cal_table=cal_table,
+        issued_at=ts,
+        market=market,
         next_triggers=next_triggers,
         days_to_imminent_event=days_to_imminent,
     )
 
 
+async def _release_live_clients(
+    sec_client: SecEdgarClient,
+    insider_kr: EInsiderKrExpert | None,
+    macro_kr: EMacroKrExpert | None,
+    kis_client: KisClient | None,
+    krx_short_client: KrxShortClient,
+) -> None:
+    await sec_client.aclose()
+    if insider_kr is not None:
+        with contextlib.suppress(Exception):
+            await insider_kr._dart.aclose()  # type: ignore[union-attr]
+    if macro_kr is not None:
+        with contextlib.suppress(Exception):
+            await macro_kr._ecos.aclose()  # type: ignore[union-attr]
+    if kis_client is not None:
+        with contextlib.suppress(Exception):
+            await kis_client.aclose()
+    with contextlib.suppress(Exception):
+        await krx_short_client.aclose()
+
+
 async def _build_calendar_overlay(
-    calendar: KrCalendarClient, *, is_kr: bool,
+    calendar: KrCalendarClient,
+    *,
+    is_kr: bool,
 ) -> tuple[tuple[str, ...] | None, int | None]:
     if not is_kr:
         return None, None
@@ -241,9 +279,7 @@ async def _build_calendar_overlay(
         return None, None
     if not events:
         return None, None
-    triggers = tuple(
-        f"{e.label} (D-{e.days_to})" for e in events
-    )
+    triggers = tuple(f"{e.label} (D-{e.days_to})" for e in events)
     days_to_imminent = events[0].days_to
     return triggers, days_to_imminent
 
@@ -265,21 +301,24 @@ async def _predict_mock(
     time_expert = ETimeExpert(router=router)
     fund_flow = EFundFlowExpert(router=router)
     contribs = await collect_contributions(
-        ticker=ticker, ts=ts, cal_table=cal_table,
+        ticker=ticker,
+        ts=ts,
+        cal_table=cal_table,
         fundamental_expert=fundamental,
         time_expert=time_expert,
         fund_flow_expert=fund_flow,
     )
     return predict(
-        ticker=ticker, horizon=horizon, contributions=contribs,
-        cal_table=cal_table, issued_at=ts,
+        ticker=ticker,
+        horizon=horizon,
+        contributions=contribs,
+        cal_table=cal_table,
+        issued_at=ts,
     )
 
 
 def cmd_calibrate(args: argparse.Namespace) -> int:
-    table = (
-        synthetic_calibration_for_mock() if args.mock else load_calibration()
-    )
+    table = synthetic_calibration_for_mock() if args.mock else load_calibration()
     out_path = args.out or table.snapshot_path
     written = table.write_parquet(out_path)
     print("=== GLOSTAT Calibrate ===")
@@ -291,6 +330,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     print(f"{'-' * 22} {'-' * 6} {'-' * 8} {'-' * 6} {'-' * 7} {'-' * 6}")
     for cal in sorted(table.entries.values(), key=lambda c: c.name):
         from glostat.predictor.calibration import is_active  # noqa: PLC0415
+
         active = "YES" if is_active(cal) else "no"
         print(
             f"{cal.name:<22} {cal.auc:>6.3f} {cal.sharpe:>+8.3f} "
@@ -302,9 +342,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
 def _load_fixture(ticker: str) -> dict[str, Any]:
     path = _FIXTURES_DIR / f"{ticker.lower()}_mock.json"
     if not path.exists():
-        raise FileNotFoundError(
-            f"no mock fixture for {ticker} at {path}"
-        )
+        raise FileNotFoundError(f"no mock fixture for {ticker} at {path}")
     return json.loads(path.read_text("utf-8"))
 
 

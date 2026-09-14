@@ -75,34 +75,34 @@ class ComposedSignal:
     aggregated_score: float
     aggregated_confidence: float
     direction: Literal["LONG", "SHORT", "NEUTRAL"]
-    disagreement_weight: float                          # 1.0 = consensus, 0.0 = total split
-    per_signal_weights: tuple[tuple[str, float], ...]   # ((expert_name, final_weight), ...)
+    disagreement_weight: float  # 1.0 = consensus, 0.0 = total split
+    per_signal_weights: tuple[tuple[str, float], ...]  # ((expert_name, final_weight), ...)
     applied_anti_herd: bool
-    applied_minority_premium: tuple[str, ...]           # expert_names that received the boost
+    applied_minority_premium: tuple[str, ...]  # expert_names that received the boost
     source_signals: tuple[ExpertSignal, ...]
 
 
 # Verdict v1 — PLAN_v0.4 §3.4 simplified (3 Expert × US × Swing only)
 @dataclass(frozen=True, slots=True)
 class Verdict:
-    ticker: str                                  # bare ticker (US only, MVP)
-    action: Action                               # 5단계 → 3단계 (E1 horizon discipline)
-    conviction_w: float                          # [0, 3.5] conviction weight
+    ticker: str  # bare ticker (US only, MVP)
+    action: Action  # 5단계 → 3단계 (E1 horizon discipline)
+    conviction_w: float  # [0, 3.5] conviction weight
     target_price: float | None
     stop_price: float | None
     suggested_size_pct: float
-    horizon_days: int                            # explicit, 1-30 (Swing only)
+    horizon_days: int  # explicit, 1-30 (Swing only)
     edge_bps: float
-    all_in_bps: float                            # XNAS = 0.6bps fee + 0.24bps SEC sell
-    cost_passed: bool                            # INV-GS-001
-    expected_pnl_bps: float                      # = upside − current_loss (INV-GS-028)
-    disagreement_weight: float                   # [0,1] 1=consensus, 0=split (INV-GS-029)
+    all_in_bps: float  # XNAS = 0.6bps fee + 0.24bps SEC sell
+    cost_passed: bool  # INV-GS-001
+    expected_pnl_bps: float  # = upside − current_loss (INV-GS-028)
+    disagreement_weight: float  # [0,1] 1=consensus, 0=split (INV-GS-029)
     contributing_signals: tuple[ExpertSignal, ...]
     next_trigger: str
-    evidence_hash: str                           # Merkle leaf (INV-GS-022)
-    prompt_versions: tuple[tuple[str, str], ...] # ((expert, sha256), ...) (INV-GS-023)
+    evidence_hash: str  # Merkle leaf (INV-GS-022)
+    prompt_versions: tuple[tuple[str, str], ...]  # ((expert, sha256), ...) (INV-GS-023)
     git_commit: str
-    user_profile_hash: str                       # personal-use audit (INV-GS-024)
+    user_profile_hash: str  # personal-use audit (INV-GS-024)
     issued_at: datetime
     market: Literal["XNAS", "XNYS"] = "XNAS"
 
@@ -122,6 +122,7 @@ class Verdict:
 
 
 # Pydantic boundary validators — used at API/CLI/MCP edges only.
+
 
 class ExpertSignalIn(BaseModel):
     model_config = ConfigDict(frozen=True, str_strip_whitespace=True)
@@ -212,8 +213,7 @@ def verdict_to_canonical_json(v: Verdict) -> str:
     payload = asdict(v)
     payload["issued_at"] = v.issued_at.isoformat()
     payload["contributing_signals"] = [
-        {**asdict(s), "expires_at": s.expires_at.isoformat()}
-        for s in v.contributing_signals
+        {**asdict(s), "expires_at": s.expires_at.isoformat()} for s in v.contributing_signals
     ]
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
 

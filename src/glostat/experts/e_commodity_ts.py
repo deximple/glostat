@@ -31,16 +31,16 @@ from glostat.phase1b.types import PhaseSignal
 log: Final = structlog.get_logger(__name__)
 
 ETF_TO_COT_CONTRACT: Final[dict[str, str]] = {
-    "USO":  "WTI_CRUDE",
-    "UNG":  "NAT_GAS",
-    "GLD":  "GOLD",
-    "SLV":  "SILVER",
+    "USO": "WTI_CRUDE",
+    "UNG": "NAT_GAS",
+    "GLD": "GOLD",
+    "SLV": "SILVER",
     "CPER": "COPPER",
-    "URA":  "",
+    "URA": "",
     "CORN": "CORN",
     "WEAT": "WHEAT",
-    "DBC":  "WTI_CRUDE",
-    "GSG":  "WTI_CRUDE",
+    "DBC": "WTI_CRUDE",
+    "GSG": "WTI_CRUDE",
 }
 
 UNIVERSE: Final[tuple[str, ...]] = tuple(ETF_TO_COT_CONTRACT.keys())
@@ -60,9 +60,9 @@ class CommodityTsSnapshot:
     day: date
     momentum_90d: float | None
     price_over_ma200: float | None
-    ts_signal: float                # -1.0, 0.0, +1.0
+    ts_signal: float  # -1.0, 0.0, +1.0
     cot_rank: float | None
-    cot_signal: float               # -1.0, 0.0, +1.0
+    cot_signal: float  # -1.0, 0.0, +1.0
     sign_agree: bool
     raw_score: float
     net_score: float
@@ -134,29 +134,47 @@ class ECommodityTsExpert:
         bars = _trading_day_closes(self._cache, ticker, day)
         if len(bars) < _MA_WINDOW + 1:
             return CommodityTsSnapshot(
-                ticker=ticker, day=day,
-                momentum_90d=None, price_over_ma200=None,
-                ts_signal=0.0, cot_rank=None, cot_signal=0.0,
-                sign_agree=False, raw_score=0.0, net_score=0.0,
+                ticker=ticker,
+                day=day,
+                momentum_90d=None,
+                price_over_ma200=None,
+                ts_signal=0.0,
+                cot_rank=None,
+                cot_signal=0.0,
+                sign_agree=False,
+                raw_score=0.0,
+                net_score=0.0,
             )
         latest = bars[0]
         older = bars[_MOMENTUM_WINDOW] if len(bars) > _MOMENTUM_WINDOW else bars[-1]
         if older <= 0:
             return CommodityTsSnapshot(
-                ticker=ticker, day=day,
-                momentum_90d=None, price_over_ma200=None,
-                ts_signal=0.0, cot_rank=None, cot_signal=0.0,
-                sign_agree=False, raw_score=0.0, net_score=0.0,
+                ticker=ticker,
+                day=day,
+                momentum_90d=None,
+                price_over_ma200=None,
+                ts_signal=0.0,
+                cot_rank=None,
+                cot_signal=0.0,
+                sign_agree=False,
+                raw_score=0.0,
+                net_score=0.0,
             )
         mom = (latest - older) / older
         ma = sum(bars[:_MA_WINDOW]) / _MA_WINDOW
         ratio = (latest / ma) if ma > 0 else None
         if ratio is None:
             return CommodityTsSnapshot(
-                ticker=ticker, day=day,
-                momentum_90d=mom, price_over_ma200=None,
-                ts_signal=0.0, cot_rank=None, cot_signal=0.0,
-                sign_agree=False, raw_score=0.0, net_score=0.0,
+                ticker=ticker,
+                day=day,
+                momentum_90d=mom,
+                price_over_ma200=None,
+                ts_signal=0.0,
+                cot_rank=None,
+                cot_signal=0.0,
+                sign_agree=False,
+                raw_score=0.0,
+                net_score=0.0,
             )
         if mom > 0 and ratio > 1.0:
             ts = 1.0
@@ -165,10 +183,16 @@ class ECommodityTsExpert:
         else:
             ts = 0.0
         return CommodityTsSnapshot(
-            ticker=ticker, day=day,
-            momentum_90d=mom, price_over_ma200=ratio,
-            ts_signal=ts, cot_rank=None, cot_signal=0.0,
-            sign_agree=False, raw_score=0.0, net_score=0.0,
+            ticker=ticker,
+            day=day,
+            momentum_90d=mom,
+            price_over_ma200=ratio,
+            ts_signal=ts,
+            cot_rank=None,
+            cot_signal=0.0,
+            sign_agree=False,
+            raw_score=0.0,
+            net_score=0.0,
         )
 
     def _refine_with_cot(
@@ -200,7 +224,8 @@ class ECommodityTsExpert:
             agree = False
         net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
         return CommodityTsSnapshot(
-            ticker=snap.ticker, day=snap.day,
+            ticker=snap.ticker,
+            day=snap.day,
             momentum_90d=snap.momentum_90d,
             price_over_ma200=snap.price_over_ma200,
             ts_signal=ts,
@@ -224,22 +249,20 @@ class ECommodityTsExpert:
             except Exception as exc:
                 log.warning(
                     "e_commodity_ts.cot_failed",
-                    ticker=ticker, contract=contract, err=str(exc),
+                    ticker=ticker,
+                    contract=contract,
+                    err=str(exc),
                 )
                 return None
         recs = self._cot_cache[cache_key]
-        return commercial_net_percentile(
-            recs, contract=contract, as_of=day, lookback_years=5
-        )
+        return commercial_net_percentile(recs, contract=contract, as_of=day, lookback_years=5)
 
     @property
     def universe(self) -> tuple[str, ...]:
         return UNIVERSE
 
 
-def _trading_day_closes(
-    cache: PriceCache, ticker: str, day: date
-) -> list[float]:
+def _trading_day_closes(cache: PriceCache, ticker: str, day: date) -> list[float]:
     # WHY: walk the cached OHLCV bars newest→oldest filtering to bars on/before
     # `day`. Returns closes in newest-first order so callers can index 0/N.
     series = cache._mem.get(ticker.upper())

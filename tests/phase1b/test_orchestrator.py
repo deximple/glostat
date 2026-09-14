@@ -54,7 +54,9 @@ def test_render_comparison_md_includes_all_sections():
         "E_PEAD": (b, _make_gate(b)),
     }
     md = render_comparison_md(
-        results, start=date(2024, 1, 1), end=date(2026, 3, 29),
+        results,
+        start=date(2024, 1, 1),
+        end=date(2026, 3, 29),
     )
     assert "Phase 1B" in md
     assert "Comparative gate table" in md

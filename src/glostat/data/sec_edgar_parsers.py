@@ -31,7 +31,7 @@ def parse_submissions_filings(
     limit: int,
 ) -> list[Filing]:
     # WHY: SEC submissions JSON keeps "recent" parallel arrays — zip them, filter, cap.
-    recent = ((payload.get("filings", {}) or {}).get("recent", {}) or {})
+    recent = (payload.get("filings", {}) or {}).get("recent", {}) or {}
     accessions: list[str] = list(recent.get("accessionNumber", []) or [])
     forms: list[str] = list(recent.get("form", []) or [])
     dates: list[str] = list(recent.get("filingDate", []) or [])
@@ -75,10 +75,7 @@ def _form_matches(actual: str, wanted: set[str]) -> bool:
 def _primary_doc_url(cik: str, accession: str, primary_doc: str) -> str:
     digits = "".join(c for c in cik if c.isdigit())
     acc_no_dashes = accession.replace("-", "")
-    return (
-        f"https://www.sec.gov/Archives/edgar/data/{int(digits)}/"
-        f"{acc_no_dashes}/{primary_doc}"
-    )
+    return f"https://www.sec.gov/Archives/edgar/data/{int(digits)}/{acc_no_dashes}/{primary_doc}"
 
 
 def filing_index_url(cik: str, accession: str) -> str:

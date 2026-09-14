@@ -31,33 +31,25 @@ _PROB_TOL: float = 1e-6
 
 @dataclass(frozen=True, slots=True)
 class SignalContribution:
-    name: str                                    # e.g. "PEAD", "Sector_Momentum"
-    value: float | None                          # raw signal score (None if skipped)
-    direction: Direction                         # "up" | "down" | "neutral" | "skip"
-    calibration_auc: float                       # measured AUC from hindcast
-    calibration_sharpe: float                    # measured Sharpe from hindcast
-    n_samples: int                               # hindcast sample size
-    skip_reason: str | None = None               # e.g. "ticker not in KOSPI200"
+    name: str  # e.g. "PEAD", "Sector_Momentum"
+    value: float | None  # raw signal score (None if skipped)
+    direction: Direction  # "up" | "down" | "neutral" | "skip"
+    calibration_auc: float  # measured AUC from hindcast
+    calibration_sharpe: float  # measured Sharpe from hindcast
+    n_samples: int  # hindcast sample size
+    skip_reason: str | None = None  # e.g. "ticker not in KOSPI200"
     source_snapshot_ids: tuple[str, ...] = field(default_factory=tuple)
-    confidence_v2: ConfidenceV2 | None = None    # v1.4: 5-component confidence (INV-GS-112)
+    confidence_v2: ConfidenceV2 | None = None  # v1.4: 5-component confidence (INV-GS-112)
 
     def __post_init__(self) -> None:
         if self.direction == "skip" and self.value is not None:
-            raise ValueError(
-                f"SignalContribution {self.name}: skip direction requires value=None"
-            )
+            raise ValueError(f"SignalContribution {self.name}: skip direction requires value=None")
         if self.direction != "skip" and self.skip_reason is not None:
-            raise ValueError(
-                f"SignalContribution {self.name}: non-skip direction with skip_reason"
-            )
+            raise ValueError(f"SignalContribution {self.name}: non-skip direction with skip_reason")
         if not 0.0 <= self.calibration_auc <= 1.0:
-            raise ValueError(
-                f"SignalContribution {self.name}: calibration_auc out of [0,1]"
-            )
+            raise ValueError(f"SignalContribution {self.name}: calibration_auc out of [0,1]")
         if self.n_samples < 0:
-            raise ValueError(
-                f"SignalContribution {self.name}: n_samples negative"
-            )
+            raise ValueError(f"SignalContribution {self.name}: n_samples negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,17 +57,17 @@ class Prediction:
     ticker: str
     horizon: Horizon
     issued_at: datetime
-    up_probability: float                        # [0, 1]
+    up_probability: float  # [0, 1]
     down_probability: float
     sideways_probability: float
     expected_return_bps: float
-    confidence_interval_bps: tuple[float, float] # (low, high), 1-sigma
-    base_rate_up: float                          # universe/horizon historical baseline
-    edge_over_baseline_pp: float                 # percentage points above baseline
+    confidence_interval_bps: tuple[float, float]  # (low, high), 1-sigma
+    base_rate_up: float  # universe/horizon historical baseline
+    edge_over_baseline_pp: float  # percentage points above baseline
     contributing_signals: tuple[SignalContribution, ...]
     next_triggers: tuple[str, ...]
     evidence_hash: str
-    prompt_versions: tuple[tuple[str, str], ...] # ((thesis, sha256), ...)
+    prompt_versions: tuple[tuple[str, str], ...]  # ((thesis, sha256), ...)
     disclaimer: str
     calibration_period: tuple[date, date]
     git_commit: str
@@ -88,16 +80,12 @@ class Prediction:
                 raise ValueError(f"{prob_name} {v} out of [0, 1]")
         total = self.up_probability + self.down_probability + self.sideways_probability
         if abs(total - 1.0) > _PROB_TOL:
-            raise ValueError(
-                f"probabilities sum to {total:.6f}, expected 1.0"
-            )
+            raise ValueError(f"probabilities sum to {total:.6f}, expected 1.0")
         if not 0.0 <= self.base_rate_up <= 1.0:
             raise ValueError(f"base_rate_up {self.base_rate_up} out of [0, 1]")
         low, high = self.confidence_interval_bps
         if low > high:
-            raise ValueError(
-                f"confidence_interval_bps low={low} > high={high}"
-            )
+            raise ValueError(f"confidence_interval_bps low={low} > high={high}")
         if not self.evidence_hash:
             raise ValueError("evidence_hash empty")
         if not self.contributing_signals:
@@ -115,6 +103,7 @@ class Prediction:
 
 
 # Pydantic boundary validator — used at CLI/JSON serialization edges only.
+
 
 class SignalContributionIn(BaseModel):
     model_config = ConfigDict(frozen=True, str_strip_whitespace=True)
@@ -181,9 +170,7 @@ class PredictionIn(BaseModel):
             confidence_interval_bps=self.confidence_interval_bps,
             base_rate_up=self.base_rate_up,
             edge_over_baseline_pp=self.edge_over_baseline_pp,
-            contributing_signals=tuple(
-                s.to_dataclass() for s in self.contributing_signals
-            ),
+            contributing_signals=tuple(s.to_dataclass() for s in self.contributing_signals),
             next_triggers=tuple(self.next_triggers),
             evidence_hash=self.evidence_hash,
             prompt_versions=tuple(sorted(self.prompt_versions.items())),

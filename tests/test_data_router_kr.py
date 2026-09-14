@@ -20,7 +20,7 @@ def test_is_kr_ticker_accepts_six_digit() -> None:
 
 def test_is_kr_ticker_accepts_ks_suffix() -> None:
     assert is_kr_ticker("005930.KS") is True
-    assert is_kr_ticker("005930.kq") is True   # case-insensitive
+    assert is_kr_ticker("005930.kq") is True  # case-insensitive
 
 
 def test_is_kr_ticker_rejects_us_tickers() -> None:
@@ -30,8 +30,8 @@ def test_is_kr_ticker_rejects_us_tickers() -> None:
 
 
 def test_is_kr_ticker_rejects_short_or_long_codes() -> None:
-    assert is_kr_ticker("12345") is False     # 5 digits
-    assert is_kr_ticker("1234567") is False   # 7 digits
+    assert is_kr_ticker("12345") is False  # 5 digits
+    assert is_kr_ticker("1234567") is False  # 7 digits
     assert is_kr_ticker("") is False
 
 

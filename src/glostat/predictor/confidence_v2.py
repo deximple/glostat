@@ -44,8 +44,12 @@ class ConfidenceV2:
 
     def __post_init__(self) -> None:
         for name in (
-            "sample_quality", "effective_size_factor", "score_stability",
-            "return_consistency", "recency_quality", "composite_confidence",
+            "sample_quality",
+            "effective_size_factor",
+            "score_stability",
+            "return_consistency",
+            "recency_quality",
+            "composite_confidence",
         ):
             v = getattr(self, name)
             if not 0.0 <= v <= 1.0:
@@ -152,12 +156,10 @@ def confidence_v2_from_calibration(
         derived_oos = sharpe * max(0.0, 1.0 - cal.oos_degradation)
     if days_since_last_calibration is None:
         from datetime import date  # noqa: PLC0415 — cold path
+
         today = date.today()
         days_since_last_calibration = max(0.0, float((today - cal.period_end).days))
-    rolling = (
-        tuple(rolling_aucs) if rolling_aucs is not None
-        else (cal.auc,)
-    )
+    rolling = tuple(rolling_aucs) if rolling_aucs is not None else (cal.auc,)
     return compute_confidence_v2(
         n_samples=cal.n_samples,
         is_sharpe=derived_is,

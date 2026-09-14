@@ -166,9 +166,7 @@ class YFinanceClient:
             operation=f"yfinance.history:{yf_ticker}",
         )
         if not bars:
-            raise YFinanceDataError(
-                f"yfinance returned empty OHLCV for {yf_ticker} {start}..{end}"
-            )
+            raise YFinanceDataError(f"yfinance returned empty OHLCV for {yf_ticker} {start}..{end}")
         series = OhlcvSeries(ticker=yf_ticker, bars=tuple(bars), interval=interval)
         self._record_snapshot(
             tool="yfinance.history",
@@ -249,6 +247,7 @@ class YFinanceClient:
         from glostat.data.yfinance_types import (  # noqa: PLC0415
             AnalystRecommendationHistory,
         )
+
         yf_ticker = _yf_ticker(ticker)
 
         async def _fetch() -> list[Any]:
@@ -256,7 +255,9 @@ class YFinanceClient:
             try:
                 yf = _import_yfinance()
                 return await asyncio.to_thread(
-                    parse_recommendations, yf, yf_ticker,
+                    parse_recommendations,
+                    yf,
+                    yf_ticker,
                 )
             finally:
                 self._throttle.release()
@@ -267,7 +268,8 @@ class YFinanceClient:
             operation=f"yfinance.recommendations:{yf_ticker}",
         )
         history = AnalystRecommendationHistory(
-            ticker=yf_ticker, events=tuple(events),
+            ticker=yf_ticker,
+            events=tuple(events),
         )
         self._record_snapshot(
             tool="yfinance.recommendations",
@@ -325,7 +327,10 @@ class YFinanceClient:
         now = datetime.now(tz=UTC)
         holders = tuple((name, pct) for (name, pct, _shares, _ts) in rows)
         snap = HoldersSnapshot(
-            ticker=ticker.upper(), kind=kind, holders=holders, fetched_at=now,
+            ticker=ticker.upper(),
+            kind=kind,
+            holders=holders,
+            fetched_at=now,
             rows=tuple(rows),
         )
         self._record_snapshot(

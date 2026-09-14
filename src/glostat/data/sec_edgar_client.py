@@ -203,7 +203,8 @@ class SecEdgarClient:
         except (httpx.HTTPError, ValueError) as exc:
             log.warning(
                 "sec_edgar.infotable_fetch_failed",
-                accession=filing.accession_number, err=str(exc),
+                accession=filing.accession_number,
+                err=str(exc),
             )
             return None
         positions = parse_13f_infotable(xml_text)
@@ -248,10 +249,7 @@ class SecEdgarClient:
         # sibling XML. We list the filing index JSON and pick *infotable.xml.
         digits = "".join(c for c in filing.cik if c.isdigit())
         acc_no_dashes = filing.accession_number.replace("-", "")
-        index_url = (
-            f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/"
-            f"{acc_no_dashes}/index.json"
-        )
+        index_url = f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/{acc_no_dashes}/index.json"
         try:
             data = await self._get_json(index_url)
         except (httpx.HTTPError, ValueError) as exc:
@@ -262,8 +260,7 @@ class SecEdgarClient:
             name = str(item.get("name", "")).lower()
             if name.endswith("infotable.xml") or name.endswith("info_table.xml"):
                 return (
-                    f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/"
-                    f"{acc_no_dashes}/{item['name']}"
+                    f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/{acc_no_dashes}/{item['name']}"
                 )
         return None
 

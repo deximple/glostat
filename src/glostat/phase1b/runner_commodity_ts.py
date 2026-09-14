@@ -41,9 +41,7 @@ async def run_commodity_ts_hindcast(
     horizon_days: int = _HORIZON_DAYS,
     rebal_step_days: int = _REBAL_STEP_DAYS,
 ) -> PhaseHindcastReport:
-    expert = ECommodityTsExpert(
-        price_cache=cache, cftc_client=cftc_client
-    )
+    expert = ECommodityTsExpert(price_cache=cache, cftc_client=cftc_client)
     await expert.warm()
     if cftc_client is not None:
         await expert.warm_cot(start, end)
@@ -61,9 +59,7 @@ async def run_commodity_ts_hindcast(
             sig = await expert.signal_for(ticker, d)
             if sig.direction == "NEUTRAL":
                 continue
-            cot_md = next(
-                (v for k, v in sig.metadata if k == "cot_rank"), "n/a"
-            )
+            cot_md = next((v for k, v in sig.metadata if k == "cot_rank"), "n/a")
             if cot_md != "n/a":
                 n_with_cot += 1
             fwd = cache.forward_return(ticker, d, horizon_days)

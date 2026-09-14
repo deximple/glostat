@@ -58,7 +58,11 @@ _DEFAULT_OHLCV_PADDING_DAYS: Final[int] = 14
 
 
 async def forward_return_yfinance(
-    yf: YFinanceClient, ticker: str, *, day: date, horizon_days: int,
+    yf: YFinanceClient,
+    ticker: str,
+    *,
+    day: date,
+    horizon_days: int,
     padding_days: int = _DEFAULT_OHLCV_PADDING_DAYS,
 ) -> float | None:
     yf_ticker = to_yfinance_kr_ticker(ticker)
@@ -112,8 +116,11 @@ def idx_at_or_before(bars_by_date: Mapping[date, int], day: date) -> int | None:
 async def evaluate_fundamental(
     *,
     fundamental: EFundamentalKrExpert,
-    code: str, day: date, ts: datetime,
-    yf: YFinanceClient, horizon_days: int,
+    code: str,
+    day: date,
+    ts: datetime,
+    yf: YFinanceClient,
+    horizon_days: int,
     accumulator,
 ) -> None:
     accumulator.n_evaluated += 1
@@ -126,22 +133,31 @@ async def evaluate_fundamental(
         accumulator.record_skip(f"unexpected: {exc}")
         return
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=sig.net_score,
-        direction=sig.direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=sig.net_score,
+        direction=sig.direction,
+        forward_return=fwd,
     )
 
 
 async def evaluate_time(
     *,
     time_expert: ETimeExpert,
-    code: str, day: date, ts: datetime,
-    yf: YFinanceClient, horizon_days: int,
+    code: str,
+    day: date,
+    ts: datetime,
+    yf: YFinanceClient,
+    horizon_days: int,
     accumulator,
 ) -> None:
     accumulator.n_evaluated += 1
@@ -154,14 +170,20 @@ async def evaluate_time(
         accumulator.record_skip(f"unexpected: {exc}")
         return
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=sig.net_score,
-        direction=sig.direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=sig.net_score,
+        direction=sig.direction,
+        forward_return=fwd,
     )
 
 
@@ -197,8 +219,11 @@ def evaluate_foreign_reversal(
         return
     fwd = (p1 - p0) / p0
     accumulator.record_signal(
-        ticker=code, day=naver_bars[idx].bar_date, raw_score=score.net_score,
-        direction=score.direction, forward_return=fwd,
+        ticker=code,
+        day=naver_bars[idx].bar_date,
+        raw_score=score.net_score,
+        direction=score.direction,
+        forward_return=fwd,
     )
 
 
@@ -208,7 +233,7 @@ async def evaluate_pead_kr(
     day: date,
     yf: YFinanceClient,
     horizon_days: int,
-    accumulator: Any,    # _ThesisAccumulator (avoid circular import)
+    accumulator: Any,  # _ThesisAccumulator (avoid circular import)
 ) -> None:
     # v1.6 P5 — KR Post-Earnings Announcement Drift point-in-time hindcast.
     # For each (ticker, day) sample, compute T+5..T+30 OHLCV drift after the
@@ -219,29 +244,34 @@ async def evaluate_pead_kr(
     last_e = _last_expected_earnings_date(day)
     days_since = (day - last_e).days
     if days_since < _DRIFT_WINDOW_END:
-        accumulator.record_skip(
-            f"too_close_to_earnings (D+{days_since})"
-        )
+        accumulator.record_skip(f"too_close_to_earnings (D+{days_since})")
         return
     drift = await _measure_pead_drift(
-        yf=yf, code=code, day=day, last_e=last_e,
+        yf=yf,
+        code=code,
+        day=day,
+        last_e=last_e,
     )
     if drift is None:
         accumulator.record_skip("no_drift_window_data")
         return
     raw = max(-_SCORE_CLIP, min(_SCORE_CLIP, drift * _DRIFT_GAIN))
-    direction = (
-        "LONG" if raw > 0.4 else ("SHORT" if raw < -0.4 else "NEUTRAL")
-    )
+    direction = "LONG" if raw > 0.4 else ("SHORT" if raw < -0.4 else "NEUTRAL")
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=raw,
-        direction=direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=raw,
+        direction=direction,
+        forward_return=fwd,
     )
 
 
@@ -256,13 +286,15 @@ async def _measure_pead_drift(
     # bars beyond `day` for the drift calculation, only for forward_return).
     yf_ticker = to_yfinance_kr_ticker(code)
     start = last_e - timedelta(days=_DEFAULT_OHLCV_PADDING_DAYS)
-    end = day + timedelta(days=1)   # inclusive of `day`
+    end = day + timedelta(days=1)  # inclusive of `day`
     try:
         series = await yf.get_ohlcv(yf_ticker, start=start, end=end)
     except Exception as exc:
         log.warning(
             "phase_kr.pead_kr_yf_fail",
-            ticker=code, day=day.isoformat(), err=str(exc),
+            ticker=code,
+            day=day.isoformat(),
+            err=str(exc),
         )
         return None
     if not series.bars:
@@ -326,24 +358,30 @@ async def evaluate_fundamental_kr_cyclical(
     # Pull EV/EBITDA from yfinance.info.raw via the existing expert path.
     ev_ebitda = _ev_ebitda_from_signal(sig)
     cycle_pctile = await _cycle_percentile_for_sector(
-        commodity=commodity, sector=sector, as_of=day,
+        commodity=commodity,
+        sector=sector,
+        as_of=day,
     )
     if cycle_pctile is None:
         accumulator.record_skip("commodity_cycle_unavailable")
         return
     raw = _cyclical_score(sector, ev_ebitda, cycle_pctile)
-    direction = (
-        "LONG" if raw > 0.5 else ("SHORT" if raw < -0.5 else "NEUTRAL")
-    )
+    direction = "LONG" if raw > 0.5 else ("SHORT" if raw < -0.5 else "NEUTRAL")
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=raw,
-        direction=direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=raw,
+        direction=direction,
+        forward_return=fwd,
     )
 
 
@@ -368,7 +406,8 @@ async def evaluate_commodity_index_kr(
         accumulator.record_skip(f"commodity_fetch ({exc})")
         return
     wti_signal = max(
-        -_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP, wti.momentum_30d * _MOMENTUM_GAIN),
+        -_SUB_SIGNAL_CLIP,
+        min(_SUB_SIGNAL_CLIP, wti.momentum_30d * _MOMENTUM_GAIN),
     )
     crack_signal = max(
         -_SUB_SIGNAL_CLIP,
@@ -378,18 +417,22 @@ async def evaluate_commodity_index_kr(
         -_COMMODITY_SCORE_CLIP,
         min(_COMMODITY_SCORE_CLIP, 0.5 * wti_signal + 0.5 * crack_signal),
     )
-    direction = (
-        "LONG" if raw > 0.3 else ("SHORT" if raw < -0.3 else "NEUTRAL")
-    )
+    direction = "LONG" if raw > 0.3 else ("SHORT" if raw < -0.3 else "NEUTRAL")
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=raw,
-        direction=direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=raw,
+        direction=direction,
+        forward_return=fwd,
     )
 
 
@@ -409,7 +452,10 @@ def _ev_ebitda_from_signal(sig: object) -> float | None:
 
 
 async def _cycle_percentile_for_sector(
-    *, commodity: CommodityClient, sector: KrSector, as_of: date,
+    *,
+    commodity: CommodityClient,
+    sector: KrSector,
+    as_of: date,
 ) -> float | None:
     if sector == KrSector.REFINING:
         try:
@@ -428,13 +474,12 @@ async def _cycle_percentile_for_sector(
 
 
 def _cyclical_score(
-    sector: KrSector, ev_ebitda: float | None, cycle_percentile: float,
+    sector: KrSector,
+    ev_ebitda: float | None,
+    cycle_percentile: float,
 ) -> float:
     median, stddev = _SECTOR_EV_EBITDA.get(sector, (7.0, 3.0))
-    ev_ebitda_z = (
-        0.0 if ev_ebitda is None
-        else (ev_ebitda - median) / max(stddev, 1e-3)
-    )
+    ev_ebitda_z = 0.0 if ev_ebitda is None else (ev_ebitda - median) / max(stddev, 1e-3)
     cycle_term = cycle_percentile - 0.5
     raw = -_W_VALUE * ev_ebitda_z + _W_CYCLE * (-cycle_term * 2.0)
     return max(-3.0, min(3.0, raw))
@@ -466,14 +511,20 @@ async def evaluate_insider_velocity_kr(
         accumulator.record_skip(f"unexpected ({exc})")
         return
     fwd = await forward_return_yfinance(
-        yf, code, day=day, horizon_days=horizon_days,
+        yf,
+        code,
+        day=day,
+        horizon_days=horizon_days,
     )
     if fwd is None:
         accumulator.record_skip("no_forward_return")
         return
     accumulator.record_signal(
-        ticker=code, day=day, raw_score=sig.net_score,
-        direction=sig.direction, forward_return=fwd,
+        ticker=code,
+        day=day,
+        raw_score=sig.net_score,
+        direction=sig.direction,
+        forward_return=fwd,
     )
 
 

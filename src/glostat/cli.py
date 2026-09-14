@@ -46,9 +46,7 @@ from glostat.data.snapshot_broker import SnapshotBroker
 # with a deprecation notice.
 
 _DEFAULT_SNAPSHOT_ROOT: Final[Path] = Path("cache") / "snapshots"
-_BUDGET_YAML: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
-)
+_BUDGET_YAML: Final[Path] = Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -58,16 +56,16 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
     handler = {
-        "predict":     cmd_predict,
-        "calibrate":   cmd_calibrate,
-        "scan":        cmd_scan,
-        "verdict":     cmd_verdict,
-        "replay":      _cmd_replay,
-        "audit":       _cmd_audit,
-        "status":      _cmd_status,
-        "universe":    cmd_universe,
-        "screen":      cmd_screen,
-        "hindcast":    cmd_hindcast,
+        "predict": cmd_predict,
+        "calibrate": cmd_calibrate,
+        "scan": cmd_scan,
+        "verdict": cmd_verdict,
+        "replay": _cmd_replay,
+        "audit": _cmd_audit,
+        "status": _cmd_status,
+        "universe": cmd_universe,
+        "screen": cmd_screen,
+        "hindcast": cmd_hindcast,
         "kr-hindcast": cmd_kr_hindcast,
         "gate-status": cmd_gate_status,
     }[args.command]
@@ -82,8 +80,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="glostat",
         description=(
-            "GLOSTAT — Prediction tool framework "
-            "(personal use only, not investment advice)."
+            "GLOSTAT — Prediction tool framework (personal use only, not investment advice)."
         ),
     )
     p.add_argument("--version", action="version", version=f"glostat {__version__}")
@@ -129,9 +126,16 @@ def _cmd_replay(args: argparse.Namespace) -> int:
     finally:
         broker.close()
     print("True")
-    print(json.dumps({"ticker": payload.get("ticker"),
-                      "action": payload.get("action"),
-                      "issued_at": payload.get("issued_at")}, indent=2))
+    print(
+        json.dumps(
+            {
+                "ticker": payload.get("ticker"),
+                "action": payload.get("action"),
+                "issued_at": payload.get("issued_at"),
+            },
+            indent=2,
+        )
+    )
     return 0
 
 
@@ -180,10 +184,10 @@ def _budget_cap(path: Path, phase: str) -> int:
     if not path.exists():
         return 0
     data = yaml.safe_load(path.read_text("utf-8")) or {}
-    table = (data.get("budget", {}) or {})
-    key = {"mvp": "mvp_phase",
-           "phase_2": "phase_2_optional",
-           "phase_3": "phase_3_cascade"}.get(phase, "mvp_phase")
+    table = data.get("budget", {}) or {}
+    key = {"mvp": "mvp_phase", "phase_2": "phase_2_optional", "phase_3": "phase_3_cascade"}.get(
+        phase, "mvp_phase"
+    )
     return int((table.get(key, {}) or {}).get("cap_usd_per_month", 0))
 
 
@@ -192,6 +196,7 @@ def _snapshot_count(root: Path) -> int:
     if not db.exists():
         return 0
     import sqlite3  # noqa: PLC0415 — keeps cold path off the hot import.
+
     conn = sqlite3.connect(db)
     try:
         return int(conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0])

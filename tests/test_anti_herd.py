@@ -95,7 +95,7 @@ def test_4_long_1_short_triggers_discount() -> None:
         _sig("A", "LONG"),
         _sig("B", "LONG"),
         _sig("C", "LONG"),
-        _sig("D", "LONG"),   # 4 LONG
+        _sig("D", "LONG"),  # 4 LONG
         _sig("E", "SHORT"),
     ]
     mult = apply_anti_herd_discount(signals, threshold=4)

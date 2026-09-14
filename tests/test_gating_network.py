@@ -42,11 +42,14 @@ def test_softmax_with_temperature_1_0() -> None:
 
 
 def test_softmax_higher_temperature_flattens(tmp_path: Path) -> None:
-    cfg = _write_cfg(tmp_path, {
-        "initial_ic": {"A": 1.0, "B": 0.0},
-        "weight_caps": {"A": 1.0, "B": 1.0},
-        "softmax": {"temperature": 100.0, "entropy_lambda": 0.0},
-    })
+    cfg = _write_cfg(
+        tmp_path,
+        {
+            "initial_ic": {"A": 1.0, "B": 0.0},
+            "weight_caps": {"A": 1.0, "B": 1.0},
+            "softmax": {"temperature": 100.0, "entropy_lambda": 0.0},
+        },
+    )
     g = GatingNetwork(config_path=cfg)
     w = g.derive_weights(["A", "B"])
     # T very large → distribution approaches uniform.
@@ -55,16 +58,22 @@ def test_softmax_higher_temperature_flattens(tmp_path: Path) -> None:
 
 def test_entropy_regularization_prevents_collapse(tmp_path: Path) -> None:
     # One IC dominates dramatically — entropy reg pulls toward uniform.
-    cfg_no_reg = _write_cfg(tmp_path / "no", {
-        "initial_ic": {"A": 5.0, "B": 0.0, "C": 0.0},
-        "weight_caps": {"A": 1.0, "B": 1.0, "C": 1.0},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
-    })
-    cfg_reg = _write_cfg(tmp_path / "reg", {
-        "initial_ic": {"A": 5.0, "B": 0.0, "C": 0.0},
-        "weight_caps": {"A": 1.0, "B": 1.0, "C": 1.0},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.5},
-    })
+    cfg_no_reg = _write_cfg(
+        tmp_path / "no",
+        {
+            "initial_ic": {"A": 5.0, "B": 0.0, "C": 0.0},
+            "weight_caps": {"A": 1.0, "B": 1.0, "C": 1.0},
+            "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
+        },
+    )
+    cfg_reg = _write_cfg(
+        tmp_path / "reg",
+        {
+            "initial_ic": {"A": 5.0, "B": 0.0, "C": 0.0},
+            "weight_caps": {"A": 1.0, "B": 1.0, "C": 1.0},
+            "softmax": {"temperature": 1.0, "entropy_lambda": 0.5},
+        },
+    )
     w_no = GatingNetwork(config_path=cfg_no_reg).derive_weights(["A", "B", "C"])
     w_reg = GatingNetwork(config_path=cfg_reg).derive_weights(["A", "B", "C"])
     # Without reg, A dominates near-completely; with reg, B+C share rises.
@@ -73,11 +82,14 @@ def test_entropy_regularization_prevents_collapse(tmp_path: Path) -> None:
 
 
 def test_weight_caps_clip(tmp_path: Path) -> None:
-    cfg = _write_cfg(tmp_path, {
-        "initial_ic": {"A": 10.0, "B": 0.0},
-        "weight_caps": {"A": 0.40, "B": 0.60},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
-    })
+    cfg = _write_cfg(
+        tmp_path,
+        {
+            "initial_ic": {"A": 10.0, "B": 0.0},
+            "weight_caps": {"A": 0.40, "B": 0.60},
+            "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
+        },
+    )
     g = GatingNetwork(config_path=cfg)
     w = g.derive_weights(["A", "B"])
     # Without caps, A would be ~99.99%. Cap drives it to exactly 0.40.
@@ -86,11 +98,14 @@ def test_weight_caps_clip(tmp_path: Path) -> None:
 
 
 def test_renormalize_after_clip(tmp_path: Path) -> None:
-    cfg = _write_cfg(tmp_path, {
-        "initial_ic": {"A": 0.5, "B": 0.5, "C": 0.5},
-        "weight_caps": {"A": 0.20, "B": 1.0, "C": 1.0},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
-    })
+    cfg = _write_cfg(
+        tmp_path,
+        {
+            "initial_ic": {"A": 0.5, "B": 0.5, "C": 0.5},
+            "weight_caps": {"A": 0.20, "B": 1.0, "C": 1.0},
+            "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
+        },
+    )
     g = GatingNetwork(config_path=cfg)
     w = g.derive_weights(["A", "B", "C"])
     # A clipped to 0.20; remaining 0.80 split equally between B and C → 0.40 each.
@@ -129,11 +144,14 @@ def test_default_config_path_resolves() -> None:
 
 
 def test_config_value_or_deferred_dict_form(tmp_path: Path) -> None:
-    cfg = _write_cfg(tmp_path, {
-        "initial_ic": {"A": 0.40, "X": {"value": 0.10, "deferred_to": "phase_2"}},
-        "weight_caps": {"A": 1.0, "X": {"value": 0.10, "deferred_to": "phase_2"}},
-        "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
-    })
+    cfg = _write_cfg(
+        tmp_path,
+        {
+            "initial_ic": {"A": 0.40, "X": {"value": 0.10, "deferred_to": "phase_2"}},
+            "weight_caps": {"A": 1.0, "X": {"value": 0.10, "deferred_to": "phase_2"}},
+            "softmax": {"temperature": 1.0, "entropy_lambda": 0.0},
+        },
+    )
     g = GatingNetwork(config_path=cfg)
     assert "X" in g.deferred_experts
     assert g.initial_ic("X") == 0.10

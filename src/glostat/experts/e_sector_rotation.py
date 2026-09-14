@@ -31,12 +31,12 @@ SECTOR_ETFS: Final[tuple[str, ...]] = (
     "XLY",  # Consumer Discretionary
     "XLU",  # Utilities
     "XLB",  # Materials
-    "XLRE", # Real Estate (XRE in spec is the iShares ticker; XLRE is the SPDR equivalent)
+    "XLRE",  # Real Estate (XRE in spec is the iShares ticker; XLRE is the SPDR equivalent)
     "XLC",  # Communication Services
 )
 BENCHMARK: Final[str] = "SPY"
 
-_LOOKBACK_TRADING_DAYS: Final[int] = 126   # ~6 months
+_LOOKBACK_TRADING_DAYS: Final[int] = 126  # ~6 months
 _TOP_K: Final[int] = 3
 _BOTTOM_K: Final[int] = 3
 _LONG_SCORE: Final[float] = 2.0
@@ -110,7 +110,7 @@ class ESectorRotationExpert:
                 ),
             )
         # Tickers with no momentum data → NEUTRAL signal so the loop sees them.
-        for etf, mom in momenta.items():
+        for etf in momenta:
             if etf in out:
                 continue
             out[etf] = PhaseSignal(
@@ -126,9 +126,7 @@ class ESectorRotationExpert:
 
     async def _momentum(self, ticker: str, day: date) -> float | None:
         await self._cache.get(ticker)
-        c0 = self._cache.close_at_or_before(
-            ticker, day - timedelta(days=_LOOKBACK_CALENDAR_DAYS)
-        )
+        c0 = self._cache.close_at_or_before(ticker, day - timedelta(days=_LOOKBACK_CALENDAR_DAYS))
         c1 = self._cache.close_at_or_before(ticker, day)
         if c0 is None or c1 is None or c0 <= 0:
             return None

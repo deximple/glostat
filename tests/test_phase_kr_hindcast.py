@@ -27,8 +27,11 @@ from glostat.replay.phase_kr_hindcast import (
 
 
 def _make_trade(
-    *, day: date | None = None, ticker: str = "005930",
-    raw_score: float = 1.5, direction: str = "LONG",
+    *,
+    day: date | None = None,
+    ticker: str = "005930",
+    raw_score: float = 1.5,
+    direction: str = "LONG",
     forward_return: float = 0.02,
 ) -> KrHindcastTrade:
     return KrHindcastTrade(
@@ -70,7 +73,10 @@ def test_kr_trade_signed_return_neutral_zero() -> None:
 
 
 def _make_report(
-    *, n_traded: int = 50, is_sharpe: float = 0.8, oos_sharpe: float = 0.4,
+    *,
+    n_traded: int = 50,
+    is_sharpe: float = 0.8,
+    oos_sharpe: float = 0.4,
 ) -> KrThesisReport:
     return KrThesisReport(
         thesis="E_FUNDAMENTAL_KR",
@@ -113,9 +119,19 @@ def test_report_to_phase1b_payload_has_expected_keys() -> None:
     assert "report" in payload
     body = payload["report"]
     for k in (
-        "expert", "universe", "period_start", "period_end", "horizon_days",
-        "n_signals", "n_trades", "is_sharpe", "oos_sharpe", "overall_sharpe",
-        "is_auc", "oos_auc", "overall_auc",
+        "expert",
+        "universe",
+        "period_start",
+        "period_end",
+        "horizon_days",
+        "n_signals",
+        "n_trades",
+        "is_sharpe",
+        "oos_sharpe",
+        "overall_sharpe",
+        "is_auc",
+        "oos_auc",
+        "overall_auc",
     ):
         assert k in body, f"missing key {k!r}"
 
@@ -126,56 +142,118 @@ def test_report_to_phase1b_payload_has_expected_keys() -> None:
 def _make_result(report: KrThesisReport | None = None) -> PhaseKrHindcastResult:
     r = report or _make_report()
     rev = KrThesisReport(
-        thesis="E_FOREIGN_REVERSAL", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=7,
-        n_universe=r.n_universe, n_evaluated=180, n_skipped=160,
-        n_actionable=20, n_traded=20,
-        is_auc=0.48, oos_auc=0.50, overall_auc=0.49,
-        is_sharpe=0.2, oos_sharpe=0.6, overall_sharpe=0.4,
+        thesis="E_FOREIGN_REVERSAL",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=7,
+        n_universe=r.n_universe,
+        n_evaluated=180,
+        n_skipped=160,
+        n_actionable=20,
+        n_traded=20,
+        is_auc=0.48,
+        oos_auc=0.50,
+        overall_auc=0.49,
+        is_sharpe=0.2,
+        oos_sharpe=0.6,
+        overall_sharpe=0.4,
     )
     time_r = KrThesisReport(
-        thesis="E_TIME_KR", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
-        n_universe=r.n_universe, n_evaluated=200, n_skipped=190,
-        n_actionable=10, n_traded=10,
-        is_auc=0.51, oos_auc=0.49, overall_auc=0.50,
-        is_sharpe=0.0, oos_sharpe=0.0, overall_sharpe=0.0,
+        thesis="E_TIME_KR",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=30,
+        n_universe=r.n_universe,
+        n_evaluated=200,
+        n_skipped=190,
+        n_actionable=10,
+        n_traded=10,
+        is_auc=0.51,
+        oos_auc=0.49,
+        overall_auc=0.50,
+        is_sharpe=0.0,
+        oos_sharpe=0.0,
+        overall_sharpe=0.0,
     )
-    pead_r = KrThesisReport(    # v1.6 P5
-        thesis="E_PEAD_KR", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
-        n_universe=r.n_universe, n_evaluated=200, n_skipped=180,
-        n_actionable=20, n_traded=20,
-        is_auc=0.52, oos_auc=0.49, overall_auc=0.51,
-        is_sharpe=0.1, oos_sharpe=0.05, overall_sharpe=0.075,
+    pead_r = KrThesisReport(  # v1.6 P5
+        thesis="E_PEAD_KR",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=30,
+        n_universe=r.n_universe,
+        n_evaluated=200,
+        n_skipped=180,
+        n_actionable=20,
+        n_traded=20,
+        is_auc=0.52,
+        oos_auc=0.49,
+        overall_auc=0.51,
+        is_sharpe=0.1,
+        oos_sharpe=0.05,
+        overall_sharpe=0.075,
     )
-    cyclical_r = KrThesisReport(    # v1.6.2 wave 2
-        thesis="E_FUNDAMENTAL_KR_CYCLICAL", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
-        n_universe=r.n_universe, n_evaluated=200, n_skipped=170,
-        n_actionable=30, n_traded=30,
-        is_auc=0.53, oos_auc=0.51, overall_auc=0.52,
-        is_sharpe=0.15, oos_sharpe=0.10, overall_sharpe=0.12,
+    cyclical_r = KrThesisReport(  # v1.6.2 wave 2
+        thesis="E_FUNDAMENTAL_KR_CYCLICAL",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=30,
+        n_universe=r.n_universe,
+        n_evaluated=200,
+        n_skipped=170,
+        n_actionable=30,
+        n_traded=30,
+        is_auc=0.53,
+        oos_auc=0.51,
+        overall_auc=0.52,
+        is_sharpe=0.15,
+        oos_sharpe=0.10,
+        overall_sharpe=0.12,
     )
-    commodity_r = KrThesisReport(    # v1.6.2 wave 2
-        thesis="E_COMMODITY_INDEX_KR", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
-        n_universe=r.n_universe, n_evaluated=200, n_skipped=190,
-        n_actionable=10, n_traded=10,
-        is_auc=0.54, oos_auc=0.50, overall_auc=0.52,
-        is_sharpe=0.20, oos_sharpe=0.15, overall_sharpe=0.18,
+    commodity_r = KrThesisReport(  # v1.6.2 wave 2
+        thesis="E_COMMODITY_INDEX_KR",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=30,
+        n_universe=r.n_universe,
+        n_evaluated=200,
+        n_skipped=190,
+        n_actionable=10,
+        n_traded=10,
+        is_auc=0.54,
+        oos_auc=0.50,
+        overall_auc=0.52,
+        is_sharpe=0.20,
+        oos_sharpe=0.15,
+        overall_sharpe=0.18,
     )
-    insider_velocity_r = KrThesisReport(    # v1.7.1
-        thesis="E_INSIDER_VELOCITY_KR", universe=r.universe,
-        period_start=r.period_start, period_end=r.period_end, horizon_days=30,
-        n_universe=r.n_universe, n_evaluated=200, n_skipped=200,
-        n_actionable=0, n_traded=0,
-        is_auc=0.50, oos_auc=0.50, overall_auc=0.50,
-        is_sharpe=0.0, oos_sharpe=0.0, overall_sharpe=0.0,
+    insider_velocity_r = KrThesisReport(  # v1.7.1
+        thesis="E_INSIDER_VELOCITY_KR",
+        universe=r.universe,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        horizon_days=30,
+        n_universe=r.n_universe,
+        n_evaluated=200,
+        n_skipped=200,
+        n_actionable=0,
+        n_traded=0,
+        is_auc=0.50,
+        oos_auc=0.50,
+        overall_auc=0.50,
+        is_sharpe=0.0,
+        oos_sharpe=0.0,
+        overall_sharpe=0.0,
     )
     return PhaseKrHindcastResult(
-        fundamental_kr=r, time_kr=time_r,
-        foreign_reversal=rev, pead_kr=pead_r,
+        fundamental_kr=r,
+        time_kr=time_r,
+        foreign_reversal=rev,
+        pead_kr=pead_r,
         fundamental_kr_cyclical=cyclical_r,
         commodity_index_kr=commodity_r,
         insider_velocity_kr=insider_velocity_r,
@@ -190,8 +268,12 @@ def test_persist_writes_seven_jsons_and_comparison(tmp_path: Path) -> None:
     assert (tmp_path / "phase_kr_comparison.md").exists()
     # v1.7.1: 7 thesis JSONs (was 6 with cyclical+commodity; +insider velocity).
     for slug in (
-        "e_fundamental_kr", "e_time_kr", "e_foreign_reversal", "e_pead_kr",
-        "e_fundamental_kr_cyclical", "e_commodity_index_kr",
+        "e_fundamental_kr",
+        "e_time_kr",
+        "e_foreign_reversal",
+        "e_pead_kr",
+        "e_fundamental_kr_cyclical",
+        "e_commodity_index_kr",
         "e_insider_velocity_kr",
     ):
         path = tmp_path / f"{slug}_report.json"
@@ -206,10 +288,10 @@ def test_render_comparison_includes_all_seven_columns() -> None:
     assert "E_FUNDAMENTAL_KR" in md
     assert "E_TIME_KR" in md
     assert "E_FOREIGN_REVERSAL" in md
-    assert "E_PEAD_KR" in md   # v1.6 P5
-    assert "E_FUNDAMENTAL_KR_CYCLICAL" in md   # v1.6.2 wave 2
-    assert "E_COMMODITY_INDEX_KR" in md         # v1.6.2 wave 2
-    assert "E_INSIDER_VELOCITY_KR" in md        # v1.7.1
+    assert "E_PEAD_KR" in md  # v1.6 P5
+    assert "E_FUNDAMENTAL_KR_CYCLICAL" in md  # v1.6.2 wave 2
+    assert "E_COMMODITY_INDEX_KR" in md  # v1.6.2 wave 2
+    assert "E_INSIDER_VELOCITY_KR" in md  # v1.7.1
     assert "AUC (overall)" in md
     assert "Sharpe IS" in md
 
@@ -230,10 +312,17 @@ class _StubYf:
     async def get_fundamentals(self, ticker: str):
         # Mirror Fundamentals dataclass; KR expert handles None gracefully.
         return Fundamentals(
-            ticker=ticker, pe_ratio=8.0, forward_pe=8.0, eps=None,
-            forward_eps=None, roe=0.16, market_cap=1.0e10,
-            dividend_yield=0.025, beta=1.0,
-            fifty_two_week_high=None, fifty_two_week_low=None,
+            ticker=ticker,
+            pe_ratio=8.0,
+            forward_pe=8.0,
+            eps=None,
+            forward_eps=None,
+            roe=0.16,
+            market_cap=1.0e10,
+            dividend_yield=0.025,
+            beta=1.0,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
         )
 
     async def get_ohlcv(self, ticker: str, *, start: date, end: date) -> OhlcvSeries:
@@ -243,10 +332,17 @@ class _StubYf:
         price = 100.0
         while cur <= end:
             ts = datetime(cur.year, cur.month, cur.day, tzinfo=UTC)
-            bars.append(OhlcvBar(
-                ts=ts, open=price, high=price * 1.005, low=price * 0.995,
-                close=price, volume=1_000.0, adj_close=price,
-            ))
+            bars.append(
+                OhlcvBar(
+                    ts=ts,
+                    open=price,
+                    high=price * 1.005,
+                    low=price * 0.995,
+                    close=price,
+                    volume=1_000.0,
+                    adj_close=price,
+                )
+            )
             cur = cur + timedelta(days=1)
             price = price * (1.0 + self._return_pct / 30.0)
         return OhlcvSeries(ticker=ticker, bars=tuple(bars))
@@ -275,11 +371,17 @@ class _StubNaver:
             else:
                 f_net = 100.0
                 o_net = 100.0
-            out.append(KrFlowBar(
-                code=self._code, bar_date=d, close_price=100.0 + i * 0.5,
-                organ_net=o_net, foreign_net=f_net,
-                foreign_holdings=1.0e7, foreign_hold_pct=30.0,
-            ))
+            out.append(
+                KrFlowBar(
+                    code=self._code,
+                    bar_date=d,
+                    close_price=100.0 + i * 0.5,
+                    organ_net=o_net,
+                    foreign_net=f_net,
+                    foreign_holdings=1.0e7,
+                    foreign_hold_pct=30.0,
+                )
+            )
         return out
 
     def load_cached(self, code: str) -> list[KrFlowBar]:
@@ -307,8 +409,10 @@ async def test_run_phase_kr_hindcast_end_to_end_smoke() -> None:
     yf = _StubYf()
     naver = _StubNaver()
     result = await run_phase_kr_hindcast(
-        config=config, snapshot_broker=None,
-        naver_client=naver, yf_client=yf,  # type: ignore[arg-type]
+        config=config,
+        snapshot_broker=None,
+        naver_client=naver,
+        yf_client=yf,  # type: ignore[arg-type]
     )
     assert result.fundamental_kr.thesis == "E_FUNDAMENTAL_KR"
     assert result.time_kr.thesis == "E_TIME_KR"

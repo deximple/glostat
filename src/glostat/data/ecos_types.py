@@ -9,11 +9,11 @@ from datetime import UTC, date, datetime
 
 @dataclass(frozen=True, slots=True)
 class EcosObservation:
-    stat_code: str          # e.g. "722Y001" — 한국은행 기준금리
-    item_code: str          # e.g. "0101000"
-    period: str             # "YYYYMM" (M cycle) or "YYYYMMDD" (D cycle)
-    value: float | None     # numeric DATA_VALUE; None if "-" / blank
-    unit: str = ""          # "연%" / "원" / etc.
+    stat_code: str  # e.g. "722Y001" — 한국은행 기준금리
+    item_code: str  # e.g. "0101000"
+    period: str  # "YYYYMM" (M cycle) or "YYYYMMDD" (D cycle)
+    value: float | None  # numeric DATA_VALUE; None if "-" / blank
+    unit: str = ""  # "연%" / "원" / etc.
     ts_fetched: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
@@ -33,7 +33,7 @@ class EcosObservation:
 class EcosSeries:
     stat_code: str
     item_code: str
-    cycle: str              # "D" / "M" / "Q" / "A"
+    cycle: str  # "D" / "M" / "Q" / "A"
     observations: tuple[EcosObservation, ...] = field(default_factory=tuple)
 
     def latest(self) -> EcosObservation | None:

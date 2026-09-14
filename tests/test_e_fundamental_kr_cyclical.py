@@ -29,35 +29,68 @@ from glostat.experts.e_fundamental_kr_cyclical import (
 class TestDeriveEvEbitda:
     def test_empty_raw_returns_none(self) -> None:
         f = Fundamentals(
-            ticker="X", pe_ratio=10.0, forward_pe=None, eps=None, forward_eps=None,
-            roe=None, market_cap=None, dividend_yield=None, beta=None,
-            fifty_two_week_high=None, fifty_two_week_low=None, raw=(),
+            ticker="X",
+            pe_ratio=10.0,
+            forward_pe=None,
+            eps=None,
+            forward_eps=None,
+            roe=None,
+            market_cap=None,
+            dividend_yield=None,
+            beta=None,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
+            raw=(),
         )
         assert _derive_ev_ebitda(f) is None
 
     def test_present_in_raw(self) -> None:
         f = Fundamentals(
-            ticker="X", pe_ratio=None, forward_pe=None, eps=None, forward_eps=None,
-            roe=None, market_cap=None, dividend_yield=None, beta=None,
-            fifty_two_week_high=None, fifty_two_week_low=None,
+            ticker="X",
+            pe_ratio=None,
+            forward_pe=None,
+            eps=None,
+            forward_eps=None,
+            roe=None,
+            market_cap=None,
+            dividend_yield=None,
+            beta=None,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
             raw=(("enterpriseToEbitda", 5.5),),
         )
         assert _derive_ev_ebitda(f) == pytest.approx(5.5)
 
     def test_garbage_value_filtered(self) -> None:
         f = Fundamentals(
-            ticker="X", pe_ratio=None, forward_pe=None, eps=None, forward_eps=None,
-            roe=None, market_cap=None, dividend_yield=None, beta=None,
-            fifty_two_week_high=None, fifty_two_week_low=None,
+            ticker="X",
+            pe_ratio=None,
+            forward_pe=None,
+            eps=None,
+            forward_eps=None,
+            roe=None,
+            market_cap=None,
+            dividend_yield=None,
+            beta=None,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
             raw=(("enterpriseToEbitda", 999.0),),
         )
         assert _derive_ev_ebitda(f) is None
 
     def test_negative_filtered(self) -> None:
         f = Fundamentals(
-            ticker="X", pe_ratio=None, forward_pe=None, eps=None, forward_eps=None,
-            roe=None, market_cap=None, dividend_yield=None, beta=None,
-            fifty_two_week_high=None, fifty_two_week_low=None,
+            ticker="X",
+            pe_ratio=None,
+            forward_pe=None,
+            eps=None,
+            forward_eps=None,
+            roe=None,
+            market_cap=None,
+            dividend_yield=None,
+            beta=None,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
             raw=(("enterpriseToEbitda", -1.0),),
         )
         assert _derive_ev_ebitda(f) is None
@@ -69,9 +102,18 @@ class TestScore:
             (("enterpriseToEbitda", ev_ebitda),) if ev_ebitda is not None else ()
         )
         return Fundamentals(
-            ticker="X", pe_ratio=10.0, forward_pe=None, eps=None,
-            forward_eps=None, roe=None, market_cap=None, dividend_yield=None,
-            beta=None, fifty_two_week_high=None, fifty_two_week_low=None, raw=raw,
+            ticker="X",
+            pe_ratio=10.0,
+            forward_pe=None,
+            eps=None,
+            forward_eps=None,
+            roe=None,
+            market_cap=None,
+            dividend_yield=None,
+            beta=None,
+            fifty_two_week_high=None,
+            fifty_two_week_low=None,
+            raw=raw,
         )
 
     def test_cycle_trough_cheap_valuation_is_strong_long(self) -> None:
@@ -97,7 +139,7 @@ class TestScore:
         # still produce a directional signal at extreme percentiles.
         score = _score(KrSector.REFINING, self._f(None), cycle_percentile=0.10)
         assert score.ev_ebitda is None
-        assert score.net_score > 0.0   # trough → LONG
+        assert score.net_score > 0.0  # trough → LONG
 
     def test_clip_at_score_clip(self) -> None:
         # Construct extreme inputs and verify clipping at ±3.0.
@@ -151,10 +193,17 @@ class _FakeCommodityClient:
 
 def _fundamentals_with_ev_ebitda(ev: float) -> Fundamentals:
     return Fundamentals(
-        ticker="096770.KS", pe_ratio=12.0, forward_pe=None, eps=None,
-        forward_eps=None, roe=0.08, market_cap=10_000_000_000,
-        dividend_yield=0.025, beta=None,
-        fifty_two_week_high=None, fifty_two_week_low=None,
+        ticker="096770.KS",
+        pe_ratio=12.0,
+        forward_pe=None,
+        eps=None,
+        forward_eps=None,
+        roe=0.08,
+        market_cap=10_000_000_000,
+        dividend_yield=0.025,
+        beta=None,
+        fifty_two_week_high=None,
+        fifty_two_week_low=None,
         raw=(("enterpriseToEbitda", ev),),
     )
 
@@ -173,13 +222,15 @@ class TestExpertCompute:
     @pytest.mark.asyncio
     async def test_refining_ticker_with_trough_cycle_long(self) -> None:
         # 096770 = SK이노베이션. Cheap EV/EBITDA + crack at 15th pctile → LONG.
-        f = _fundamentals_with_ev_ebitda(4.0)   # cheap vs 5.5 median (-0.6z)
+        f = _fundamentals_with_ev_ebitda(4.0)  # cheap vs 5.5 median (-0.6z)
         expert = EFundamentalKrCyclicalExpert(
             router=_FakeRouter(_FakeYFinance(f)),  # type: ignore[arg-type]
             commodity_client=_FakeCommodityClient(  # type: ignore[arg-type]
                 crack=CrackSpread(
-                    last_spread=15.0, cycle_percentile=0.15,
-                    momentum_30d=0.05, n_observations=500,
+                    last_spread=15.0,
+                    cycle_percentile=0.15,
+                    momentum_30d=0.05,
+                    n_observations=500,
                 ),
             ),
         )
@@ -195,8 +246,10 @@ class TestExpertCompute:
             router=_FakeRouter(_FakeYFinance(f)),  # type: ignore[arg-type]
             commodity_client=_FakeCommodityClient(  # type: ignore[arg-type]
                 crack=CrackSpread(
-                    last_spread=40.0, cycle_percentile=0.90,
-                    momentum_30d=-0.01, n_observations=500,
+                    last_spread=40.0,
+                    cycle_percentile=0.90,
+                    momentum_30d=-0.01,
+                    n_observations=500,
                 ),
             ),
         )
@@ -212,8 +265,10 @@ class TestExpertCompute:
             router=_FakeRouter(_FakeYFinance(f)),  # type: ignore[arg-type]
             commodity_client=_FakeCommodityClient(  # type: ignore[arg-type]
                 cycle=CommodityCycle(
-                    key=CommodityKey.IRON_ORE, last_close=80.0,
-                    cycle_percentile=0.15, momentum_30d=0.02,
+                    key=CommodityKey.IRON_ORE,
+                    last_close=80.0,
+                    cycle_percentile=0.15,
+                    momentum_30d=0.02,
                     n_observations=500,
                 ),
             ),

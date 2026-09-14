@@ -108,7 +108,7 @@ def test_audit_returns_merkle_root_string(workdir: Path) -> None:
 def test_status_prints_version_and_phase(workdir: Path) -> None:
     r = _run("status", cwd=workdir)
     assert r.returncode == 0
-    assert "1.9.1" in r.stdout
+    assert "2.0.2" in r.stdout
     assert "phase" in r.stdout.lower()
     assert "snapshots" in r.stdout.lower()
 
@@ -335,8 +335,14 @@ def test_predict_gating_anti_herd_off_at_3_experts(workdir: Path) -> None:
 
 def test_hindcast_command_mock_runs(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-        cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     assert "Sprint 4 Gate" in r.stdout
@@ -345,8 +351,14 @@ def test_hindcast_command_mock_runs(workdir: Path) -> None:
 
 def test_hindcast_outputs_metrics_table(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-        cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     assert "Hindcast Metrics" in r.stdout
@@ -358,8 +370,14 @@ def test_hindcast_outputs_metrics_table(workdir: Path) -> None:
 
 def test_hindcast_outputs_gate_decision(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-        cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     assert "Sprint 4 Gate" in r.stdout
@@ -369,8 +387,14 @@ def test_hindcast_outputs_gate_decision(workdir: Path) -> None:
 
 def test_hindcast_writes_report_files(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-        cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     cache_dir = workdir / "cache" / "hindcast"
@@ -387,8 +411,15 @@ def test_hindcast_writes_report_files(workdir: Path) -> None:
 
 def test_hindcast_json_output(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-        "--json", cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        "--json",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     payload = json.loads(r.stdout.strip().splitlines()[-1])
@@ -399,7 +430,12 @@ def test_hindcast_json_output(workdir: Path) -> None:
 
 def test_hindcast_invalid_dates_exits_two(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-04-28", "--end", "2026-01-29", "--mock",
+        "hindcast",
+        "--start",
+        "2026-04-28",
+        "--end",
+        "2026-01-29",
+        "--mock",
         cwd=workdir,
     )
     assert r.returncode == 2
@@ -411,9 +447,17 @@ def test_hindcast_live_mode_is_wired_pr2(workdir: Path) -> None:
     # the run aborts with a non-zero exit. Either way: not the PR #1 stub
     # message, and the live path is reachable.
     r = _run(
-        "hindcast", "--start", "2026-04-25", "--end", "2026-04-27",
-        "--tickers", "AAPL", "--max-concurrent", "1",
-        cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-04-25",
+        "--end",
+        "2026-04-27",
+        "--tickers",
+        "AAPL",
+        "--max-concurrent",
+        "1",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode != 0
     combined = r.stderr + r.stdout
@@ -424,8 +468,16 @@ def test_hindcast_live_mode_is_wired_pr2(workdir: Path) -> None:
 
 
 def test_gate_status_reads_cached_report(workdir: Path) -> None:
-    _run("hindcast", "--start", "2026-01-29", "--end", "2026-04-28", "--mock",
-         cwd=workdir, timeout=120)
+    _run(
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        cwd=workdir,
+        timeout=120,
+    )
     r = _run("gate-status", cwd=workdir)
     assert r.returncode == 0, r.stderr
     assert "pass_status" in r.stdout
@@ -439,8 +491,16 @@ def test_gate_status_no_reports_returns_nonzero(workdir: Path) -> None:
 
 def test_hindcast_balanced_profile_runs(workdir: Path) -> None:
     r = _run(
-        "hindcast", "--start", "2026-01-29", "--end", "2026-04-28",
-        "--mock", "--profile", "balanced", cwd=workdir, timeout=120,
+        "hindcast",
+        "--start",
+        "2026-01-29",
+        "--end",
+        "2026-04-28",
+        "--mock",
+        "--profile",
+        "balanced",
+        cwd=workdir,
+        timeout=120,
     )
     assert r.returncode == 0, r.stderr
     assert "balanced" in r.stdout

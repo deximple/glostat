@@ -61,14 +61,14 @@ class TestScoreRevisions:
 
     def test_old_events_outside_window_ignored(self) -> None:
         events = [
-            _ev(days_ago=200, action="up"),   # outside 60d window
+            _ev(days_ago=200, action="up"),  # outside 60d window
             _ev(days_ago=10, action="down"),
         ]
         score = score_revisions(events, today=datetime.now(tz=UTC))
         # Only the down counts.
         assert score.upgrades == 0
         assert score.downgrades == 1
-        assert score.direction == "NEUTRAL"   # net = -1, score = -0.5 < threshold
+        assert score.direction == "NEUTRAL"  # net = -1, score = -0.5 < threshold
 
     def test_other_action_classified_as_other(self) -> None:
         events = [_ev(days_ago=10, action="reit")]
@@ -91,8 +91,9 @@ class TestScoreRevisions:
 class _FakeYf:
     last_snapshot_id = "fake-rec-snap"
 
-    def __init__(self, *, history: AnalystRecommendationHistory | None = None,
-                 fail: bool = False) -> None:
+    def __init__(
+        self, *, history: AnalystRecommendationHistory | None = None, fail: bool = False
+    ) -> None:
         self._history = history
         self._fail = fail
 
@@ -100,7 +101,8 @@ class _FakeYf:
         if self._fail:
             raise RuntimeError("fake recs failure")
         return self._history or AnalystRecommendationHistory(
-            ticker=ticker, events=(),
+            ticker=ticker,
+            events=(),
         )
 
 
@@ -147,7 +149,11 @@ class TestExpertCompute:
 class TestAnalystRevisionScore:
     def test_confidence_at_full(self) -> None:
         s = AnalystRevisionScore(
-            upgrades=10, downgrades=0, other_actions=0,
-            net_revisions=10, raw_score=2.5, net_score=2.5,
+            upgrades=10,
+            downgrades=0,
+            other_actions=0,
+            net_revisions=10,
+            raw_score=2.5,
+            net_score=2.5,
         )
         assert s.confidence == 1.0

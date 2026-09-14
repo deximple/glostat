@@ -23,9 +23,9 @@ R = TypeVar("R")
 
 @dataclass(frozen=True, slots=True)
 class PromptTemplate:
-    name: str           # e.g. "E_FUNDAMENTAL.system"
-    version: str        # semver-ish, "1.0.0"
-    template: str       # raw template, parameter placeholders intact
+    name: str  # e.g. "E_FUNDAMENTAL.system"
+    version: str  # semver-ish, "1.0.0"
+    template: str  # raw template, parameter placeholders intact
     sha256: str
     registered_at: datetime
     metadata: tuple[tuple[str, str], ...] = field(default_factory=tuple)
@@ -185,9 +185,7 @@ def _stamp_prompt(kwargs: dict[str, Any], expert: str, template: PromptTemplate)
     if not isinstance(bag, dict):
         raise TypeError("prompt_versions kwarg must be a dict (or omitted)")
     if expert in bag and bag[expert] != template.sha256:
-        raise PromptCollisionError(
-            f"prompt_versions[{expert!r}] already set to a different sha"
-        )
+        raise PromptCollisionError(f"prompt_versions[{expert!r}] already set to a different sha")
     bag[expert] = template.sha256
 
 

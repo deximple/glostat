@@ -22,7 +22,11 @@ from glostat.experts.e_insider_velocity_kr import (
 
 
 def _tx(
-    *, bsis_dt: str, shares: int, is_buy: bool = False, is_sell: bool = False,
+    *,
+    bsis_dt: str,
+    shares: int,
+    is_buy: bool = False,
+    is_sell: bool = False,
 ) -> DartExecutiveTransaction:
     return DartExecutiveTransaction(
         corp_code="00000000",
@@ -62,23 +66,34 @@ class TestTxShares:
     def test_parses_with_commas(self) -> None:
         # Build a fresh tx with comma-formatted shares string.
         t2 = DartExecutiveTransaction(
-            corp_code="x", repror="x", isu_exctv_rgist_at="N",
-            isu_exctv_ofcps="x", isu_main_shrholdr="N",
+            corp_code="x",
+            repror="x",
+            isu_exctv_rgist_at="N",
+            isu_exctv_ofcps="x",
+            isu_main_shrholdr="N",
             sp_stock_lmp_cnt="0",
             sp_stock_lmp_irds_cnt="12,345",
             sp_stock_lmp_irds_rate="0",
-            bsis_dt="20260415", rcept_dt="20260415", trd_kind="x",
+            bsis_dt="20260415",
+            rcept_dt="20260415",
+            trd_kind="x",
             is_buy=True,
         )
         assert _tx_shares(t2) == 12345.0
 
     def test_dash_returns_zero(self) -> None:
         t = DartExecutiveTransaction(
-            corp_code="x", repror="x", isu_exctv_rgist_at="N",
-            isu_exctv_ofcps="x", isu_main_shrholdr="N",
-            sp_stock_lmp_cnt="0", sp_stock_lmp_irds_cnt="-",
-            sp_stock_lmp_irds_rate="0", bsis_dt="20260415",
-            rcept_dt="20260415", trd_kind="x",
+            corp_code="x",
+            repror="x",
+            isu_exctv_rgist_at="N",
+            isu_exctv_ofcps="x",
+            isu_main_shrholdr="N",
+            sp_stock_lmp_cnt="0",
+            sp_stock_lmp_irds_cnt="-",
+            sp_stock_lmp_irds_rate="0",
+            bsis_dt="20260415",
+            rcept_dt="20260415",
+            trd_kind="x",
         )
         assert _tx_shares(t) == 0.0
 
@@ -110,11 +125,11 @@ class TestScoreVelocity:
             _tx(bsis_dt="20260428", shares=1000, is_buy=True),  # recent
             _tx(bsis_dt="20260429", shares=1000, is_buy=True),  # recent
             _tx(bsis_dt="20260430", shares=1000, is_buy=True),  # recent
-            _tx(bsis_dt="20260420", shares=500,  is_buy=True),  # prior
+            _tx(bsis_dt="20260420", shares=500, is_buy=True),  # prior
         ]
         score = score_velocity(txns, today=today)
         assert score.direction == "LONG"
-        assert score.net_score > 1.0   # strong LONG
+        assert score.net_score > 1.0  # strong LONG
         assert score.buy_velocity > 2.0
 
     def test_accelerating_sells_short(self) -> None:
@@ -122,7 +137,7 @@ class TestScoreVelocity:
         txns = [
             _tx(bsis_dt="20260428", shares=2000, is_sell=True),
             _tx(bsis_dt="20260430", shares=2000, is_sell=True),
-            _tx(bsis_dt="20260420", shares=500,  is_sell=True),  # prior
+            _tx(bsis_dt="20260420", shares=500, is_sell=True),  # prior
         ]
         score = score_velocity(txns, today=today)
         assert score.direction == "SHORT"
@@ -153,8 +168,9 @@ class TestScoreVelocity:
 class _FakeDart:
     last_snapshot_id = "fake-velocity-snap"
 
-    def __init__(self, *, txns: list[Any] | None = None,
-                 fail_corp: bool = False, fail_txn: bool = False) -> None:
+    def __init__(
+        self, *, txns: list[Any] | None = None, fail_corp: bool = False, fail_txn: bool = False
+    ) -> None:
         self._txns = txns or []
         self._fail_corp = fail_corp
         self._fail_txn = fail_txn
@@ -165,7 +181,10 @@ class _FakeDart:
         return f"CORP_{code}"
 
     async def get_executive_transactions(
-        self, corp_code: str, *, days_back: int = 180,
+        self,
+        corp_code: str,
+        *,
+        days_back: int = 180,
     ) -> list[Any]:
         if self._fail_txn:
             raise DartApiError("fake txn failure")
@@ -207,11 +226,15 @@ class TestExpertCompute:
 class TestInsiderVelocityScore:
     def test_confidence_normalized(self) -> None:
         s = InsiderVelocityScore(
-            buys_recent=100, buys_prior=10,
-            sells_recent=0, sells_prior=0,
-            buy_velocity=10.0, sell_velocity=1.0,
+            buys_recent=100,
+            buys_prior=10,
+            sells_recent=0,
+            sells_prior=0,
+            buy_velocity=10.0,
+            sell_velocity=1.0,
             net_velocity=math.log(10),
-            raw_score=2.0, net_score=2.0,
+            raw_score=2.0,
+            net_score=2.0,
         )
         # confidence = |2.0| / 2.5 = 0.8
         assert 0.79 < s.confidence < 0.81

@@ -31,12 +31,11 @@ _HEADER_LINE = (
 )
 
 
-def _row(market: str, ymd: str, oi: int, nc_l: int, nc_s: int,
-         comm_l: int, comm_s: int) -> str:
-    pad_after = ',' * 100
+def _row(market: str, ymd: str, oi: int, nc_l: int, nc_s: int, comm_l: int, comm_s: int) -> str:
+    pad_after = "," * 100
     return (
         f'"{market}","251230",{ymd},"001602","CBT","00","001",'
-        f'{oi},{nc_l},{nc_s},0,{comm_l},{comm_s}{pad_after}'
+        f"{oi},{nc_l},{nc_s},0,{comm_l},{comm_s}{pad_after}"
     )
 
 
@@ -62,14 +61,30 @@ def test_to_int_handles_formatting_quirks() -> None:
 
 
 def test_parse_csv_filters_to_canonical_contracts() -> None:
-    rows = "\n".join([
-        _HEADER_LINE,
-        _row("FROZEN ORANGE JUICE", "2024-01-09", 100, 10, 20, 30, 40),
-        _row("GOLD - COMMODITY EXCHANGE INC.", "2024-01-09", 500_000,
-             100_000, 50_000, 200_000, 250_000),
-        _row("CRUDE OIL, LIGHT SWEET-WTI - ICE", "2024-01-09", 1_000_000,
-             400_000, 300_000, 500_000, 600_000),
-    ])
+    rows = "\n".join(
+        [
+            _HEADER_LINE,
+            _row("FROZEN ORANGE JUICE", "2024-01-09", 100, 10, 20, 30, 40),
+            _row(
+                "GOLD - COMMODITY EXCHANGE INC.",
+                "2024-01-09",
+                500_000,
+                100_000,
+                50_000,
+                200_000,
+                250_000,
+            ),
+            _row(
+                "CRUDE OIL, LIGHT SWEET-WTI - ICE",
+                "2024-01-09",
+                1_000_000,
+                400_000,
+                300_000,
+                500_000,
+                600_000,
+            ),
+        ]
+    )
     parsed = _parse_csv(rows)
     assert {p.contract for p in parsed} == {"GOLD", "WTI_CRUDE"}
     gold = next(p for p in parsed if p.contract == "GOLD")
@@ -83,9 +98,14 @@ def test_parse_csv_filters_to_canonical_contracts() -> None:
 def test_commercial_net_percentile_returns_none_when_thin() -> None:
     recs = (
         CotRecord(
-            contract="GOLD", market_name="x", report_date=date(2024, 1, 1),
-            open_interest=100, commercial_long=10, commercial_short=5,
-            noncommercial_long=0, noncommercial_short=0,
+            contract="GOLD",
+            market_name="x",
+            report_date=date(2024, 1, 1),
+            open_interest=100,
+            commercial_long=10,
+            commercial_short=5,
+            noncommercial_long=0,
+            noncommercial_short=0,
         ),
     )
     rank = commercial_net_percentile(
@@ -123,7 +143,13 @@ def test_commercial_net_percentile_ranks_full_window() -> None:
 def test_contract_patterns_table_keys_match_used_constants() -> None:
     # WHY: keep the canonical key set aligned with the experts that import it.
     expected = {
-        "WTI_CRUDE", "NAT_GAS", "GOLD", "SILVER", "COPPER", "CORN", "WHEAT",
+        "WTI_CRUDE",
+        "NAT_GAS",
+        "GOLD",
+        "SILVER",
+        "COPPER",
+        "CORN",
+        "WHEAT",
     }
     assert set(CONTRACT_PATTERNS) == expected
 
@@ -131,16 +157,19 @@ def test_contract_patterns_table_keys_match_used_constants() -> None:
 def test_cftc_client_parses_synthetic_zip(tmp_path: Path) -> None:
     cache = tmp_path / "cftc"
     cache.mkdir()
-    csv_text = "\n".join([
-        _HEADER_LINE,
-        _row("GOLD - COMMODITY EXCHANGE INC.", "2024-02-06", 500, 100, 50, 200, 250),
-        _row("WHEAT-SRW - CHICAGO BOARD OF TRADE", "2024-02-06", 800, 200, 150, 350, 300),
-    ])
+    csv_text = "\n".join(
+        [
+            _HEADER_LINE,
+            _row("GOLD - COMMODITY EXCHANGE INC.", "2024-02-06", 500, 100, 50, 200, 250),
+            _row("WHEAT-SRW - CHICAGO BOARD OF TRADE", "2024-02-06", 800, 200, 150, 350, 300),
+        ]
+    )
     zpath = cache / "deacot2024.zip"
     with zipfile.ZipFile(zpath, "w") as zf:
         zf.writestr("annual.txt", csv_text)
     client = CftcClient(cache_dir=cache, snapshot_broker=None)
-    import asyncio
+    import asyncio  # noqa: PLC0415
+
     recs = asyncio.run(client.fetch_year(2024))
     assert {r.contract for r in recs} == {"GOLD", "WHEAT"}
     asyncio.run(client.fetch_year(2024))  # idempotent — second call hits memo
@@ -152,7 +181,8 @@ def test_cftc_client_rejects_tiny_archive(tmp_path: Path) -> None:
     bad = cache / "deacot2099.zip"
     bad.write_bytes(b"\x00" * 32)
     client = CftcClient(cache_dir=cache)
-    import asyncio
+    import asyncio  # noqa: PLC0415
+
     with pytest.raises(CftcDataError):
         asyncio.run(client.fetch_year(2099))
 

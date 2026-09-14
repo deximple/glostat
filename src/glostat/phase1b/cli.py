@@ -19,8 +19,7 @@ _SP500_PATH: Final[Path] = (
     Path(__file__).resolve().parents[3] / "configs" / "universes" / "sp500_top50.txt"
 )
 _RUSSELL_PATH: Final[Path] = (
-    Path(__file__).resolve().parents[3]
-    / "configs" / "universes" / "russell2k_top200_proxy.txt"
+    Path(__file__).resolve().parents[3] / "configs" / "universes" / "russell2k_top200_proxy.txt"
 )
 
 
@@ -34,9 +33,7 @@ def load_tickers(path: Path) -> list[str]:
     return out
 
 
-async def resolve_ciks(
-    tickers: list[str], sec_client: SecEdgarClient
-) -> list[tuple[str, str]]:
+async def resolve_ciks(tickers: list[str], sec_client: SecEdgarClient) -> list[tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
     for t in tickers:
         try:

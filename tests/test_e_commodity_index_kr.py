@@ -22,15 +22,19 @@ from glostat.experts.e_commodity_index_kr import (
 class TestScore:
     def _wti(self, momentum: float) -> CommodityCycle:
         return CommodityCycle(
-            key=CommodityKey.WTI, last_close=80.0,
-            cycle_percentile=0.5, momentum_30d=momentum,
+            key=CommodityKey.WTI,
+            last_close=80.0,
+            cycle_percentile=0.5,
+            momentum_30d=momentum,
             n_observations=500,
         )
 
     def _crack(self, momentum: float) -> CrackSpread:
         return CrackSpread(
-            last_spread=25.0, cycle_percentile=0.5,
-            momentum_30d=momentum, n_observations=500,
+            last_spread=25.0,
+            cycle_percentile=0.5,
+            momentum_30d=momentum,
+            n_observations=500,
         )
 
     def test_both_up_long(self) -> None:
@@ -64,8 +68,11 @@ class TestScore:
 
 class _FakeCommodityClient:
     def __init__(
-        self, *, wti: CommodityCycle | None = None,
-        crack: CrackSpread | None = None, fail: bool = False,
+        self,
+        *,
+        wti: CommodityCycle | None = None,
+        crack: CrackSpread | None = None,
+        fail: bool = False,
     ) -> None:
         self._wti = wti
         self._crack = crack
@@ -104,13 +111,17 @@ class TestExpertCompute:
     @pytest.mark.asyncio
     async def test_refiner_with_oil_uptrend_long(self) -> None:
         wti = CommodityCycle(
-            key=CommodityKey.WTI, last_close=85.0,
-            cycle_percentile=0.7, momentum_30d=0.10,
+            key=CommodityKey.WTI,
+            last_close=85.0,
+            cycle_percentile=0.7,
+            momentum_30d=0.10,
             n_observations=500,
         )
         crack = CrackSpread(
-            last_spread=28.0, cycle_percentile=0.6,
-            momentum_30d=0.05, n_observations=500,
+            last_spread=28.0,
+            cycle_percentile=0.6,
+            momentum_30d=0.05,
+            n_observations=500,
         )
         expert = ECommodityIndexKrExpert(
             commodity_client=_FakeCommodityClient(wti=wti, crack=crack),  # type: ignore[arg-type]
@@ -122,13 +133,17 @@ class TestExpertCompute:
     @pytest.mark.asyncio
     async def test_refiner_with_oil_downtrend_short(self) -> None:
         wti = CommodityCycle(
-            key=CommodityKey.WTI, last_close=70.0,
-            cycle_percentile=0.3, momentum_30d=-0.12,
+            key=CommodityKey.WTI,
+            last_close=70.0,
+            cycle_percentile=0.3,
+            momentum_30d=-0.12,
             n_observations=500,
         )
         crack = CrackSpread(
-            last_spread=15.0, cycle_percentile=0.2,
-            momentum_30d=-0.08, n_observations=500,
+            last_spread=15.0,
+            cycle_percentile=0.2,
+            momentum_30d=-0.08,
+            n_observations=500,
         )
         expert = ECommodityIndexKrExpert(
             commodity_client=_FakeCommodityClient(wti=wti, crack=crack),  # type: ignore[arg-type]

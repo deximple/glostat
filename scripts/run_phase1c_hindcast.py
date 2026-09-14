@@ -41,9 +41,7 @@ def _report_to_dict(r: PhaseHindcastReport) -> dict:
     payload = asdict(r)
     payload["timestamp"] = r.timestamp.isoformat() if r.timestamp else None
     payload["sample_dates"] = [d.isoformat() for d in r.sample_dates]
-    payload["rows"] = [
-        {**asdict(row), "day": row.day.isoformat()} for row in r.rows
-    ]
+    payload["rows"] = [{**asdict(row), "day": row.day.isoformat()} for row in r.rows]
     return payload
 
 
@@ -95,7 +93,7 @@ def _comparative_md(
 
 | Thesis               |  Sharpe |   AUC | OOS deg | cost%  |    N | Gate   |
 |----------------------|--------:|------:|--------:|-------:|-----:|--------|
-{_gate_summary_row("E2 FX_CARRY",   fx_report, fx_gate)}
+{_gate_summary_row("E2 FX_CARRY", fx_report, fx_gate)}
 {_gate_summary_row("E8 COMMODITY_TS", cm_report, cm_gate)}
 
 ## E2 — FX Carry + Risk-Off (XLU/XLV defensive tilt)
@@ -184,23 +182,32 @@ async def main() -> int:
 
     print("[phase1c] running E2 FX_CARRY hindcast …")
     fx_report = await run_fx_carry_hindcast(
-        cache=cache, start=START, end=END,
+        cache=cache,
+        start=START,
+        end=END,
     )
     fx_gate = _gate_for(fx_report)
     fx_path = _save_report(fx_report, "fx_carry")
-    print(f"[phase1c] FX_CARRY → sharpe={fx_report.overall_sharpe:.3f} "
-          f"auc={fx_report.overall_auc:.3f} N={fx_report.n_signals} "
-          f"gate={fx_gate.pass_status}  → {fx_path}")
+    print(
+        f"[phase1c] FX_CARRY → sharpe={fx_report.overall_sharpe:.3f} "
+        f"auc={fx_report.overall_auc:.3f} N={fx_report.n_signals} "
+        f"gate={fx_gate.pass_status}  → {fx_path}"
+    )
 
     print("[phase1c] running E8 COMMODITY_TS hindcast …")
     cm_report = await run_commodity_ts_hindcast(
-        cache=cache, cftc_client=cftc, start=START, end=END,
+        cache=cache,
+        cftc_client=cftc,
+        start=START,
+        end=END,
     )
     cm_gate = _gate_for(cm_report)
     cm_path = _save_report(cm_report, "commodity_ts")
-    print(f"[phase1c] COMMODITY_TS → sharpe={cm_report.overall_sharpe:.3f} "
-          f"auc={cm_report.overall_auc:.3f} N={cm_report.n_signals} "
-          f"gate={cm_gate.pass_status}  → {cm_path}")
+    print(
+        f"[phase1c] COMMODITY_TS → sharpe={cm_report.overall_sharpe:.3f} "
+        f"auc={cm_report.overall_auc:.3f} N={cm_report.n_signals} "
+        f"gate={cm_gate.pass_status}  → {cm_path}"
+    )
 
     md = _comparative_md(fx_report, fx_gate, cm_report, cm_gate)
     md_path = CACHE_DIR / "phase1c_comparison.md"

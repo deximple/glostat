@@ -17,17 +17,27 @@ from glostat.experts.e_insider_kr import (
 
 def _make_txn(
     *,
-    repror: str = "홍길동", trd_kind: str = "장내매수", bsis_dt: str = "20260101",
-    irds_cnt: str = "1000", is_buy: bool = True, is_sell: bool = False,
+    repror: str = "홍길동",
+    trd_kind: str = "장내매수",
+    bsis_dt: str = "20260101",
+    irds_cnt: str = "1000",
+    is_buy: bool = True,
+    is_sell: bool = False,
 ) -> DartExecutiveTransaction:
     return DartExecutiveTransaction(
-        corp_code="00126380", repror=repror,
-        isu_exctv_rgist_at="Y", isu_exctv_ofcps="이사",
+        corp_code="00126380",
+        repror=repror,
+        isu_exctv_rgist_at="Y",
+        isu_exctv_ofcps="이사",
         isu_main_shrholdr="본인",
-        sp_stock_lmp_cnt="100000", sp_stock_lmp_irds_cnt=irds_cnt,
+        sp_stock_lmp_cnt="100000",
+        sp_stock_lmp_irds_cnt=irds_cnt,
         sp_stock_lmp_irds_rate="0.10",
-        bsis_dt=bsis_dt, rcept_dt=bsis_dt,
-        trd_kind=trd_kind, is_buy=is_buy, is_sell=is_sell,
+        bsis_dt=bsis_dt,
+        rcept_dt=bsis_dt,
+        trd_kind=trd_kind,
+        is_buy=is_buy,
+        is_sell=is_sell,
     )
 
 
@@ -56,12 +66,9 @@ def test_cluster_count_excludes_outside_window() -> None:
 
 def test_cluster_count_separates_buy_sell() -> None:
     txns = [
-        _make_txn(repror="A", trd_kind="장내매수", is_buy=True, is_sell=False,
-                   bsis_dt="20260110"),
-        _make_txn(repror="B", trd_kind="장내매도", is_buy=False, is_sell=True,
-                   bsis_dt="20260111"),
-        _make_txn(repror="C", trd_kind="장내매도", is_buy=False, is_sell=True,
-                   bsis_dt="20260112"),
+        _make_txn(repror="A", trd_kind="장내매수", is_buy=True, is_sell=False, bsis_dt="20260110"),
+        _make_txn(repror="B", trd_kind="장내매도", is_buy=False, is_sell=True, bsis_dt="20260111"),
+        _make_txn(repror="C", trd_kind="장내매도", is_buy=False, is_sell=True, bsis_dt="20260112"),
     ]
     buys = cluster_count(txns, window_end=date(2026, 1, 15), window_days=14, side="buy")
     sells = cluster_count(txns, window_end=date(2026, 1, 15), window_days=14, side="sell")
@@ -78,9 +85,7 @@ def test_cluster_count_handles_invalid_date() -> None:
 
 
 def test_score_long_when_three_or_more_buyers_cluster() -> None:
-    txns = [
-        _make_txn(repror=f"R{i}", bsis_dt="20260110") for i in range(3)
-    ]
+    txns = [_make_txn(repror=f"R{i}", bsis_dt="20260110") for i in range(3)]
     score = score_insider_kr(txns, as_of=date(2026, 1, 15))
     assert score.cluster_buyers == 3
     assert score.direction == "LONG"
@@ -97,8 +102,10 @@ def test_score_neutral_when_below_threshold() -> None:
 
 def test_score_short_when_three_or_more_sellers() -> None:
     txns = [
-        _make_txn(repror=f"R{i}", trd_kind="장내매도", is_buy=False, is_sell=True,
-                   bsis_dt="20260110") for i in range(3)
+        _make_txn(
+            repror=f"R{i}", trd_kind="장내매도", is_buy=False, is_sell=True, bsis_dt="20260110"
+        )
+        for i in range(3)
     ]
     score = score_insider_kr(txns, as_of=date(2026, 1, 15))
     assert score.direction == "SHORT"
@@ -106,11 +113,12 @@ def test_score_short_when_three_or_more_sellers() -> None:
 
 
 def test_score_buy_minus_sell_signed() -> None:
-    txns = (
-        [_make_txn(repror=f"B{i}", bsis_dt="20260110") for i in range(4)]
-        + [_make_txn(repror=f"S{i}", trd_kind="장내매도", is_buy=False, is_sell=True,
-                      bsis_dt="20260111") for i in range(3)]
-    )
+    txns = [_make_txn(repror=f"B{i}", bsis_dt="20260110") for i in range(4)] + [
+        _make_txn(
+            repror=f"S{i}", trd_kind="장내매도", is_buy=False, is_sell=True, bsis_dt="20260111"
+        )
+        for i in range(3)
+    ]
     score = score_insider_kr(txns, as_of=date(2026, 1, 15))
     # 4 buyers - 3 sellers = +1 → 0.5 raw → below threshold? threshold=1.0 → NEUTRAL
     # but raw_score should be positive and small.
@@ -120,8 +128,9 @@ def test_score_buy_minus_sell_signed() -> None:
 
 
 def test_insider_kr_score_confidence_clipped() -> None:
-    s = InsiderKrScore(cluster_buyers=10, cluster_sells=0, raw_score=5.0,
-                       net_score=3.0, direction="LONG")
+    s = InsiderKrScore(
+        cluster_buyers=10, cluster_sells=0, raw_score=5.0, net_score=3.0, direction="LONG"
+    )
     assert s.confidence == pytest.approx(1.0)
 
 
@@ -139,7 +148,10 @@ class _StubDart:
         return "00126380"
 
     async def get_executive_transactions(
-        self, corp_code: str, *, days_back: int = 180,
+        self,
+        corp_code: str,
+        *,
+        days_back: int = 180,
     ) -> tuple[DartExecutiveTransaction, ...]:
         self.calls.append(("elestock", corp_code, days_back))
         return self._txns
@@ -167,9 +179,7 @@ async def test_expert_skips_for_non_kr_ticker() -> None:
 
 @pytest.mark.asyncio
 async def test_expert_returns_signal_for_cluster() -> None:
-    txns = tuple(
-        _make_txn(repror=f"R{i}", bsis_dt="20260110") for i in range(4)
-    )
+    txns = tuple(_make_txn(repror=f"R{i}", bsis_dt="20260110") for i in range(4))
     dart = _StubDart(txns)
     expert = EInsiderKrExpert(
         dart_client=dart,  # type: ignore[arg-type]
