@@ -21,6 +21,7 @@ def _writer_proc(root: str, idx: int) -> int:
     """Independent process: open broker, write one snapshot, exit."""
     from glostat.data.snapshot_broker import SnapshotBroker as B  # noqa: PLC0415
     from glostat.data.snapshot_broker import SnapshotKey as K  # noqa: PLC0415
+
     broker = B(root=Path(root))
     try:
         key = K(

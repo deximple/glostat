@@ -50,8 +50,11 @@ def test_parse_signed_strips_commas() -> None:
 
 def test_row_to_balance_parses_canonical_keys() -> None:
     row = {
-        "TRD_DD": "2026/04/15", "BAL_QTY": "1,500,000", "BAL_AMT": "75000000000",
-        "LIST_SHRS": "100,000,000", "BAL_RTO": "1.50",
+        "TRD_DD": "2026/04/15",
+        "BAL_QTY": "1,500,000",
+        "BAL_AMT": "75000000000",
+        "LIST_SHRS": "100,000,000",
+        "BAL_RTO": "1.50",
     }
     bar = _row_to_balance(row, "005930")
     assert bar is not None
@@ -67,8 +70,10 @@ def test_row_to_balance_returns_none_on_bad_date() -> None:
 
 def test_row_to_volume_parses_canonical_keys() -> None:
     row = {
-        "TRD_DD": "2026/04/15", "CVSRTSELL_TRDVOL": "55,771",
-        "CVSRTSELL_TRDVAL": "5500000000", "ACC_TRDVOL": "500,000",
+        "TRD_DD": "2026/04/15",
+        "CVSRTSELL_TRDVOL": "55,771",
+        "CVSRTSELL_TRDVAL": "5500000000",
+        "ACC_TRDVOL": "500,000",
         "TRDVOL_WT": "11.15",
     }
     bar = _row_to_volume(row, "005930")
@@ -83,10 +88,20 @@ def test_row_to_volume_parses_canonical_keys() -> None:
 def _balance_response() -> dict:
     return {
         "output": [
-            {"TRD_DD": "2026/04/14", "BAL_QTY": "1,000,000", "BAL_AMT": "0",
-             "LIST_SHRS": "100,000,000", "BAL_RTO": "1.00"},
-            {"TRD_DD": "2026/04/15", "BAL_QTY": "1,500,000", "BAL_AMT": "0",
-             "LIST_SHRS": "100,000,000", "BAL_RTO": "1.50"},
+            {
+                "TRD_DD": "2026/04/14",
+                "BAL_QTY": "1,000,000",
+                "BAL_AMT": "0",
+                "LIST_SHRS": "100,000,000",
+                "BAL_RTO": "1.00",
+            },
+            {
+                "TRD_DD": "2026/04/15",
+                "BAL_QTY": "1,500,000",
+                "BAL_AMT": "0",
+                "LIST_SHRS": "100,000,000",
+                "BAL_RTO": "1.50",
+            },
         ]
     }
 
@@ -94,9 +109,13 @@ def _balance_response() -> dict:
 def _volume_response() -> dict:
     return {
         "output": [
-            {"TRD_DD": "2026/04/15", "CVSRTSELL_TRDVOL": "100,000",
-             "CVSRTSELL_TRDVAL": "5000000000", "ACC_TRDVOL": "1,000,000",
-             "TRDVOL_WT": "10.0"},
+            {
+                "TRD_DD": "2026/04/15",
+                "CVSRTSELL_TRDVOL": "100,000",
+                "CVSRTSELL_TRDVAL": "5000000000",
+                "ACC_TRDVOL": "1,000,000",
+                "TRDVOL_WT": "10.0",
+            },
         ]
     }
 
@@ -109,8 +128,7 @@ async def test_get_short_balance_returns_parsed() -> None:
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
         client = KrxShortClient(client=raw)
-        bars = await client.get_short_balance("005930", days_back=10,
-                                              end=date(2026, 4, 15))
+        bars = await client.get_short_balance("005930", days_back=10, end=date(2026, 4, 15))
     assert len(bars) == 2
     assert isinstance(bars[0], KrxShortBalanceBar)
     assert bars[-1].bar_date == date(2026, 4, 15)
@@ -125,8 +143,7 @@ async def test_get_short_volume_returns_parsed() -> None:
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
         client = KrxShortClient(client=raw)
-        bars = await client.get_short_volume("005930", days_back=5,
-                                             end=date(2026, 4, 15))
+        bars = await client.get_short_volume("005930", days_back=5, end=date(2026, 4, 15))
     assert len(bars) == 1
     assert isinstance(bars[0], KrxShortVolumeBar)
     assert bars[0].short_volume == 100000.0
@@ -173,10 +190,20 @@ async def test_krx_empty_payload_returns_empty() -> None:
 async def test_krx_handles_alt_block_key() -> None:
     # KRX sometimes returns OutBlock_1 instead of output.
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"OutBlock_1": [
-            {"TRD_DD": "20260415", "BAL_QTY": "100", "BAL_AMT": "0",
-             "LIST_SHRS": "1000", "BAL_RTO": "10"},
-        ]})
+        return httpx.Response(
+            200,
+            json={
+                "OutBlock_1": [
+                    {
+                        "TRD_DD": "20260415",
+                        "BAL_QTY": "100",
+                        "BAL_AMT": "0",
+                        "LIST_SHRS": "1000",
+                        "BAL_RTO": "10",
+                    },
+                ]
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
@@ -191,6 +218,7 @@ async def test_krx_snapshot_broker_recorded(tmp_path) -> None:
 
     broker = SnapshotBroker(root=tmp_path / "snaps")
     try:
+
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=_balance_response())
 

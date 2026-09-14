@@ -22,17 +22,17 @@ log: Final = structlog.get_logger(__name__)
 
 _REQUIRED_PRIOR_SELL_DAYS: Final[int] = 4
 _PATTERN_NET_SCORE: Final[float] = 2.0  # base LONG score for REVERSAL_BUY
-_CONFIRM_BOOST: Final[float] = 1.3      # × confidence when 기관 also buying
+_CONFIRM_BOOST: Final[float] = 1.3  # × confidence when 기관 also buying
 _NET_SCORE_TO_BPS: Final[float] = 60.0  # composite score → expected bps
-_HORIZON_DAYS: Final[int] = 7           # short-swing horizon for reversal pattern
+_HORIZON_DAYS: Final[int] = 7  # short-swing horizon for reversal pattern
 
 
 @dataclass(frozen=True, slots=True)
 class ForeignReversalScore:
     code: str
     bar_idx: int
-    pattern: str           # REVERSAL_BUY / NEUTRAL / INSUFFICIENT
-    direction: str         # LONG / NEUTRAL
+    pattern: str  # REVERSAL_BUY / NEUTRAL / INSUFFICIENT
+    direction: str  # LONG / NEUTRAL
     consec_sell_days: int
     organ_confirms: bool
     net_score: float
@@ -113,9 +113,14 @@ def score_reversal_at(
 
 def _insufficient(code: str, bar_idx: int) -> ForeignReversalScore:
     return ForeignReversalScore(
-        code=code, bar_idx=bar_idx, pattern="INSUFFICIENT",
-        direction="NEUTRAL", consec_sell_days=0, organ_confirms=False,
-        net_score=0.0, confidence=0.0,
+        code=code,
+        bar_idx=bar_idx,
+        pattern="INSUFFICIENT",
+        direction="NEUTRAL",
+        consec_sell_days=0,
+        organ_confirms=False,
+        net_score=0.0,
+        confidence=0.0,
     )
 
 
@@ -127,7 +132,7 @@ class ForeignReversalVerdict:
     edge_bps: float
     all_in_bps: float
     cost_passed: bool
-    action: str            # BUY / HOLD
+    action: str  # BUY / HOLD
     horizon_days: int
 
 
@@ -144,10 +149,7 @@ def build_verdict(
 ) -> ForeignReversalVerdict:
     edge_bps = abs(score.net_score) * _NET_SCORE_TO_BPS
     cost_passed = edge_bps >= cost_multiplier * all_in_bps
-    if score.direction == "LONG" and cost_passed:
-        action = "BUY"
-    else:
-        action = "HOLD"
+    action = "BUY" if score.direction == "LONG" and cost_passed else "HOLD"
     return ForeignReversalVerdict(
         code=score.code,
         bar_idx=score.bar_idx,
@@ -194,9 +196,9 @@ class EForeignReversalExpert:
         *,
         router: DataRouter,
         kospi200: frozenset[str],
-        max_pages: int = 6,   # ~120 trading days; covers 4-day prior window safely
-        toss_client=None,     # type: ignore[assignment]
-        kis_client=None,      # type: ignore[assignment]
+        max_pages: int = 6,  # ~120 trading days; covers 4-day prior window safely
+        toss_client=None,  # type: ignore[assignment]
+        kis_client=None,  # type: ignore[assignment]
     ) -> None:
         self._router = router
         self._kospi200 = kospi200
@@ -207,9 +209,7 @@ class EForeignReversalExpert:
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         code = normalize_kr_ticker(ticker)
         if code not in self._kospi200:
-            raise ExpertSkipError(
-                f"E_FOREIGN_REVERSAL: {code} not in KOSPI 200 universe"
-            )
+            raise ExpertSkipError(f"E_FOREIGN_REVERSAL: {code} not in KOSPI 200 universe")
         bars = await self._fetch_flows(code)
         if len(bars) < 5:
             raise ExpertSkipError(
@@ -220,12 +220,17 @@ class EForeignReversalExpert:
         latest_idx = len(bars) - 1
         score = score_reversal_at(bars, current_idx=latest_idx)
         return _signal_from_score(
-            code=code, ts=ts, score=score, snap_id=snap_id,
+            code=code,
+            ts=ts,
+            score=score,
+            snap_id=snap_id,
             extra_sources=sources,
         )
 
     async def _collect_source_provenance(
-        self, code: str, naver_bars: list[KrFlowBar],
+        self,
+        code: str,
+        naver_bars: list[KrFlowBar],
     ) -> tuple[str, ...]:
         # WHY: keep score derivation deterministic on Naver, but track which
         # extra sources were available so downstream predictions can show
@@ -250,7 +255,9 @@ class EForeignReversalExpert:
         if not toss_bars and not kis_daily:
             return ("naver",)
         fused = fuse_three_source_flows(
-            code=code, naver_bars=naver_bars, toss_bars=toss_bars,
+            code=code,
+            naver_bars=naver_bars,
+            toss_bars=toss_bars,
             kis_daily=kis_daily,
         )
         sources_seen: set[str] = set()
@@ -262,15 +269,14 @@ class EForeignReversalExpert:
         try:
             client, method = self._router.route(self.name, "naver_flows")
         except Exception as exc:
-            raise ExpertSkipError(
-                f"E_FOREIGN_REVERSAL: router error for {code}: {exc}"
-            ) from exc
+            raise ExpertSkipError(f"E_FOREIGN_REVERSAL: router error for {code}: {exc}") from exc
         cached = client.load_cached(code) if hasattr(client, "load_cached") else []
         if cached:
             return cached
         try:
             bars: list[KrFlowBar] = await getattr(client, method)(
-                code, max_pages=self._max_pages,
+                code,
+                max_pages=self._max_pages,
             )
         except Exception as exc:
             log.warning("e_foreign_reversal.fetch_failed", code=code, err=str(exc))
@@ -289,7 +295,11 @@ class EForeignReversalExpert:
 
 
 def _signal_from_score(
-    *, code: str, ts: datetime, score: ForeignReversalScore, snap_id: str,
+    *,
+    code: str,
+    ts: datetime,
+    score: ForeignReversalScore,
+    snap_id: str,
     extra_sources: tuple[str, ...] = ("naver",),
 ) -> ExpertSignal:
     direction = score.direction if score.direction in {"LONG", "SHORT", "NEUTRAL"} else "NEUTRAL"

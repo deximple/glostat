@@ -17,18 +17,24 @@ from glostat.phase1b.types import PhaseTradeRow
 
 def _row(day, score=2.0, direction="LONG", fwd=0.05, cost_passed=True):
     return PhaseTradeRow(
-        day=day, ticker="X",
-        score=score, direction=direction,
+        day=day,
+        ticker="X",
+        score=score,
+        direction=direction,
         edge_bps=abs(score) * 50.0,
-        cost_bps=2.52, cost_passed=cost_passed,
+        cost_bps=2.52,
+        cost_passed=cost_passed,
         actual_fwd_return=fwd,
     )
 
 
 def test_make_trade_row_cost_gate_passes_when_score_high():
     row = make_trade_row(
-        day=date(2024, 1, 1), ticker="X",
-        score=2.0, direction="LONG", actual_fwd_return=0.05,
+        day=date(2024, 1, 1),
+        ticker="X",
+        score=2.0,
+        direction="LONG",
+        actual_fwd_return=0.05,
     )
     assert row.cost_passed
     assert row.direction == "LONG"
@@ -37,8 +43,11 @@ def test_make_trade_row_cost_gate_passes_when_score_high():
 
 def test_make_trade_row_cost_gate_fails_when_score_tiny():
     row = make_trade_row(
-        day=date(2024, 1, 1), ticker="X",
-        score=0.01, direction="LONG", actual_fwd_return=0.05,
+        day=date(2024, 1, 1),
+        ticker="X",
+        score=0.01,
+        direction="LONG",
+        actual_fwd_return=0.05,
     )
     assert not row.cost_passed
     assert row.direction == "NEUTRAL"
@@ -59,10 +68,7 @@ def test_split_is_oos_handles_empty():
 
 
 def test_compute_metrics_pure_long_with_alpha():
-    rows = [
-        _row(date(2024, 1, d), score=2.0, fwd=0.01 + (d % 3) * 0.005)
-        for d in range(1, 21)
-    ]
+    rows = [_row(date(2024, 1, d), score=2.0, fwd=0.01 + (d % 3) * 0.005) for d in range(1, 21)]
     sharpe, auc, mdd = compute_metrics(rows, horizon_days=30)
     assert sharpe > 0  # consistent positive (varying) returns → positive Sharpe
     # All actual_fwd_return positive → labels all 1 → AUC degenerate fallback 0.5.
@@ -87,13 +93,13 @@ def test_compute_metrics_random_returns():
 
 def test_build_report_assembles_metrics():
     # Use mixed returns so std > 0 and Sharpe is non-zero.
-    rows = [
-        _row(date(2024, 1, d), score=2.0, fwd=0.005 + (d % 3) * 0.002)
-        for d in range(1, 21)
-    ]
+    rows = [_row(date(2024, 1, d), score=2.0, fwd=0.005 + (d % 3) * 0.002) for d in range(1, 21)]
     config = HindcastConfig(
-        expert="E_TEST", universe_size=1, n_signals_attempted=25,
-        n_signals_skipped=5, horizon_days=30,
+        expert="E_TEST",
+        universe_size=1,
+        n_signals_attempted=25,
+        n_signals_skipped=5,
+        horizon_days=30,
     )
     rep = build_report(rows, config)
     assert rep.expert == "E_TEST"

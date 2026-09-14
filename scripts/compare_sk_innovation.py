@@ -14,10 +14,12 @@ Usage:
 Honest reporting: if DART is not configured, the report says so and the L2
 column is omitted.
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import os
 import sys
 from datetime import UTC, datetime
@@ -60,7 +62,8 @@ async def _run(*, cal_table: CalibrationTable, with_dart: bool) -> Prediction:
     broker = SnapshotBroker(root=Path("cache") / "snapshots")
     yf = YFinanceClient(snapshot_broker=broker)
     sec_user_agent = os.environ.get(
-        "GLOSTAT_SEC_USER_AGENT", "GLOSTAT (deximple@gmail.com)",
+        "GLOSTAT_SEC_USER_AGENT",
+        "GLOSTAT (deximple@gmail.com)",
     )
     sec = SecEdgarClient(user_agent=sec_user_agent, snapshot_broker=broker)
     naver = NaverKrClient()
@@ -73,14 +76,15 @@ async def _run(*, cal_table: CalibrationTable, with_dart: bool) -> Prediction:
     fund_flow = EFundFlowExpert(router=router)
     fundamental_kr = EFundamentalKrExpert(router=router, enable_dart=with_dart)
     foreign_reversal = EForeignReversalExpert(
-        router=router, kospi200=KOSPI200_UNIVERSE,
+        router=router,
+        kospi200=KOSPI200_UNIVERSE,
     )
-    insider_kr = (
-        EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE) if with_dart else None
-    )
+    insider_kr = EInsiderKrExpert.from_env(kospi200=KOSPI200_UNIVERSE) if with_dart else None
     try:
         contribs = await collect_contributions(
-            ticker=_TICKER, ts=ts, cal_table=cal_table,
+            ticker=_TICKER,
+            ts=ts,
+            cal_table=cal_table,
             fundamental_expert=fundamental,
             time_expert=time_expert,
             fund_flow_expert=fund_flow,
@@ -91,15 +95,17 @@ async def _run(*, cal_table: CalibrationTable, with_dart: bool) -> Prediction:
     finally:
         await sec.aclose()
         if insider_kr is not None and insider_kr._dart is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await insider_kr._dart.aclose()
-            except Exception:
-                pass
         broker.close()
     market = "XKRX" if is_kr_ticker(_TICKER) else "XNAS"
     return predict(
-        ticker=_TICKER, horizon="swing_30d", contributions=contribs,
-        cal_table=cal_table, issued_at=ts, market=market,
+        ticker=_TICKER,
+        horizon="swing_30d",
+        contributions=contribs,
+        cal_table=cal_table,
+        issued_at=ts,
+        market=market,
     )
 
 
@@ -132,8 +138,12 @@ def _fmt_signal(p: Prediction) -> str:
 
 
 def _render_comparison(
-    *, v11: Prediction, v12: Prediction, v12_with_dart: Prediction | None,
-    cal_v11: CalibrationTable, cal_v12: CalibrationTable,
+    *,
+    v11: Prediction,
+    v12: Prediction,
+    v12_with_dart: Prediction | None,
+    cal_v11: CalibrationTable,
+    cal_v12: CalibrationTable,
 ) -> str:
     delta_p = (v12.up_probability - v11.up_probability) * 100
     delta_e = v12.edge_over_baseline_pp - v11.edge_over_baseline_pp
@@ -153,8 +163,7 @@ def _render_comparison(
         f"{v12.edge_over_baseline_pp:+.2f}pp | {delta_e:+.2f}pp |",
         f"| active signals | {v11.active_signal_count} | "
         f"{v12.active_signal_count} | {v12.active_signal_count - v11.active_signal_count:+d} |",
-        f"| total slots | {v11.total_signal_count} | "
-        f"{v12.total_signal_count} | – |",
+        f"| total slots | {v11.total_signal_count} | {v12.total_signal_count} | – |",
         "",
         "## v1.1 — Synthetic baseline (no phase_kr cache, no DART)",
         "",
@@ -170,30 +179,36 @@ def _render_comparison(
         "",
     ]
     if v12_with_dart is not None:
-        lines.extend([
-            "## v1.2 — phase_kr-calibrated + DART overlay",
-            "",
-            "```",
-            _fmt_signal(v12_with_dart),
-            "```",
-            "",
-        ])
+        lines.extend(
+            [
+                "## v1.2 — phase_kr-calibrated + DART overlay",
+                "",
+                "```",
+                _fmt_signal(v12_with_dart),
+                "```",
+                "",
+            ]
+        )
     else:
-        lines.extend([
-            "## v1.2 + DART overlay",
-            "",
-            "DART API key not configured — column omitted. Set "
-            "`GLOSTAT_DART_API_KEY` (free signup at https://opendart.fss.or.kr/) "
-            "to populate this column. See `docs/DART_API_SETUP.md`.",
-            "",
-        ])
+        lines.extend(
+            [
+                "## v1.2 + DART overlay",
+                "",
+                "DART API key not configured — column omitted. Set "
+                "`GLOSTAT_DART_API_KEY` (free signup at https://opendart.fss.or.kr/) "
+                "to populate this column. See `docs/DART_API_SETUP.md`.",
+                "",
+            ]
+        )
 
-    lines.extend([
-        "## Calibration table delta (KR-active theses)",
-        "",
-        "| thesis | v1.1 AUC | v1.1 n | v1.2 AUC | v1.2 n |",
-        "|---|---:|---:|---:|---:|",
-    ])
+    lines.extend(
+        [
+            "## Calibration table delta (KR-active theses)",
+            "",
+            "| thesis | v1.1 AUC | v1.1 n | v1.2 AUC | v1.2 n |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
     for name in ("E_FUNDAMENTAL_KR", "E_TIME_KR", "E_FOREIGN_REVERSAL", "E_INSIDER_KR"):
         a = cal_v11.entries.get(name)
         b = cal_v12.entries.get(name)
@@ -228,8 +243,11 @@ async def _main_async() -> int:
         print("\n>>> DART not configured — skipping L2 overlay run.")
 
     body = _render_comparison(
-        v11=v11, v12=v12, v12_with_dart=v12_dart,
-        cal_v11=cal_v11, cal_v12=cal_v12,
+        v11=v11,
+        v12=v12,
+        v12_with_dart=v12_dart,
+        cal_v11=cal_v11,
+        cal_v12=cal_v12,
     )
     _OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     _OUTPUT.write_text(body, encoding="utf-8")

@@ -21,9 +21,7 @@ from glostat.experts.e_macro_kr import (
 
 
 def _series(stat: str, item: str, cycle: str, values: list[float]) -> EcosSeries:
-    obs = tuple(
-        EcosObservation(stat, item, f"2026{i+1:02d}", v) for i, v in enumerate(values)
-    )
+    obs = tuple(EcosObservation(stat, item, f"2026{i + 1:02d}", v) for i, v in enumerate(values))
     return EcosSeries(stat_code=stat, item_code=item, cycle=cycle, observations=obs)
 
 
@@ -152,7 +150,10 @@ def test_macro_kr_score_confidence_range() -> None:
 class _StubEcos:
     def __init__(self, *, base, krw_usd, cpi, kospi) -> None:
         self._series = {
-            "base": base, "krw_usd": krw_usd, "cpi": cpi, "kospi": kospi,
+            "base": base,
+            "krw_usd": krw_usd,
+            "cpi": cpi,
+            "kospi": kospi,
         }
         self.last_snapshot_id = "stubsnap0000000000"
         self.calls: list[tuple[str, Any, Any]] = []
@@ -275,7 +276,10 @@ async def test_wrap_macro_kr_kosdaq_accepted() -> None:
     )
     expert = EMacroKrExpert(ecos_client=ecos)  # type: ignore[arg-type]
     contrib = await wrap_macro_kr(
-        expert, "035720", datetime(2026, 4, 1, tzinfo=UTC), cal,
+        expert,
+        "035720",
+        datetime(2026, 4, 1, tzinfo=UTC),
+        cal,
     )
     # 035720 (Kakao) is KOSPI but the universe gate is "any KR ticker", so accepted.
     assert contrib.direction != "skip"

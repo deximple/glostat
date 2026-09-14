@@ -56,7 +56,8 @@ def test_funding_carry_long_when_extreme_negative_z() -> None:
 def test_funding_carry_carry_band_emits_long_bias() -> None:
     # WHY: realistic-noise window so stddev > 0; without that the degenerate
     # pseudo-z kicks in and a tiny deviation reads as 5σ.
-    import random
+    import random  # noqa: PLC0415
+
     rng = random.Random(42)
     history = [0.0001 + rng.gauss(0.0, 0.00002) for _ in range(90)]
     history.append(0.0001)  # bang on the mean → z ~ 0
@@ -69,7 +70,8 @@ def test_funding_carry_carry_band_emits_long_bias() -> None:
 
 def test_build_verdict_cost_gate_blocks_low_edge() -> None:
     # 0.5 net_score × 25bps = 12.5bps; 1.5 × 6 = 9bps — passes cost gate barely
-    import random
+    import random  # noqa: PLC0415
+
     rng = random.Random(42)
     history = [0.0001 + rng.gauss(0.0, 0.00002) for _ in range(90)]
     history.append(0.0001)

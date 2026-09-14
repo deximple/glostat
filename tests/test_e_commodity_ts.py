@@ -18,7 +18,12 @@ from glostat.phase1b.price_cache import PriceCache
 def _bar(d: date, close: float) -> OhlcvBar:
     ts = datetime(d.year, d.month, d.day, tzinfo=UTC)
     return OhlcvBar(
-        ts=ts, open=close, high=close, low=close, close=close, volume=1000,
+        ts=ts,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=1000,
         adj_close=close,
     )
 
@@ -41,19 +46,19 @@ def _trend_series(
     return out
 
 
-def _patch_cache(
-    cache: PriceCache, mapping: dict[str, list[tuple[date, float]]]
-) -> None:
+def _patch_cache(cache: PriceCache, mapping: dict[str, list[tuple[date, float]]]) -> None:
     for t, closes in mapping.items():
         cache._mem[t.upper()] = _series(t, closes)
 
 
 def _empty_cache(tmp_path: Path) -> PriceCache:
-    from glostat.data.yfinance_client import YFinanceClient
+    from glostat.data.yfinance_client import YFinanceClient  # noqa: PLC0415
+
     broker = SnapshotBroker(root=tmp_path / "snap")
     yf = YFinanceClient(snapshot_broker=broker)
-    return PriceCache(client=yf, start=date(2023, 1, 1), end=date(2024, 12, 31),
-                      cache_dir=tmp_path / "ohlcv")
+    return PriceCache(
+        client=yf, start=date(2023, 1, 1), end=date(2024, 12, 31), cache_dir=tmp_path / "ohlcv"
+    )
 
 
 def test_universe_size_is_ten() -> None:
@@ -101,8 +106,7 @@ def test_ts_only_short_when_downtrend_and_no_cot(tmp_path: Path) -> None:
 def test_signal_amplifies_when_ts_and_cot_agree(tmp_path: Path) -> None:
     cache = _empty_cache(tmp_path)
     # USO uptrend + extreme commercial LONG (rank > 0.85).
-    _patch_cache(cache, {"USO": _trend_series(
-        "USO", date(2023, 1, 1), 600, 50.0, 0.002)})
+    _patch_cache(cache, {"USO": _trend_series("USO", date(2023, 1, 1), 600, 50.0, 0.002)})
 
     class _FakeCftc:
         last_snapshot_id = None
@@ -112,12 +116,14 @@ def test_signal_amplifies_when_ts_and_cot_agree(tmp_path: Path) -> None:
             base = date(2019, 1, 1)
             for i in range(260):
                 rec = CotRecord(
-                    contract="WTI_CRUDE", market_name="WTI",
+                    contract="WTI_CRUDE",
+                    market_name="WTI",
                     report_date=base + timedelta(weeks=i),
                     open_interest=1_000_000,
                     commercial_long=200_000 + i * 100,  # rising → latest rank ≈ 1.0
                     commercial_short=100_000,
-                    noncommercial_long=0, noncommercial_short=0,
+                    noncommercial_long=0,
+                    noncommercial_short=0,
                 )
                 recs.append(rec)
             return tuple(recs)
@@ -130,8 +136,7 @@ def test_signal_amplifies_when_ts_and_cot_agree(tmp_path: Path) -> None:
 
 def test_signal_collapses_when_ts_and_cot_disagree(tmp_path: Path) -> None:
     cache = _empty_cache(tmp_path)
-    _patch_cache(cache, {"USO": _trend_series(
-        "USO", date(2023, 1, 1), 600, 50.0, 0.002)})
+    _patch_cache(cache, {"USO": _trend_series("USO", date(2023, 1, 1), 600, 50.0, 0.002)})
 
     class _FakeCftcLowRank:
         last_snapshot_id = None
@@ -141,13 +146,15 @@ def test_signal_collapses_when_ts_and_cot_disagree(tmp_path: Path) -> None:
             recs: list[CotRecord] = []
             for i in range(260):
                 rec = CotRecord(
-                    contract="WTI_CRUDE", market_name="WTI",
+                    contract="WTI_CRUDE",
+                    market_name="WTI",
                     report_date=base + timedelta(weeks=i),
                     open_interest=1_000_000,
                     # Latest record has the SMALLEST commercial_long → rank 0.0.
                     commercial_long=200_000 - i * 100,
                     commercial_short=100_000,
-                    noncommercial_long=0, noncommercial_short=0,
+                    noncommercial_long=0,
+                    noncommercial_short=0,
                 )
                 recs.append(rec)
             return tuple(recs)

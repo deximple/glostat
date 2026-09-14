@@ -26,7 +26,7 @@ def test_safe_float_returns_none_on_garbage() -> None:
 
 
 def test_funding_rate_bar_immutable() -> None:
-    from datetime import UTC, datetime
+    from datetime import UTC, datetime  # noqa: PLC0415
 
     bar = FundingRateBar(ts=datetime(2025, 1, 1, tzinfo=UTC), funding_rate=0.0001)
     with pytest.raises((AttributeError, TypeError)):

@@ -111,8 +111,11 @@ def test_pead_signal_from_event_classifies_surprise():
     yf = object()  # not used by signal_from_event
     expert = EPeadExpert(yf_client=yf, start_date=date(2024, 1, 1), end_date=date(2024, 12, 31))
     pos = PeadEvent(
-        ticker="AAPL", earnings_date=date(2024, 5, 1),
-        actual_eps=2.0, estimate_eps=1.6, surprise_pct=0.25,
+        ticker="AAPL",
+        earnings_date=date(2024, 5, 1),
+        actual_eps=2.0,
+        estimate_eps=1.6,
+        surprise_pct=0.25,
     )
     sig = expert.signal_from_event(pos)
     assert sig.direction == "LONG"
@@ -120,16 +123,22 @@ def test_pead_signal_from_event_classifies_surprise():
     assert sig.day == date(2024, 5, 2)  # T+1, weekday
 
     neg = PeadEvent(
-        ticker="AAPL", earnings_date=date(2024, 5, 1),
-        actual_eps=1.0, estimate_eps=1.6, surprise_pct=-0.375,
+        ticker="AAPL",
+        earnings_date=date(2024, 5, 1),
+        actual_eps=1.0,
+        estimate_eps=1.6,
+        surprise_pct=-0.375,
     )
     sig = expert.signal_from_event(neg)
     assert sig.direction == "SHORT"
     assert sig.score < 0
 
     flat = PeadEvent(
-        ticker="AAPL", earnings_date=date(2024, 5, 1),
-        actual_eps=1.6, estimate_eps=1.6, surprise_pct=0.0,
+        ticker="AAPL",
+        earnings_date=date(2024, 5, 1),
+        actual_eps=1.6,
+        estimate_eps=1.6,
+        surprise_pct=0.0,
     )
     sig = expert.signal_from_event(flat)
     assert sig.direction == "NEUTRAL"
@@ -145,17 +154,23 @@ def test_pead_get_events_filters_window_and_zero_estimate():
                     EarningsEvent(
                         ticker=ticker,
                         earnings_date=datetime(2024, 5, 1, 12, tzinfo=UTC),
-                        eps_estimate=1.5, eps_actual=1.7, revenue_estimate=None,
+                        eps_estimate=1.5,
+                        eps_actual=1.7,
+                        revenue_estimate=None,
                     ),
                     EarningsEvent(
                         ticker=ticker,
                         earnings_date=datetime(2025, 5, 1, 12, tzinfo=UTC),
-                        eps_estimate=0.0, eps_actual=0.5, revenue_estimate=None,
+                        eps_estimate=0.0,
+                        eps_actual=0.5,
+                        revenue_estimate=None,
                     ),
                     EarningsEvent(
                         ticker=ticker,
                         earnings_date=datetime(2027, 5, 1, 12, tzinfo=UTC),
-                        eps_estimate=2.0, eps_actual=2.5, revenue_estimate=None,
+                        eps_estimate=2.0,
+                        eps_actual=2.5,
+                        revenue_estimate=None,
                     ),
                 ),
             )
@@ -173,8 +188,11 @@ def test_pead_get_events_filters_window_and_zero_estimate():
 
 def test_pead_entry_day_skips_weekend():
     ev = PeadEvent(
-        ticker="X", earnings_date=date(2024, 5, 3),  # Friday
-        actual_eps=1.0, estimate_eps=1.0, surprise_pct=0.1,
+        ticker="X",
+        earnings_date=date(2024, 5, 3),  # Friday
+        actual_eps=1.0,
+        estimate_eps=1.0,
+        surprise_pct=0.1,
     )
     # T+1 = Saturday → entry_day = Monday
     assert ev.entry_day == date(2024, 5, 6)
@@ -189,11 +207,13 @@ def test_fomc_drift_classifies_reaction():
     }
     cache = _FakeCache(closes=closes)
     expert = EFomcDriftExpert(
-        price_cache=cache, universe=("SPY",), fomc_dates=(date(2024, 3, 20),),
+        price_cache=cache,
+        universe=("SPY",),
+        fomc_dates=(date(2024, 3, 20),),
     )
     ev = asyncio.run(expert.compute_event("SPY", date(2024, 3, 20)))
     assert ev is not None
-    assert ev.direction == "LONG"   # +2% > threshold
+    assert ev.direction == "LONG"  # +2% > threshold
     assert ev.reaction_pct > 0
     assert ev.entry_day == date(2024, 3, 21)
 
@@ -202,7 +222,9 @@ def test_fomc_drift_returns_neutral_under_threshold():
     closes = {"SPY": {date(2024, 3, 19): 500.0, date(2024, 3, 20): 500.05}}
     cache = _FakeCache(closes=closes)
     expert = EFomcDriftExpert(
-        price_cache=cache, universe=("SPY",), fomc_dates=(date(2024, 3, 20),),
+        price_cache=cache,
+        universe=("SPY",),
+        fomc_dates=(date(2024, 3, 20),),
     )
     ev = asyncio.run(expert.compute_event("SPY", date(2024, 3, 20)))
     assert ev is not None
@@ -224,13 +246,25 @@ def test_insider_cluster_score_at_with_threshold_buyers():
     # Build expert manually-stocked transaction list — bypass async warm.
     expert = EInsiderClusterExpert(sec_client=None)
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", code="P", shares=100.0, price=10.0, value_usd=1000.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        code="P",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
     )
     expert._txn_cache["TEST"] = [
-        Form4Transaction(transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 12), reporter_name="C", reporter_cik="3", **base),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 12), reporter_name="C", reporter_cik="3", **base
+        ),
     ]
     s = expert.score_at("TEST", date(2024, 6, 14))
     assert s.cluster_buyers == 3
@@ -241,12 +275,22 @@ def test_insider_cluster_score_at_with_threshold_buyers():
 def test_insider_cluster_below_threshold_neutral():
     expert = EInsiderClusterExpert(sec_client=None)
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", code="P", shares=100.0, price=10.0, value_usd=1000.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        code="P",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
     )
     expert._txn_cache["TEST"] = [
-        Form4Transaction(transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base
+        ),
     ]
     s = expert.score_at("TEST", date(2024, 6, 14))
     assert s.cluster_buyers == 2
@@ -257,9 +301,15 @@ def test_insider_cluster_below_threshold_neutral():
 def test_insider_cluster_event_dates_filters_buys_only():
     expert = EInsiderClusterExpert(sec_client=None)
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", shares=100.0, price=10.0, value_usd=1000.0,
-        reporter_name="A", reporter_cik="1",
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
+        reporter_name="A",
+        reporter_cik="1",
     )
     expert._txn_cache["TEST"] = [
         Form4Transaction(transaction_date=date(2024, 6, 10), code="P", **base),

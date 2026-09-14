@@ -31,18 +31,29 @@ def _make_signal(
     n: int = 360,
 ) -> SignalContribution:
     return SignalContribution(
-        name=name, value=value, direction=direction,  # type: ignore[arg-type]
-        calibration_auc=auc, calibration_sharpe=0.5, n_samples=n,
+        name=name,
+        value=value,
+        direction=direction,  # type: ignore[arg-type]
+        calibration_auc=auc,
+        calibration_sharpe=0.5,
+        n_samples=n,
     )
 
 
 def _make_pred(
-    *, edge: float = 1.5, signals: tuple[SignalContribution, ...] | None = None,
+    *,
+    edge: float = 1.5,
+    signals: tuple[SignalContribution, ...] | None = None,
 ) -> Prediction:
     from datetime import UTC, date, datetime  # noqa: PLC0415
+
     return Prediction(
-        ticker="TEST", horizon="swing_30d", issued_at=datetime.now(tz=UTC),
-        up_probability=0.53, down_probability=0.32, sideways_probability=0.15,
+        ticker="TEST",
+        horizon="swing_30d",
+        issued_at=datetime.now(tz=UTC),
+        up_probability=0.53,
+        down_probability=0.32,
+        sideways_probability=0.15,
         expected_return_bps=42.0,
         confidence_interval_bps=(-40.0, 124.0),
         base_rate_up=0.52,
@@ -76,8 +87,12 @@ class TestHasSignificantSignal:
 
     def test_no_when_skip(self) -> None:
         skip_sig = SignalContribution(
-            name="X", value=None, direction="skip",
-            calibration_auc=0.54, calibration_sharpe=0.5, n_samples=360,
+            name="X",
+            value=None,
+            direction="skip",
+            calibration_auc=0.54,
+            calibration_sharpe=0.5,
+            n_samples=360,
             skip_reason="x",
         )
         pred = _make_pred(signals=(skip_sig,))
@@ -121,19 +136,25 @@ class TestApplyFilters:
 
 class TestTopActiveSignal:
     def test_picks_largest_abs_value(self) -> None:
-        pred = _make_pred(signals=(
-            _make_signal(name="A", value=0.5),
-            _make_signal(name="B", value=-2.0, direction="down"),
-            _make_signal(name="C", value=1.0),
-        ))
+        pred = _make_pred(
+            signals=(
+                _make_signal(name="A", value=0.5),
+                _make_signal(name="B", value=-2.0, direction="down"),
+                _make_signal(name="C", value=1.0),
+            )
+        )
         out = _top_active_signal(pred)
         assert "B" in out
         assert "v-2.00" in out
 
     def test_no_active_returns_placeholder(self) -> None:
         skip_sig = SignalContribution(
-            name="X", value=None, direction="skip",
-            calibration_auc=0.5, calibration_sharpe=0, n_samples=0,
+            name="X",
+            value=None,
+            direction="skip",
+            calibration_auc=0.5,
+            calibration_sharpe=0,
+            n_samples=0,
             skip_reason="x",
         )
         pred = _make_pred(signals=(skip_sig,))
@@ -147,7 +168,11 @@ class TestTopActiveSignal:
 def _run(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", _CLI_MODULE, *args],
-        cwd=cwd, capture_output=True, text=True, check=False, timeout=300,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
     )
 
 
@@ -168,9 +193,18 @@ class TestScanCli:
     def test_scan_universe_arg_recognized(self, workdir: Path) -> None:
         # Just check argparse accepts the universe name. Not running live
         # network — would take too long for unit tests.
-        r = _run("scan", "--universe", "KR_KOSDAQ150_TOP30",
-                 "--top", "1", "--max-concurrent", "1",
-                 "--horizon", "swing_5d", cwd=workdir)
+        r = _run(
+            "scan",
+            "--universe",
+            "KR_KOSDAQ150_TOP30",
+            "--top",
+            "1",
+            "--max-concurrent",
+            "1",
+            "--horizon",
+            "swing_5d",
+            cwd=workdir,
+        )
         # Either 0 (network success on at least one ticker) or non-zero
         # (network failure on all) — both prove argparse parsing is OK.
         # We don't assert on returncode because CI may have no network.

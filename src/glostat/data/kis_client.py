@@ -20,8 +20,8 @@ import structlog
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-from glostat.core.errors import GlostatError
-from glostat.data.snapshot_broker import SnapshotBroker, SnapshotKey
+from glostat.core.errors import GlostatError  # noqa: E402
+from glostat.data.snapshot_broker import SnapshotBroker, SnapshotKey  # noqa: E402
 
 # v1.4 N1 — KIS Open API REST client (read-only paths only).
 # Source: https://apiportal.koreainvestment.com/
@@ -70,7 +70,9 @@ class KisApiError(GlostatError):
 
 
 def _resolve_credentials(
-    *, app_key: str | None = None, app_secret: str | None = None,
+    *,
+    app_key: str | None = None,
+    app_secret: str | None = None,
 ) -> tuple[str, str]:
     key = app_key or os.environ.get("GLOSTAT_KIS_APP_KEY")
     secret = app_secret or os.environ.get("GLOSTAT_KIS_APP_SECRET")
@@ -90,10 +92,10 @@ def is_kis_configured() -> bool:
 class KisIntradayFlow:
     code: str
     snapped_at: datetime
-    foreign_net: float           # 외국인 순매수 (shares; negative = net sell)
-    institutional_net: float     # 기관 순매수
-    individual_net: float        # 개인 순매수
-    pgm_net: float = 0.0         # 프로그램 순매수 (when available)
+    foreign_net: float  # 외국인 순매수 (shares; negative = net sell)
+    institutional_net: float  # 기관 순매수
+    individual_net: float  # 개인 순매수
+    pgm_net: float = 0.0  # 프로그램 순매수 (when available)
     source: str = "kis"
 
 
@@ -101,7 +103,7 @@ class KisIntradayFlow:
 class KisDailySummary:
     code: str
     bar_date: date
-    foreign_net_won: float       # 외국인 순매수 (KRW)
+    foreign_net_won: float  # 외국인 순매수 (KRW)
     institutional_net_won: float
     individual_net_won: float
     source: str = "kis"
@@ -148,7 +150,8 @@ class KisClient:
         paper: bool = False,
     ) -> None:
         self._app_key, self._app_secret = _resolve_credentials(
-            app_key=app_key, app_secret=app_secret,
+            app_key=app_key,
+            app_secret=app_secret,
         )
         self._client = client or httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT)
         self._broker = snapshot_broker
@@ -185,7 +188,8 @@ class KisClient:
             }
             try:
                 resp = await self._client.post(
-                    self._base_url + _OAUTH_PATH, json=payload,
+                    self._base_url + _OAUTH_PATH,
+                    json=payload,
                 )
                 resp.raise_for_status()
             except httpx.HTTPError as exc:
@@ -197,9 +201,7 @@ class KisClient:
             token = data.get("access_token")
             ttl = int(data.get("expires_in", 0) or 0)
             if not token or ttl <= 0:
-                raise KisApiError(
-                    f"KIS token response missing fields: keys={list(data)}"
-                )
+                raise KisApiError(f"KIS token response missing fields: keys={list(data)}")
             self._access_token = str(token)
             self._token_expires_at = now + max(60, ttl - _TOKEN_REFRESH_MARGIN_S)
             return self._access_token
@@ -275,7 +277,11 @@ class KisClient:
     # ── http + snapshot helpers ──────────────────────────────────────────
 
     async def _get_json(
-        self, url: str, token: str, tr_id: str, params: Mapping[str, str],
+        self,
+        url: str,
+        token: str,
+        tr_id: str,
+        params: Mapping[str, str],
     ) -> dict[str, Any]:
         headers = {
             "content-type": "application/json; charset=utf-8",
@@ -301,14 +307,23 @@ class KisClient:
         return data
 
     def _record_snapshot(
-        self, *, tool: str, uaid: str, edge_type: str, ts: datetime,
-        params: dict[str, Any], payload: dict[str, Any],
+        self,
+        *,
+        tool: str,
+        uaid: str,
+        edge_type: str,
+        ts: datetime,
+        params: dict[str, Any],
+        payload: dict[str, Any],
     ) -> None:
         if self._broker is None:
             return
         try:
             key = SnapshotKey(
-                uaid=uaid, edge_type=edge_type, ts_utc=ts, tool=tool,
+                uaid=uaid,
+                edge_type=edge_type,
+                ts_utc=ts,
+                tool=tool,
                 params_canon=json.dumps(params, sort_keys=True, separators=(",", ":")),
             )
             record = self._broker.save_snapshot(key, payload)
@@ -322,9 +337,7 @@ def _normalize_code(ticker: str) -> str:
     if t.endswith(".KS") or t.endswith(".KQ"):
         t = t[:-3]
     if not (len(t) == 6 and t.isdigit()):
-        raise KisApiError(
-            f"KIS expects 6-digit KRX code, got {ticker!r}"
-        )
+        raise KisApiError(f"KIS expects 6-digit KRX code, got {ticker!r}")
     return t
 
 

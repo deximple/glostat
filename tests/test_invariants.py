@@ -44,7 +44,7 @@ _FIXED_NOW = datetime(2026, 4, 28, 14, 30, tzinfo=UTC)
 
 def _signal(expert: str = "E_FUNDAMENTAL", ticker: str = "AAPL") -> ExpertSignal:
     return ExpertSignal(
-        expert_name=expert,            # type: ignore[arg-type]
+        expert_name=expert,  # type: ignore[arg-type]
         ticker=ticker,
         direction="LONG",
         net_score=1.2,
@@ -56,12 +56,10 @@ def _signal(expert: str = "E_FUNDAMENTAL", ticker: str = "AAPL") -> ExpertSignal
     )
 
 
-def _verdict(
-    *, action: str = "BUY", cost_passed: bool = True, ticker: str = "AAPL"
-) -> Verdict:
+def _verdict(*, action: str = "BUY", cost_passed: bool = True, ticker: str = "AAPL") -> Verdict:
     return Verdict(
         ticker=ticker,
-        action=action,                 # type: ignore[arg-type]
+        action=action,  # type: ignore[arg-type]
         conviction_w=2.1,
         target_price=240.0,
         stop_price=210.0,
@@ -176,8 +174,10 @@ def test_inv_gs_024_personal_use_assertion() -> None:
     assert_personal_use(personal)  # no exception
 
     commercial = ComplianceContext(
-        user_profile_hash="e" * 64, jurisdiction="KR",
-        personal_use_only=False, license_tier="commercial",
+        user_profile_hash="e" * 64,
+        jurisdiction="KR",
+        personal_use_only=False,
+        license_tier="commercial",
     )
     with pytest.raises(ComplianceError, match="INV-GS-024"):
         assert_personal_use(commercial)
@@ -186,7 +186,7 @@ def test_inv_gs_024_personal_use_assertion() -> None:
 @pytest.mark.invariant
 def test_inv_gs_024_disclaimer_per_jurisdiction() -> None:
     for jx in ("KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"):
-        tmpl = disclaimer_for(jx)             # type: ignore[arg-type]
+        tmpl = disclaimer_for(jx)  # type: ignore[arg-type]
         rendered = tmpl.render(ticker="AAPL", action="BUY", issued_at="2026-04-28T14:30:00Z")
         assert "GLOSTAT" in rendered
         assert "INV-GS-024" in rendered
@@ -329,6 +329,7 @@ def test_version_string() -> None:
     # WHY: pinned smoke test that the public __version__ tracks the
     # pyproject.toml `version` field. Bump both together; tests/test_pyproject_version.py
     # asserts the cross-file equality so this single string stays current.
-    assert __version__ == "2.0.1"
+    assert __version__ == "2.0.2"
+
 
 # v0.6 INV-GS-036..040 live in tests/test_invariants_v06.py to keep this file ≤ 400 lines.

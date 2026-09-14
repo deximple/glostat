@@ -82,25 +82,46 @@ def test_parse_form4_xml_extracts_buys_and_sells():
 
 def test_parse_form4_xml_handles_garbage():
     assert parse_form4_xml("", issuer_cik="x", accession="y", filed_at=date(2024, 1, 1)) == []
-    assert parse_form4_xml("not xml", issuer_cik="x", accession="y", filed_at=date(2024, 1, 1)) == []
-    assert parse_form4_xml(
-        "<bad><unclosed>",
-        issuer_cik="x", accession="y", filed_at=date(2024, 1, 1),
-    ) == []
+    assert (
+        parse_form4_xml("not xml", issuer_cik="x", accession="y", filed_at=date(2024, 1, 1)) == []
+    )
+    assert (
+        parse_form4_xml(
+            "<bad><unclosed>",
+            issuer_cik="x",
+            accession="y",
+            filed_at=date(2024, 1, 1),
+        )
+        == []
+    )
 
 
 def test_cluster_buy_count_unique_reporters():
     from glostat.data.sec_edgar_form4 import Form4Transaction
 
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", code="P", shares=100.0, price=10.0, value_usd=1000.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        code="P",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
     )
     txns = [
-        Form4Transaction(transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 12), reporter_name="A", reporter_cik="1", **base),
-        Form4Transaction(transaction_date=date(2024, 6, 13), reporter_name="C", reporter_cik="3", **base),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 10), reporter_name="A", reporter_cik="1", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 11), reporter_name="B", reporter_cik="2", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 12), reporter_name="A", reporter_cik="1", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 13), reporter_name="C", reporter_cik="3", **base
+        ),
     ]
     assert cluster_buy_count(txns, window_end=date(2024, 6, 14), window_days=14) == 3
     assert cluster_buy_count(txns, window_end=date(2024, 5, 14), window_days=14) == 0
@@ -110,9 +131,14 @@ def test_cluster_buy_value_sums_only_buys_in_window():
     from glostat.data.sec_edgar_form4 import Form4Transaction
 
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", reporter_name="A", reporter_cik="1",
-        shares=100.0, price=10.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        reporter_name="A",
+        reporter_cik="1",
+        shares=100.0,
+        price=10.0,
     )
     txns = [
         Form4Transaction(transaction_date=date(2024, 6, 10), code="P", value_usd=1000.0, **base),
@@ -128,11 +154,21 @@ def test_cluster_buy_count_window_size(days_back, expected):
     from glostat.data.sec_edgar_form4 import Form4Transaction
 
     base = dict(
-        issuer_cik="x", accession="a", filed_at=date(2024, 6, 1),
-        reporter_role="Director", code="P", shares=100.0, price=10.0, value_usd=1000.0,
+        issuer_cik="x",
+        accession="a",
+        filed_at=date(2024, 6, 1),
+        reporter_role="Director",
+        code="P",
+        shares=100.0,
+        price=10.0,
+        value_usd=1000.0,
     )
     txns = [
-        Form4Transaction(transaction_date=date(2024, 6, 5), reporter_name="A", reporter_cik="1", **base),
-        Form4Transaction(transaction_date=date(2024, 5, 25), reporter_name="B", reporter_cik="2", **base),
+        Form4Transaction(
+            transaction_date=date(2024, 6, 5), reporter_name="A", reporter_cik="1", **base
+        ),
+        Form4Transaction(
+            transaction_date=date(2024, 5, 25), reporter_name="B", reporter_cik="2", **base
+        ),
     ]
     assert cluster_buy_count(txns, window_end=date(2024, 6, 6), window_days=days_back) == expected

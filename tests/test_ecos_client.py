@@ -92,7 +92,9 @@ def test_observation_period_date_garbage_returns_none() -> None:
 
 def test_series_latest_and_n_valid() -> None:
     series = EcosSeries(
-        stat_code="722Y001", item_code="0101000", cycle="M",
+        stat_code="722Y001",
+        item_code="0101000",
+        cycle="M",
         observations=(
             EcosObservation("722Y001", "0101000", "202601", 3.00),
             EcosObservation("722Y001", "0101000", "202602", 2.75),
@@ -109,8 +111,13 @@ def test_series_latest_and_n_valid() -> None:
 
 
 def test_row_to_observation_basic() -> None:
-    row = {"STAT_CODE": "722Y001", "ITEM_CODE1": "0101000",
-           "TIME": "202601", "DATA_VALUE": "3.00", "UNIT_NAME": "연%"}
+    row = {
+        "STAT_CODE": "722Y001",
+        "ITEM_CODE1": "0101000",
+        "TIME": "202601",
+        "DATA_VALUE": "3.00",
+        "UNIT_NAME": "연%",
+    }
     obs = _row_to_observation(row, "722Y001", "0101000")
     assert obs is not None
     assert obs.value == 3.0
@@ -119,16 +126,20 @@ def test_row_to_observation_basic() -> None:
 
 
 def test_row_to_observation_dash_value() -> None:
-    row = {"STAT_CODE": "x", "ITEM_CODE1": "y", "TIME": "202601",
-           "DATA_VALUE": "-", "UNIT_NAME": ""}
+    row = {
+        "STAT_CODE": "x",
+        "ITEM_CODE1": "y",
+        "TIME": "202601",
+        "DATA_VALUE": "-",
+        "UNIT_NAME": "",
+    }
     obs = _row_to_observation(row, "x", "y")
     assert obs is not None
     assert obs.value is None
 
 
 def test_row_to_observation_missing_period_returns_none() -> None:
-    row = {"STAT_CODE": "x", "ITEM_CODE1": "y", "TIME": "",
-           "DATA_VALUE": "1.0"}
+    row = {"STAT_CODE": "x", "ITEM_CODE1": "y", "TIME": "", "DATA_VALUE": "1.0"}
     assert _row_to_observation(row, "x", "y") is None
 
 
@@ -140,21 +151,40 @@ async def test_get_statistic_mocked(monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_ECOS_API_KEY", "k1")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"StatisticSearch": {
-            "list_total_count": 2,
-            "row": [
-                {"STAT_CODE": "722Y001", "ITEM_CODE1": "0101000",
-                 "TIME": "202601", "DATA_VALUE": "3.00", "UNIT_NAME": "연%"},
-                {"STAT_CODE": "722Y001", "ITEM_CODE1": "0101000",
-                 "TIME": "202602", "DATA_VALUE": "2.75", "UNIT_NAME": "연%"},
-            ],
-        }})
+        return httpx.Response(
+            200,
+            json={
+                "StatisticSearch": {
+                    "list_total_count": 2,
+                    "row": [
+                        {
+                            "STAT_CODE": "722Y001",
+                            "ITEM_CODE1": "0101000",
+                            "TIME": "202601",
+                            "DATA_VALUE": "3.00",
+                            "UNIT_NAME": "연%",
+                        },
+                        {
+                            "STAT_CODE": "722Y001",
+                            "ITEM_CODE1": "0101000",
+                            "TIME": "202602",
+                            "DATA_VALUE": "2.75",
+                            "UNIT_NAME": "연%",
+                        },
+                    ],
+                }
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
         client = EcosClient(client=raw)
         s = await client.get_statistic(
-            "722Y001", "0101000", date(2026, 1, 1), date(2026, 2, 28), cycle="M",
+            "722Y001",
+            "0101000",
+            date(2026, 1, 1),
+            date(2026, 2, 28),
+            cycle="M",
         )
     assert s.n_valid() == 2
     assert s.values() == (3.00, 2.75)
@@ -200,8 +230,7 @@ async def test_ecos_no_data_returns_empty_series(monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_ECOS_API_KEY", "k1")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"RESULT": {"CODE": "INFO-200",
-                                                    "MESSAGE": "no data"}})
+        return httpx.Response(200, json={"RESULT": {"CODE": "INFO-200", "MESSAGE": "no data"}})
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
@@ -215,9 +244,15 @@ async def test_ecos_invalid_key_raises(monkeypatch) -> None:
     monkeypatch.setenv("GLOSTAT_ECOS_API_KEY", "k1")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"RESULT": {
-            "CODE": "INFO-100", "MESSAGE": "인증키 오류",
-        }})
+        return httpx.Response(
+            200,
+            json={
+                "RESULT": {
+                    "CODE": "INFO-100",
+                    "MESSAGE": "인증키 오류",
+                }
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as raw:
@@ -248,11 +283,24 @@ async def test_ecos_snapshot_broker_recorded(monkeypatch, tmp_path) -> None:
 
     broker = SnapshotBroker(root=tmp_path / "snaps")
     try:
+
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(200, json={"StatisticSearch": {"row": [
-                {"STAT_CODE": "722Y001", "ITEM_CODE1": "0101000",
-                 "TIME": "202601", "DATA_VALUE": "3.00", "UNIT_NAME": "연%"},
-            ]}})
+            return httpx.Response(
+                200,
+                json={
+                    "StatisticSearch": {
+                        "row": [
+                            {
+                                "STAT_CODE": "722Y001",
+                                "ITEM_CODE1": "0101000",
+                                "TIME": "202601",
+                                "DATA_VALUE": "3.00",
+                                "UNIT_NAME": "연%",
+                            },
+                        ]
+                    }
+                },
+            )
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as raw:

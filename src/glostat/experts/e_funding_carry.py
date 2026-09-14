@@ -29,9 +29,9 @@ class FundingCarryScore:
     rolling_std: float
     z_score: float
     pattern: str
-    direction: str        # LONG / SHORT / NEUTRAL
-    net_score: float      # [-3, +3]
-    confidence: float     # [0, 1]
+    direction: str  # LONG / SHORT / NEUTRAL
+    net_score: float  # [-3, +3]
+    confidence: float  # [0, 1]
 
     @property
     def is_skip(self) -> bool:
@@ -95,11 +95,8 @@ def score_funding_rate(
         # is still informative — synthesize a hard pseudo-z based on relative scale
         # so calm-market regime breaks still classify correctly.
         delta = rate - mean
-        if abs(delta) < max(1e-9, abs(mean) * 0.01):
-            z = 0.0
-        else:
-            # 5σ-equivalent in the direction of the deviation
-            z = 5.0 if delta > 0 else -5.0
+        # 5σ-equivalent in the direction of the deviation when it clears the floor
+        z = 0.0 if abs(delta) < max(1e-9, abs(mean) * 0.01) else 5.0 if delta > 0 else -5.0
     pattern, direction, net = _classify_z(z)
     confidence = min(1.0, abs(net) / 3.0)
     return FundingCarryScore(
@@ -122,7 +119,7 @@ class FundingCarryVerdict:
     edge_bps: float
     all_in_bps: float
     cost_passed: bool
-    action: str            # BUY / SELL / HOLD
+    action: str  # BUY / SELL / HOLD
     horizon_bars: int
 
 

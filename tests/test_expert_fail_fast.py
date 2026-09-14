@@ -35,11 +35,16 @@ def _blank_fixture(ticker: str = "BLANK") -> dict[str, Any]:
         "ticker": ticker,
         "fundamentals": {
             "ticker": ticker,
-            "pe_ratio": None, "forward_pe": None,
-            "eps": None, "forward_eps": None,
-            "roe": None, "market_cap": None,
-            "dividend_yield": None, "beta": None,
-            "fifty_two_week_high": None, "fifty_two_week_low": None,
+            "pe_ratio": None,
+            "forward_pe": None,
+            "eps": None,
+            "forward_eps": None,
+            "roe": None,
+            "market_cap": None,
+            "dividend_yield": None,
+            "beta": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
         },
         "company_facts": {"cik": "0000000000", "entity_name": "Blank Co", "facts": []},
         "ohlcv": [],
@@ -79,8 +84,14 @@ def test_e_fundamental_with_only_forward_pe_does_not_skip(tmp_path: Path) -> Non
 def test_e_time_short_ohlcv_raises_skip(tmp_path: Path) -> None:
     fixture = _blank_fixture()
     fixture["ohlcv"] = [
-        {"ts": f"2026-04-{(i % 28) + 1:02d}", "open": 100.0, "high": 101.0,
-         "low": 99.0, "close": 100.0, "volume": 1_000_000}
+        {
+            "ts": f"2026-04-{(i % 28) + 1:02d}",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.0,
+            "volume": 1_000_000,
+        }
         for i in range(50)
     ]
     broker = SnapshotBroker(root=tmp_path / "snap")
@@ -106,11 +117,16 @@ def test_e_time_no_convergence_returns_neutral_signal(tmp_path: Path) -> None:
         # Strictly decreasing toward the present → anchor = end (most recent).
         # end + 65 bdays = far future, all bases miss today.
         price = 200.0 - (i * 0.1)
-        bars.append({
-            "ts": d.isoformat(),
-            "open": price, "high": price, "low": price, "close": price,
-            "volume": 1_000_000,
-        })
+        bars.append(
+            {
+                "ts": d.isoformat(),
+                "open": price,
+                "high": price,
+                "low": price,
+                "close": price,
+                "volume": 1_000_000,
+            }
+        )
     fixture["ohlcv"] = bars
     fixture["earnings_calendar"] = {"ticker": "BLANK", "upcoming": []}
     broker = SnapshotBroker(root=tmp_path / "snap")
