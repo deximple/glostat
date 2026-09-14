@@ -58,16 +58,22 @@ async def run_all_theses(
 
     log.info("phase1b.start_pead", n_universe=len(sp500_universe))
     pead = await run_pead_hindcast(
-        universe=sp500_universe, yf_client=yf_client, cache=cache,
-        start=start, end=end,
+        universe=sp500_universe,
+        yf_client=yf_client,
+        cache=cache,
+        start=start,
+        end=end,
     )
     results["E_PEAD"] = (pead, _gate(pead))
     _persist(out_dir, pead, results["E_PEAD"][1])
 
     log.info("phase1b.start_insider_cluster", n_universe=len(russell_universe))
     insider = await run_insider_cluster_hindcast(
-        universe_with_cik=russell_universe, sec_client=sec_client, cache=cache,
-        start=start, end=end,
+        universe_with_cik=russell_universe,
+        sec_client=sec_client,
+        cache=cache,
+        start=start,
+        end=end,
     )
     results["E_INSIDER_CLUSTER"] = (insider, _gate(insider))
     _persist(out_dir, insider, results["E_INSIDER_CLUSTER"][1])
@@ -89,9 +95,7 @@ def _gate(report: PhaseHindcastReport) -> Sprint4Gate:
     )
 
 
-def _persist(
-    out_dir: Path, report: PhaseHindcastReport, gate: Sprint4Gate
-) -> None:
+def _persist(out_dir: Path, report: PhaseHindcastReport, gate: Sprint4Gate) -> None:
     payload = {
         "report": _report_to_dict(report),
         "gate": gate.to_dict(),
@@ -103,9 +107,7 @@ def _persist(
 
 def _report_to_dict(report: PhaseHindcastReport) -> dict:
     d = asdict(report)
-    d["rows"] = [
-        {**asdict(r), "day": r.day.isoformat()} for r in report.rows[:200]
-    ]
+    d["rows"] = [{**asdict(r), "day": r.day.isoformat()} for r in report.rows[:200]]
     d["sample_dates"] = [dt.isoformat() for dt in report.sample_dates]
     if report.timestamp is not None:
         d["timestamp"] = report.timestamp.isoformat()
@@ -167,20 +169,17 @@ def render_comparison_md(
     lines.append("")
     lines.append(f"> Generated: {now}")
     lines.append(f"> Window: {start.isoformat()} → {end.isoformat()}")
-    lines.append(
-        "> Empirical hindcast of 4 free-stack equity alpha theses on US equities."
-    )
+    lines.append("> Empirical hindcast of 4 free-stack equity alpha theses on US equities.")
     lines.append("")
     lines.append("## Comparative gate table")
     lines.append("")
-    lines.append(
-        "| Thesis | Sharpe | AUC | OOS deg | cost_passed | skip | n_signals | Gate |"
-    )
-    lines.append(
-        "|--------|-------:|----:|--------:|------------:|-----:|----------:|------|"
-    )
+    lines.append("| Thesis | Sharpe | AUC | OOS deg | cost_passed | skip | n_signals | Gate |")
+    lines.append("|--------|-------:|----:|--------:|------------:|-----:|----------:|------|")
     for expert in (
-        "E_SECTOR_ROTATION", "E_PEAD", "E_FOMC_DRIFT", "E_INSIDER_CLUSTER",
+        "E_SECTOR_ROTATION",
+        "E_PEAD",
+        "E_FOMC_DRIFT",
+        "E_INSIDER_CLUSTER",
     ):
         if expert not in results:
             continue
@@ -203,7 +202,9 @@ def render_comparison_md(
         lines.append("")
         lines.append(f"- universe_size: **{rep.universe_size}**")
         lines.append(f"- n_signals: **{rep.n_signals}** (n_trades={rep.n_trades})")
-        lines.append(f"- n_skipped: **{rep.n_skipped}** (skip_pct={rep.expert_skip_pct * 100:.2f}%)")
+        lines.append(
+            f"- n_skipped: **{rep.n_skipped}** (skip_pct={rep.expert_skip_pct * 100:.2f}%)"
+        )
         lines.append(
             f"- IS Sharpe: {rep.is_sharpe:.4f}  |  OOS Sharpe: {rep.oos_sharpe:.4f}  "
             f"|  Overall: {rep.overall_sharpe:.4f}"

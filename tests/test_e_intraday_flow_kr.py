@@ -17,9 +17,13 @@ from glostat.experts.e_intraday_flow_kr import (
 
 def _bar(d: date, foreign: float, organ: float = 0.0) -> KrFlowBar:
     return KrFlowBar(
-        code="005930", bar_date=d, close_price=70000.0,
-        organ_net=organ, foreign_net=foreign,
-        foreign_holdings=0.0, foreign_hold_pct=0.0,
+        code="005930",
+        bar_date=d,
+        close_price=70000.0,
+        organ_net=organ,
+        foreign_net=foreign,
+        foreign_holdings=0.0,
+        foreign_hold_pct=0.0,
     )
 
 
@@ -101,8 +105,11 @@ def test_score_neutral_when_one_bar() -> None:
 def test_score_kis_promotes_to_sources() -> None:
     bars = [_bar(date(2026, 4, i), 1000, organ=200) for i in range(1, 6)]
     kis = KisIntradayFlow(
-        code="005930", snapped_at=datetime(2026, 4, 6, tzinfo=UTC),
-        foreign_net=2500, institutional_net=400, individual_net=-100,
+        code="005930",
+        snapped_at=datetime(2026, 4, 6, tzinfo=UTC),
+        foreign_net=2500,
+        institutional_net=400,
+        individual_net=-100,
     )
     score = score_intraday_flow(code="005930", naver_bars=bars, kis_intraday=kis)
     assert "kis" in score.sources
@@ -117,9 +124,16 @@ def test_score_clipped_at_three() -> None:
 
 def test_intraday_flow_score_confidence_range() -> None:
     s = IntradayFlowScore(
-        code="005930", foreign_recent_avg=100, foreign_acceleration=0.4,
-        organ_recent_avg=50, foreign_leads_organ=True, raw_score=1.5, net_score=1.5,
-        direction="LONG", signal="FLOW_IMPROVING", sources=("naver",),
+        code="005930",
+        foreign_recent_avg=100,
+        foreign_acceleration=0.4,
+        organ_recent_avg=50,
+        foreign_leads_organ=True,
+        raw_score=1.5,
+        net_score=1.5,
+        direction="LONG",
+        signal="FLOW_IMPROVING",
+        sources=("naver",),
     )
     assert 0.0 <= s.confidence <= 1.0
 
@@ -153,7 +167,8 @@ class _StubKis:
 @pytest.mark.asyncio
 async def test_expert_skips_when_naver_not_configured() -> None:
     expert = EIntradayFlowKrExpert(
-        naver_client=None, kospi200=frozenset({"005930"}),
+        naver_client=None,
+        kospi200=frozenset({"005930"}),
     )
     with pytest.raises(ExpertSkipError):
         await expert.compute("005930", datetime.now(tz=UTC))
@@ -212,8 +227,11 @@ async def test_expert_uses_kis_overlay_when_provided() -> None:
     bars = [_bar(date(2026, 4, i), 100, organ=10) for i in range(1, 5)]
     naver = _StubNaver(bars)
     snap = KisIntradayFlow(
-        code="005930", snapped_at=datetime(2026, 4, 5, tzinfo=UTC),
-        foreign_net=5000, institutional_net=200, individual_net=-100,
+        code="005930",
+        snapped_at=datetime(2026, 4, 5, tzinfo=UTC),
+        foreign_net=5000,
+        institutional_net=200,
+        individual_net=-100,
     )
     kis = _StubKis(snap)
     expert = EIntradayFlowKrExpert(

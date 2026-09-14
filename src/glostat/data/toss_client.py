@@ -60,7 +60,10 @@ class TossClient:
         return self.cache_path(code).exists()
 
     def load_investor_trend(
-        self, code: str, *, days_back: int | None = None,
+        self,
+        code: str,
+        *,
+        days_back: int | None = None,
     ) -> list[TossInvestorBar]:
         path = self.cache_path(code)
         if not path.exists():
@@ -78,14 +81,16 @@ class TossClient:
             bd = _coerce_date(r.get("bar_date"))
             if bd is None:
                 continue
-            bars.append(TossInvestorBar(
-                bar_date=bd,
-                ticker=str(r.get("ticker", code)),
-                foreign_net_won=float(r.get("foreign_net_won", 0) or 0),
-                institutional_net_won=float(r.get("institutional_net_won", 0) or 0),
-                retail_net_won=float(r.get("retail_net_won", 0) or 0),
-                source=str(r.get("source", "toss")),
-            ))
+            bars.append(
+                TossInvestorBar(
+                    bar_date=bd,
+                    ticker=str(r.get("ticker", code)),
+                    foreign_net_won=float(r.get("foreign_net_won", 0) or 0),
+                    institutional_net_won=float(r.get("institutional_net_won", 0) or 0),
+                    retail_net_won=float(r.get("retail_net_won", 0) or 0),
+                    source=str(r.get("source", "toss")),
+                )
+            )
         bars.sort(key=lambda b: b.bar_date)
         if days_back is not None and bars:
             cutoff = bars[-1].bar_date.toordinal() - days_back
@@ -103,14 +108,17 @@ class TossClient:
             import pyarrow as pa  # noqa: PLC0415
             import pyarrow.parquet as pq  # noqa: PLC0415
 
-            payload = [{
-                "bar_date": b.bar_date.isoformat(),
-                "ticker": b.ticker,
-                "foreign_net_won": b.foreign_net_won,
-                "institutional_net_won": b.institutional_net_won,
-                "retail_net_won": b.retail_net_won,
-                "source": b.source,
-            } for b in sorted(bars, key=lambda x: x.bar_date)]
+            payload = [
+                {
+                    "bar_date": b.bar_date.isoformat(),
+                    "ticker": b.ticker,
+                    "foreign_net_won": b.foreign_net_won,
+                    "institutional_net_won": b.institutional_net_won,
+                    "retail_net_won": b.retail_net_won,
+                    "source": b.source,
+                }
+                for b in sorted(bars, key=lambda x: x.bar_date)
+            ]
             table = pa.Table.from_pylist(payload)
             tmp = path.with_suffix(path.suffix + ".tmp")
             pq.write_table(table, tmp, compression="zstd")

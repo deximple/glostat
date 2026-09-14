@@ -61,7 +61,9 @@ def make_sector_resolver(sec_client: SecEdgarClient) -> Any:
     async def resolver(ticker: str) -> str:
         try:
             sic = await resolve_sic_via_sec(
-                ticker, sec_client=sec_client, submissions_fetcher=submissions_fetcher,
+                ticker,
+                sec_client=sec_client,
+                submissions_fetcher=submissions_fetcher,
             )
         except Exception:
             return "UNKNOWN"
@@ -81,7 +83,9 @@ async def _build_async(
         sector = "UNKNOWN"
         try:
             sic = await resolve_sic_via_sec(
-                ticker, sec_client=sec_client, submissions_fetcher=submissions_fetcher,
+                ticker,
+                sec_client=sec_client,
+                submissions_fetcher=submissions_fetcher,
             )
             sector = sic_to_gics(sic)
         except Exception as exc:
@@ -101,6 +105,7 @@ def _make_submissions_fetcher(sec_client: SecEdgarClient) -> Any:
         cik_padded = cik.zfill(10)
         url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
         return await sec_client._get_json(url)
+
     return fetch
 
 

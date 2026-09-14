@@ -70,7 +70,7 @@ def test_per_zscore_calculation() -> None:
     assert _per_z_score(30.0) == pytest.approx(1.0)
     assert _per_z_score(14.0) == pytest.approx(-1.0)
     assert _per_z_score(None) == 0.0
-    assert _per_z_score(0.0) == 0.0   # negative/zero PER = treat as no signal
+    assert _per_z_score(0.0) == 0.0  # negative/zero PER = treat as no signal
 
 
 def test_roe_zscore_calculation() -> None:
@@ -137,11 +137,11 @@ def test_score_clipped_to_range(tmp_path: Path) -> None:
     extreme = {
         "fundamentals": {
             "ticker": "EXTREME",
-            "pe_ratio": 1000.0,        # absurdly expensive
+            "pe_ratio": 1000.0,  # absurdly expensive
             "forward_pe": None,
-            "eps": -10.0,              # huge negative surprise
+            "eps": -10.0,  # huge negative surprise
             "forward_eps": 5.0,
-            "roe": -2.0,               # awful ROE
+            "roe": -2.0,  # awful ROE
             "market_cap": None,
             "dividend_yield": None,
             "beta": None,
@@ -168,11 +168,16 @@ def test_score_skips_when_per_missing(tmp_path: Path) -> None:
     blank = {
         "fundamentals": {
             "ticker": "BLANK",
-            "pe_ratio": None, "forward_pe": None,
-            "eps": None, "forward_eps": None,
-            "roe": None, "market_cap": None,
-            "dividend_yield": None, "beta": None,
-            "fifty_two_week_high": None, "fifty_two_week_low": None,
+            "pe_ratio": None,
+            "forward_pe": None,
+            "eps": None,
+            "forward_eps": None,
+            "roe": None,
+            "market_cap": None,
+            "dividend_yield": None,
+            "beta": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
         },
         "company_facts": {"cik": "0", "entity_name": "Blank", "facts": []},
     }
@@ -236,9 +241,18 @@ def test_score_weights_sum_to_one() -> None:
 def test_neutral_fundamentals_round_trips_through_signal(tmp_path: Path) -> None:
     # Constructing Fundamentals directly to confirm dataclass surface stable.
     f = Fundamentals(
-        ticker="X", pe_ratio=22.0, forward_pe=22.0, eps=2.0, forward_eps=2.0,
-        roe=0.18, market_cap=1e9, dividend_yield=0.01, beta=1.0,
-        fifty_two_week_high=100.0, fifty_two_week_low=80.0, raw=(),
+        ticker="X",
+        pe_ratio=22.0,
+        forward_pe=22.0,
+        eps=2.0,
+        forward_eps=2.0,
+        roe=0.18,
+        market_cap=1e9,
+        dividend_yield=0.01,
+        beta=1.0,
+        fifty_two_week_high=100.0,
+        fifty_two_week_low=80.0,
+        raw=(),
     )
     # Median PER & ROE → both z = 0; no surprise → score 0.
     assert _per_z_score(f.pe_ratio) == 0.0

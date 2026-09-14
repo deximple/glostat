@@ -66,7 +66,10 @@ async def test_wrap_fundamental_translates_long_to_up() -> None:
     cal = synthetic_calibration_for_mock()
     expert = _StubExpertOk(name="E_FUNDAMENTAL", score=2.5, direction="LONG")
     result = await wrap_fundamental(
-        expert, "AAPL", datetime.now(tz=UTC), cal,
+        expert,
+        "AAPL",
+        datetime.now(tz=UTC),
+        cal,
     )
     assert result.direction == "up"
     assert result.value == pytest.approx(2.5)
@@ -93,7 +96,10 @@ async def test_wrap_time_translates_neutral() -> None:
 async def test_wrap_handles_expert_skip_error_as_skip() -> None:
     cal = synthetic_calibration_for_mock()
     result = await wrap_fund_flow(
-        _StubExpertSkip(), "AAPL", datetime.now(tz=UTC), cal,
+        _StubExpertSkip(),
+        "AAPL",
+        datetime.now(tz=UTC),
+        cal,
     )
     assert result.direction == "skip"
     assert result.skip_reason is not None
@@ -104,7 +110,10 @@ async def test_wrap_handles_expert_skip_error_as_skip() -> None:
 async def test_wrap_handles_unexpected_exception_as_skip() -> None:
     cal = synthetic_calibration_for_mock()
     result = await wrap_fundamental(
-        _StubExpertCrash(), "AAPL", datetime.now(tz=UTC), cal,
+        _StubExpertCrash(),
+        "AAPL",
+        datetime.now(tz=UTC),
+        cal,
     )
     assert result.direction == "skip"
     assert "boom" in (result.skip_reason or "")
@@ -240,8 +249,12 @@ async def test_collect_contributions_returns_nineteen_for_us_ticker() -> None:
     time_e = _StubExpertOk(name="E_TIME", score=1.0, direction="LONG")
     ff = _StubExpertSkip()
     contribs = await collect_contributions(
-        ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
-        fundamental_expert=fund, time_expert=time_e, fund_flow_expert=ff,
+        ticker="AAPL",
+        ts=datetime.now(tz=UTC),
+        cal_table=cal,
+        fundamental_expert=fund,
+        time_expert=time_e,
+        fund_flow_expert=ff,
     )
     assert len(contribs) == 19
     names = {c.name for c in contribs}
@@ -264,8 +277,12 @@ async def test_collect_contributions_marks_us_appropriate_skips() -> None:
     time_e = _StubExpertOk(name="E_TIME", score=1.0, direction="LONG")
     ff = _StubExpertSkip()
     contribs = await collect_contributions(
-        ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
-        fundamental_expert=fund, time_expert=time_e, fund_flow_expert=ff,
+        ticker="AAPL",
+        ts=datetime.now(tz=UTC),
+        cal_table=cal,
+        fundamental_expert=fund,
+        time_expert=time_e,
+        fund_flow_expert=ff,
     )
     by_name = {c.name: c for c in contribs}
     # AAPL is US equity → fundamental + time fire; sector rotation skip; foreign skip.
@@ -280,8 +297,12 @@ async def test_collect_contributions_marks_us_appropriate_skips() -> None:
 async def test_collect_contributions_unwired_experts_skip_cleanly() -> None:
     cal = synthetic_calibration_for_mock()
     contribs = await collect_contributions(
-        ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
-        fundamental_expert=None, time_expert=None, fund_flow_expert=None,
+        ticker="AAPL",
+        ts=datetime.now(tz=UTC),
+        cal_table=cal,
+        fundamental_expert=None,
+        time_expert=None,
+        fund_flow_expert=None,
     )
     by_name = {c.name: c for c in contribs}
     assert by_name["E_FUNDAMENTAL"].direction == "skip"
@@ -293,8 +314,12 @@ async def test_collect_contributions_bare_calibration_uses_random_default() -> N
     cal = CalibrationTable()  # no entries
     fund = _StubExpertOk(name="E_FUNDAMENTAL", score=2.0, direction="LONG")
     contribs = await collect_contributions(
-        ticker="AAPL", ts=datetime.now(tz=UTC), cal_table=cal,
-        fundamental_expert=fund, time_expert=None, fund_flow_expert=None,
+        ticker="AAPL",
+        ts=datetime.now(tz=UTC),
+        cal_table=cal,
+        fundamental_expert=fund,
+        time_expert=None,
+        fund_flow_expert=None,
     )
     fund_contrib = next(c for c in contribs if c.name == "E_FUNDAMENTAL")
     # Calibration falls back to AUC=0.5 (random)

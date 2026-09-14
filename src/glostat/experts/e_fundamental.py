@@ -132,9 +132,7 @@ class EFundamentalExpert:
             log.warning("e_fundamental.sector_resolve_failed", ticker=ticker, err=str(exc))
             return "UNKNOWN"
 
-    async def _fetch_fundamentals(
-        self, ticker: str, sources: list[_Source]
-    ) -> Fundamentals:
+    async def _fetch_fundamentals(self, ticker: str, sources: list[_Source]) -> Fundamentals:
         client, method = self._router.route(self.name, "fundamentals")
         result: Fundamentals = await getattr(client, method)(ticker)
         snap_id = getattr(client, "last_snapshot_id", None)
@@ -182,20 +180,14 @@ class EFundamentalExpert:
             )
         return facts
 
-    def _score(
-        self, f: Fundamentals, _facts: CompanyFacts | None, sector: str
-    ) -> FundamentalScore:
+    def _score(self, f: Fundamentals, _facts: CompanyFacts | None, sector: str) -> FundamentalScore:
         stats = self._sector_stats.get(sector)
         per_z = _per_z_score_for(f.pe_ratio, stats)
         roe_z = _roe_z_score_for(f.roe, stats)
         eps_sur = _eps_surprise(f.eps, f.forward_eps)
         # WHY: lower PER → positive value tilt → invert the z so cheap = positive.
         per_signal = -per_z
-        net = (
-            _WEIGHT_PER * per_signal
-            + _WEIGHT_ROE * roe_z
-            + _WEIGHT_EPS_SUR * eps_sur
-        )
+        net = _WEIGHT_PER * per_signal + _WEIGHT_ROE * roe_z + _WEIGHT_EPS_SUR * eps_sur
         net_clipped = max(-_SCORE_CLIP, min(_SCORE_CLIP, net))
         return FundamentalScore(
             per_z=per_signal,
@@ -275,9 +267,9 @@ def _build_signal(
             }.items()
         )
     )
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_fundamental.synthetic",)
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_fundamental.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_FUNDAMENTAL",
         ticker=ticker,

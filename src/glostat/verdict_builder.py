@@ -35,6 +35,7 @@ def _emit_deprecation_once() -> None:
     _DEPRECATION_EMITTED[0] = True
     warnings.warn(_VERDICT_BUILDER_DEPRECATED, DeprecationWarning, stacklevel=3)
 
+
 # Verdict assembly from one or more ExpertSignals.
 # Sprint 1 PR #1: single-Expert passthrough.
 # Sprint 1 PR #2: multi-Expert composition (confidence-weighted) + agreement_weight
@@ -90,9 +91,7 @@ def build_verdict(
     if not signals:
         raise ValueError("build_verdict requires at least one ExpertSignal")
     if market_meta.mic not in {"XNAS", "XNYS"}:
-        raise ValueError(
-            f"Sprint 1 PR #1: only XNAS/XNYS supported (got {market_meta.mic})"
-        )
+        raise ValueError(f"Sprint 1 PR #1: only XNAS/XNYS supported (got {market_meta.mic})")
 
     composed = compose(signals, gating or _get_default_gating())
 
@@ -116,8 +115,7 @@ def build_verdict(
 
     expected_pnl = edge_bps
     final_next_trigger = next_trigger or (
-        f"{horizon_days}d swing window expires {_iso_date_only(ts)}"
-        + _gating_suffix(composed)
+        f"{horizon_days}d swing window expires {_iso_date_only(ts)}" + _gating_suffix(composed)
     )
     evidence_hash = _evidence_hash(signals)
     git_commit = _git_commit_hash()

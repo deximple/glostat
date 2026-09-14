@@ -69,9 +69,7 @@ class FxCarrySnapshot:
 
     @property
     def is_complete(self) -> bool:
-        return None not in (
-            self.vix_5d_mean, self.fxy_5d_return, self.ewz_3d_return
-        )
+        return None not in (self.vix_5d_mean, self.fxy_5d_return, self.ewz_3d_return)
 
     def overshoot_magnitude(self) -> float:
         if not self.is_complete:
@@ -106,9 +104,7 @@ class EFxCarryExpert:
             leg_ewz=(ewz3 is not None and ewz3 < _EWZ_THRESHOLD),
         )
 
-    def signal_for(
-        self, ticker: str, snapshot: FxCarrySnapshot
-    ) -> PhaseSignal:
+    def signal_for(self, ticker: str, snapshot: FxCarrySnapshot) -> PhaseSignal:
         ticker_u = ticker.upper().strip()
         if ticker_u not in TARGET_TICKERS:
             return _neutral(ticker_u, snapshot.day, "outside_target_universe")
@@ -126,8 +122,10 @@ class EFxCarryExpert:
         raw = sign * magnitude * 0.6
         net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
         direction = (
-            "LONG" if net > _DIRECTION_THRESHOLD
-            else "SHORT" if net < -_DIRECTION_THRESHOLD
+            "LONG"
+            if net > _DIRECTION_THRESHOLD
+            else "SHORT"
+            if net < -_DIRECTION_THRESHOLD
             else "NEUTRAL"
         )
         return PhaseSignal(
@@ -153,9 +151,7 @@ class EFxCarryExpert:
         return UNIVERSE
 
 
-def _trailing_mean_close(
-    cache: PriceCache, ticker: str, day: date, window: int
-) -> float | None:
+def _trailing_mean_close(cache: PriceCache, ticker: str, day: date, window: int) -> float | None:
     # WHY: use raw OHLCV bars from the cache so VIX (which can hold the same
     # close two days running) doesn't get dropped. Walk the in-memory series
     # backwards from `day`, take the latest `window` distinct trading-day bars.
@@ -177,9 +173,7 @@ def _trailing_mean_close(
     return sum(closes) / window
 
 
-def _trailing_return(
-    cache: PriceCache, ticker: str, day: date, window: int
-) -> float | None:
+def _trailing_return(cache: PriceCache, ticker: str, day: date, window: int) -> float | None:
     # WHY: walk the trading-day bar series so `window` is in trading days, not
     # calendar days. Avoids weekend/holiday slip that would compress a 5-trading
     # day window to a 3-bar slice on a Tuesday.

@@ -56,12 +56,21 @@ def test_div_z_clipped_to_band() -> None:
 # ── _score_kr aggregator ──────────────────────────────────────────────────
 
 
-def _f(per: float | None = None, roe: float | None = None,
-       div: float | None = None) -> Fundamentals:
+def _f(
+    per: float | None = None, roe: float | None = None, div: float | None = None
+) -> Fundamentals:
     return Fundamentals(
-        ticker="005930", pe_ratio=per, forward_pe=per, eps=None,
-        forward_eps=None, roe=roe, market_cap=None, dividend_yield=div,
-        beta=None, fifty_two_week_high=None, fifty_two_week_low=None,
+        ticker="005930",
+        pe_ratio=per,
+        forward_pe=per,
+        eps=None,
+        forward_eps=None,
+        roe=roe,
+        market_cap=None,
+        dividend_yield=div,
+        beta=None,
+        fifty_two_week_high=None,
+        fifty_two_week_low=None,
     )
 
 
@@ -166,7 +175,11 @@ async def test_expert_compute_skip_when_yfinance_crashes() -> None:
 
 def test_score_dataclass_invariants() -> None:
     s = FundamentalKrScore(
-        per_z=0.5, roe_z=0.3, div_z=0.0, net_score=0.4, raw_score=0.4,
+        per_z=0.5,
+        roe_z=0.3,
+        div_z=0.0,
+        net_score=0.4,
+        raw_score=0.4,
     )
     assert s.confidence < 1.0
     assert s.direction == "NEUTRAL"

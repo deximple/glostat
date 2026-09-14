@@ -20,8 +20,8 @@ BASE_NUMBERS: Final[tuple[int, ...]] = (65, 76, 129, 172, 200, 257)
 # the directional signal because compute_time_convergence_t still rewards
 # multi-anchor unions over single hits.
 WINDOW_TRADING_DAYS: Final[int] = 7
-ANCHOR_K: Final[int] = 3                       # max anchors considered for T
-ANCHOR_MIN_GAP_BDAYS: Final[int] = 21          # min spacing between anchors (~1 month)
+ANCHOR_K: Final[int] = 3  # max anchors considered for T
+ANCHOR_MIN_GAP_BDAYS: Final[int] = 21  # min spacing between anchors (~1 month)
 
 # T value buckets — see PR #2 §3:
 # 0 matches → 0.0; 1 → 1.0; 2 → 1.5; ≥3 → 2.0.
@@ -121,8 +121,7 @@ def find_anchor_lows(
         anchor = best[0]
         chosen.append(anchor)
         remaining = [
-            (d, c) for d, c in remaining
-            if trading_days_distance(d, anchor) > min_gap_bdays
+            (d, c) for d, c in remaining if trading_days_distance(d, anchor) > min_gap_bdays
         ]
     return sorted(chosen)
 

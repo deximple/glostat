@@ -35,8 +35,8 @@ class Form4Transaction:
     transaction_date: date
     reporter_name: str
     reporter_cik: str
-    reporter_role: str         # Director / Officer / 10% owner
-    code: str                   # P / S / A / ...
+    reporter_role: str  # Director / Officer / 10% owner
+    code: str  # P / S / A / ...
     shares: float
     price: float
     value_usd: float
@@ -63,9 +63,7 @@ async def get_form4_transactions(
     # tickers (each 13F-style fetch is 2 sequential network calls).
     import asyncio  # noqa: PLC0415
 
-    filings = await client.get_filings(
-        cik, form_types=("4", "4/A"), limit=limit
-    )
+    filings = await client.get_filings(cik, form_types=("4", "4/A"), limit=limit)
     cutoff = date.today()
     eligible = [f for f in filings if (cutoff - f.filing_date).days <= days_back]
     sem = asyncio.Semaphore(parallel)
@@ -77,7 +75,9 @@ async def get_form4_transactions(
             except Exception as exc:
                 log.warning(
                     "form4.fetch_failed",
-                    cik=f.cik, accession=f.accession_number, err=str(exc),
+                    cik=f.cik,
+                    accession=f.accession_number,
+                    err=str(exc),
                 )
                 return []
 
@@ -90,16 +90,11 @@ async def get_form4_transactions(
     return out
 
 
-async def _fetch_and_parse_form4(
-    client: SecEdgarClient, filing: Filing
-) -> list[Form4Transaction]:
+async def _fetch_and_parse_form4(client: SecEdgarClient, filing: Filing) -> list[Form4Transaction]:
     # Locate the primary doc: SEC Form 4 .xml. Index endpoint lists files.
     digits = "".join(c for c in filing.cik if c.isdigit())
     acc_no_dashes = filing.accession_number.replace("-", "")
-    index_url = (
-        f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/"
-        f"{acc_no_dashes}/index.json"
-    )
+    index_url = f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/{acc_no_dashes}/index.json"
     try:
         idx = await client._get_json(index_url)
     except Exception as exc:
@@ -129,8 +124,7 @@ async def _fetch_and_parse_form4(
         if score > best_score:
             best_score = score
             xml_url = (
-                f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/"
-                f"{acc_no_dashes}/{item['name']}"
+                f"{_BASE_WWW}/Archives/edgar/data/{int(digits)}/{acc_no_dashes}/{item['name']}"
             )
     if xml_url is None:
         return []
@@ -138,7 +132,9 @@ async def _fetch_and_parse_form4(
         text = await client._get_text(xml_url)
     except Exception as exc:
         log.warning(
-            "form4.xml_fetch_failed", url=xml_url, err=str(exc),
+            "form4.xml_fetch_failed",
+            url=xml_url,
+            err=str(exc),
         )
         return []
     return parse_form4_xml(
@@ -175,9 +171,7 @@ def parse_form4_xml(
         except (ValueError, TypeError):
             continue
         shares = _to_float(_findtext(t, "transactionAmounts/transactionShares/value"))
-        price = _to_float(
-            _findtext(t, "transactionAmounts/transactionPricePerShare/value")
-        )
+        price = _to_float(_findtext(t, "transactionAmounts/transactionPricePerShare/value"))
         value = shares * price
         out.append(
             Form4Transaction(
@@ -234,9 +228,10 @@ def _detect_role(root: ET.Element) -> str:
         return "Director"
     if _findtext(root, "reportingOwner/reportingOwnerRelationship/isOfficer") in {"1", "true"}:
         return "Officer"
-    if _findtext(
-        root, "reportingOwner/reportingOwnerRelationship/isTenPercentOwner"
-    ) in {"1", "true"}:
+    if _findtext(root, "reportingOwner/reportingOwnerRelationship/isTenPercentOwner") in {
+        "1",
+        "true",
+    }:
         return "10% Owner"
     return "Other"
 

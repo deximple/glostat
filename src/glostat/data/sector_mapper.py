@@ -38,23 +38,22 @@ UNKNOWN_SECTOR: Final[str] = "UNKNOWN"
 _SIC_RANGES: Final[tuple[tuple[int, int, str], ...]] = (
     # ── narrow / specific GICS overrides first ────────────────────────────
     # Healthcare specifics
-    (2830, 2836, "Healthcare"),       # pharmaceuticals (carved out of Materials)
-    (3840, 3851, "Healthcare"),       # medical devices (carved out of Industrials)
+    (2830, 2836, "Healthcare"),  # pharmaceuticals (carved out of Materials)
+    (3840, 3851, "Healthcare"),  # medical devices (carved out of Industrials)
     (8000, 8099, "Healthcare"),
     # Technology specifics
-    (3570, 3579, "Technology"),       # computer hardware (carved out of Industrials)
-    (3670, 3679, "Technology"),       # electronic components (carved out of Industrials)
-    (3825, 3829, "Technology"),       # instruments
-    (7370, 7379, "Technology"),       # computer services / software
+    (3570, 3579, "Technology"),  # computer hardware (carved out of Industrials)
+    (3670, 3679, "Technology"),  # electronic components (carved out of Industrials)
+    (3825, 3829, "Technology"),  # instruments
+    (7370, 7379, "Technology"),  # computer services / software
     # Consumer Discretionary motor vehicles (carved out of Industrials transport)
     (3711, 3713, "ConsumerDiscretionary"),
     # Communications carve-outs
-    (4830, 4841, "Communications"),   # broadcasting/cable (carved out of telecom)
-    (7810, 7829, "Communications"),   # motion pictures
+    (4830, 4841, "Communications"),  # broadcasting/cable (carved out of telecom)
+    (7810, 7829, "Communications"),  # motion pictures
     # Energy carve-outs
     (1300, 1499, "Energy"),
     (2900, 2999, "Energy"),
-
     # ── broad GICS buckets ────────────────────────────────────────────────
     # Materials
     (1000, 1299, "Materials"),

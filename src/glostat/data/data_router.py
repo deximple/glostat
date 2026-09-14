@@ -22,74 +22,67 @@ _BUDGET_YAML_DEFAULT: Final = Path(__file__).resolve().parents[3] / "configs" / 
 
 @dataclass(frozen=True, slots=True)
 class RouteEntry:
-    phase: Phase                    # minimum phase required
-    client_kind: str                # "yfinance" | "sec_edgar" | "bigdata" | "fred"
-    method: str                     # method name on the resolved client
+    phase: Phase  # minimum phase required
+    client_kind: str  # "yfinance" | "sec_edgar" | "bigdata" | "fred"
+    method: str  # method name on the resolved client
     requires_consent: bool = False  # INV-GS-040 — explicit Phase 2/3 user opt-in
 
 
 # Routing table: each (expert, data_type) maps to an ordered preference list.
 # Earlier entries win when the active phase satisfies them.
 _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
-    ("E_FUNDAMENTAL", "ohlcv"):       (RouteEntry("mvp", "yfinance",  "get_ohlcv"),),
+    ("E_FUNDAMENTAL", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
     ("E_FUNDAMENTAL", "fundamentals"): (
-        RouteEntry("mvp",     "yfinance",  "get_fundamentals"),
-        RouteEntry("phase_2", "bigdata",   "bigdata_company_tearsheet", requires_consent=True),
+        RouteEntry("mvp", "yfinance", "get_fundamentals"),
+        RouteEntry("phase_2", "bigdata", "bigdata_company_tearsheet", requires_consent=True),
     ),
-    ("E_FUNDAMENTAL", "filings"):     (RouteEntry("mvp", "sec_edgar", "get_filings"),),
+    ("E_FUNDAMENTAL", "filings"): (RouteEntry("mvp", "sec_edgar", "get_filings"),),
     ("E_FUNDAMENTAL", "company_facts"): (RouteEntry("mvp", "sec_edgar", "get_company_facts"),),
-
-    ("E_FUND_FLOW", "13f"):          (RouteEntry("mvp", "sec_edgar", "get_13f_holdings"),),
+    ("E_FUND_FLOW", "13f"): (RouteEntry("mvp", "sec_edgar", "get_13f_holdings"),),
     ("E_FUND_FLOW", "13f_quarterly"): (RouteEntry("mvp", "sec_edgar", "get_filings"),),
     ("E_FUND_FLOW", "13f_holdings"): (RouteEntry("mvp", "sec_edgar", "get_13f_holdings"),),
     ("E_FUND_FLOW", "fund_trends"): (
         RouteEntry("phase_2", "bigdata", "bigdata_company_tearsheet", requires_consent=True),
     ),
-    ("E_FUND_FLOW", "holders"):      (RouteEntry("mvp", "yfinance", "get_holders"),),
-    ("E_FUND_FLOW", "institutional_holders"): (
-        RouteEntry("mvp", "yfinance", "get_holders"),
-    ),
-
-    ("E_TIME", "ohlcv"):             (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_FUND_FLOW", "holders"): (RouteEntry("mvp", "yfinance", "get_holders"),),
+    ("E_FUND_FLOW", "institutional_holders"): (RouteEntry("mvp", "yfinance", "get_holders"),),
+    ("E_TIME", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
     ("E_TIME", "earnings_calendar"): (
-        RouteEntry("mvp",     "yfinance", "get_earnings_calendar"),
-        RouteEntry("phase_2", "bigdata",  "bigdata_events_calendar", requires_consent=True),
+        RouteEntry("mvp", "yfinance", "get_earnings_calendar"),
+        RouteEntry("phase_2", "bigdata", "bigdata_events_calendar", requires_consent=True),
     ),
-    ("E_TIME", "dividends"):         (RouteEntry("mvp", "yfinance", "get_dividends"),),
-
+    ("E_TIME", "dividends"): (RouteEntry("mvp", "yfinance", "get_dividends"),),
     # Phase 2+ only — no free fallback.
-    ("E_NARRATIVE", "search"):       (
+    ("E_NARRATIVE", "search"): (
         RouteEntry("phase_2", "bigdata", "bigdata_search", requires_consent=True),
     ),
-    ("E_ESG", "tearsheet"):          (
+    ("E_ESG", "tearsheet"): (
         RouteEntry("phase_2", "bigdata", "bigdata_company_tearsheet", requires_consent=True),
     ),
-    ("E_MACRO", "macro"):            (
-        RouteEntry("phase_2", "fred",    "get_series", requires_consent=False),
+    ("E_MACRO", "macro"): (
+        RouteEntry("phase_2", "fred", "get_series", requires_consent=False),
         RouteEntry("phase_2", "bigdata", "bigdata_country_tearsheet", requires_consent=True),
     ),
-    ("E_GLOBAL_FLOW", "etf"):        (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
-    ("E_GLOBAL_FLOW", "factors"):    (
+    ("E_GLOBAL_FLOW", "etf"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_GLOBAL_FLOW", "factors"): (
         RouteEntry("phase_2", "bigdata", "bigdata_market_tearsheet", requires_consent=True),
     ),
-    ("E_CASCADE", "filings"):        (
+    ("E_CASCADE", "filings"): (
         RouteEntry("phase_3", "bigdata", "bigdata_search", requires_consent=True),
     ),
-    ("E_CASCADE", "transcripts"):    (
+    ("E_CASCADE", "transcripts"): (
         RouteEntry("phase_3", "bigdata", "bigdata_search", requires_consent=True),
     ),
-
     # Phase 1C — Macro and commodity research experts. Both run on free
     # yfinance OHLCV; E_COMMODITY_TS additionally uses the public CFTC client.
-    ("E_FX_CARRY",     "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_FX_CARRY", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
     ("E_COMMODITY_TS", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
-    ("E_COMMODITY_TS", "cot"):   (RouteEntry("mvp", "cftc",     "fetch_range"),),
-
+    ("E_COMMODITY_TS", "cot"): (RouteEntry("mvp", "cftc", "fetch_range"),),
     # v1.1 K1 — KR (Korea Exchange) routes. yfinance covers KR OHLCV when the
     # ticker carries .KS / .KQ suffix; Naver Finance scraper covers foreign /
     # institutional flows that yfinance does not expose.
-    ("E_FUNDAMENTAL_KR", "ohlcv"):        (RouteEntry("mvp", "yfinance",   "get_ohlcv"),),
-    ("E_FUNDAMENTAL_KR", "fundamentals"): (RouteEntry("mvp", "yfinance",   "get_fundamentals"),),
+    ("E_FUNDAMENTAL_KR", "ohlcv"): (RouteEntry("mvp", "yfinance", "get_ohlcv"),),
+    ("E_FUNDAMENTAL_KR", "fundamentals"): (RouteEntry("mvp", "yfinance", "get_fundamentals"),),
     # v1.5 P6 — KR cyclical-sector fundamentals (EV/EBITDA + commodity cycle).
     ("E_FUNDAMENTAL_KR_CYCLICAL", "fundamentals"): (
         RouteEntry("mvp", "yfinance", "get_fundamentals"),
@@ -100,42 +93,28 @@ _ROUTING: Final[Mapping[tuple[str, str], tuple[RouteEntry, ...]]] = {
     ("E_ANALYST_REVISION", "recommendations"): (
         RouteEntry("mvp", "yfinance", "get_recommendations"),
     ),
-    ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr",  "fetch_history"),),
+    ("E_FOREIGN_REVERSAL", "naver_flows"): (RouteEntry("mvp", "naver_kr", "fetch_history"),),
     # v1.3 M2 — KR macro (BoK ECOS OpenAPI). Free + 10000 calls/day per key.
-    ("E_MACRO_KR", "base_rate"):    (RouteEntry("mvp", "ecos", "get_base_rate"),),
-    ("E_MACRO_KR", "krw_usd"):      (RouteEntry("mvp", "ecos", "get_krw_usd"),),
-    ("E_MACRO_KR", "cpi"):          (RouteEntry("mvp", "ecos", "get_cpi"),),
-    ("E_MACRO_KR", "fx_reserves"):  (RouteEntry("mvp", "ecos", "get_fx_reserves"),),
-    ("E_MACRO_KR", "kospi_index"):  (RouteEntry("mvp", "ecos", "get_kospi_index"),),
+    ("E_MACRO_KR", "base_rate"): (RouteEntry("mvp", "ecos", "get_base_rate"),),
+    ("E_MACRO_KR", "krw_usd"): (RouteEntry("mvp", "ecos", "get_krw_usd"),),
+    ("E_MACRO_KR", "cpi"): (RouteEntry("mvp", "ecos", "get_cpi"),),
+    ("E_MACRO_KR", "fx_reserves"): (RouteEntry("mvp", "ecos", "get_fx_reserves"),),
+    ("E_MACRO_KR", "kospi_index"): (RouteEntry("mvp", "ecos", "get_kospi_index"),),
     # v1.4 N1 — KR 3-source investor flows (KIS real-time / Toss cache / Naver fallback).
     # All free; KIS is gated by credentials at the client layer (graceful skip).
-    ("E_FOREIGN_REVERSAL", "kis_intraday"): (
-        RouteEntry("mvp", "kis", "get_intraday_flows"),
-    ),
-    ("E_FOREIGN_REVERSAL", "kis_daily"): (
-        RouteEntry("mvp", "kis", "get_daily_summary"),
-    ),
-    ("E_FOREIGN_REVERSAL", "toss_trend"): (
-        RouteEntry("mvp", "toss_kr", "load_investor_trend"),
-    ),
+    ("E_FOREIGN_REVERSAL", "kis_intraday"): (RouteEntry("mvp", "kis", "get_intraday_flows"),),
+    ("E_FOREIGN_REVERSAL", "kis_daily"): (RouteEntry("mvp", "kis", "get_daily_summary"),),
+    ("E_FOREIGN_REVERSAL", "toss_trend"): (RouteEntry("mvp", "toss_kr", "load_investor_trend"),),
     # v1.4 N2 — KR short-selling stats (KRX public AJAX endpoint).
-    ("E_SHORT_SELLING_KR", "balance"): (
-        RouteEntry("mvp", "krx_short", "get_short_balance"),
-    ),
-    ("E_SHORT_SELLING_KR", "volume"): (
-        RouteEntry("mvp", "krx_short", "get_short_volume"),
-    ),
+    ("E_SHORT_SELLING_KR", "balance"): (RouteEntry("mvp", "krx_short", "get_short_balance"),),
+    ("E_SHORT_SELLING_KR", "volume"): (RouteEntry("mvp", "krx_short", "get_short_volume"),),
     # v1.4 N2 — KR intraday flow (KIS overlay over Naver baseline).
-    ("E_INTRADAY_FLOW_KR", "naver_flows"): (
-        RouteEntry("mvp", "naver_kr", "fetch_history"),
-    ),
-    ("E_INTRADAY_FLOW_KR", "kis_intraday"): (
-        RouteEntry("mvp", "kis", "get_intraday_flows"),
-    ),
+    ("E_INTRADAY_FLOW_KR", "naver_flows"): (RouteEntry("mvp", "naver_kr", "fetch_history"),),
+    ("E_INTRADAY_FLOW_KR", "kis_intraday"): (RouteEntry("mvp", "kis", "get_intraday_flows"),),
 }
 
 
-_KR_TICKER_RE: Final = "kr_six_digit"   # marker; actual regex inlined in helper
+_KR_TICKER_RE: Final = "kr_six_digit"  # marker; actual regex inlined in helper
 _YFINANCE_KS_SUFFIX: Final[str] = ".KS"
 _YFINANCE_KQ_SUFFIX: Final[str] = ".KQ"
 
@@ -191,7 +170,7 @@ def _resolve_phase_from_yaml(yaml_path: Path) -> Phase:
 @dataclass(slots=True)
 class DataRouter:
     clients: dict[str, Any] = field(default_factory=dict)
-    consent: set[str] = field(default_factory=set)   # e.g. {"phase_2", "phase_3"}
+    consent: set[str] = field(default_factory=set)  # e.g. {"phase_2", "phase_3"}
     budget_yaml: Path = _BUDGET_YAML_DEFAULT
 
     def register_client(self, kind: str, instance: Any) -> None:
@@ -211,8 +190,7 @@ class DataRouter:
             if normalized in _PHASE_ORDER:
                 return normalized  # type: ignore[return-value]
             raise ConfigError(
-                f"INV-GS-039: unknown GLOSTAT_PHASE={env!r} "
-                "(allowed: mvp, phase_2, phase_3)"
+                f"INV-GS-039: unknown GLOSTAT_PHASE={env!r} (allowed: mvp, phase_2, phase_3)"
             )
         return _resolve_phase_from_yaml(self.budget_yaml)
 
@@ -221,9 +199,7 @@ class DataRouter:
         key = (expert, data_type)
         candidates = _ROUTING.get(key)
         if not candidates:
-            raise ConfigError(
-                f"INV-GS-039: no route registered for ({expert!r}, {data_type!r})"
-            )
+            raise ConfigError(f"INV-GS-039: no route registered for ({expert!r}, {data_type!r})")
         active = self.active_phase()
         active_rank = _PHASE_ORDER[active]
 
@@ -256,8 +232,7 @@ class DataRouter:
                     f"Route ({expert}, {data_type}) needs phase={needed}."
                 )
             raise ConfigError(
-                f"INV-GS-039: route ({expert}, {data_type}) needs phase={needed}, "
-                f"active={active}."
+                f"INV-GS-039: route ({expert}, {data_type}) needs phase={needed}, active={active}."
             )
         if first_consent_violation is not None:
             needed = first_consent_violation.phase

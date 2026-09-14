@@ -98,10 +98,13 @@ class _StubNaver:
 def _bar(code: str, idx: int, fnet: float, organ: float = 0.0) -> KrFlowBar:
     base = date(2026, 4, 1)
     return KrFlowBar(
-        code=code, bar_date=base + timedelta(days=idx),
+        code=code,
+        bar_date=base + timedelta(days=idx),
         close_price=10000.0 + idx,
-        organ_net=organ, foreign_net=fnet,
-        foreign_holdings=0, foreign_hold_pct=0.0,
+        organ_net=organ,
+        foreign_net=fnet,
+        foreign_holdings=0,
+        foreign_hold_pct=0.0,
     )
 
 

@@ -50,7 +50,7 @@ class TestComputeDrift:
         series = OhlcvSeries(ticker="X", interval="1d", bars=bars)
         drift, t5, t30 = _compute_drift(series, last_e)
         assert drift is not None
-        assert drift > 0   # bars uptrend → drift positive
+        assert drift > 0  # bars uptrend → drift positive
         assert t5 == pytest.approx(105.0)
         assert t30 == pytest.approx(130.0)
 
@@ -98,13 +98,13 @@ class TestScore:
 class _FakeYFinance:
     last_snapshot_id = "fake-snapshot"
 
-    def __init__(self, series: OhlcvSeries | None = None,
-                 fail: bool = False) -> None:
+    def __init__(self, series: OhlcvSeries | None = None, fail: bool = False) -> None:
         self._series = series
         self._fail = fail
 
-    async def get_ohlcv(self, ticker: str, *, start: Any, end: Any,
-                        interval: str = "1d") -> OhlcvSeries:
+    async def get_ohlcv(
+        self, ticker: str, *, start: Any, end: Any, interval: str = "1d"
+    ) -> OhlcvSeries:
         if self._fail or self._series is None:
             raise RuntimeError("fake ohlcv error")
         return self._series
@@ -119,7 +119,7 @@ class _FakeRouter:
 
 
 class _FakeCalendar:
-    pass   # not used by EPeadKrExpert.compute (calendar passed in for symmetry)
+    pass  # not used by EPeadKrExpert.compute (calendar passed in for symmetry)
 
 
 class TestExpertCompute:
@@ -143,7 +143,7 @@ class TestExpertCompute:
         # Generate 35 bars of OHLCV from May 15 with uptrend.
         bars = _bars(last_e, 35, [100.0 + i * 1.5 for i in range(35)])
         series = OhlcvSeries(ticker="096770.KS", interval="1d", bars=bars)
-        ts = datetime(2026, 6, 30, tzinfo=UTC)   # 46d after filing
+        ts = datetime(2026, 6, 30, tzinfo=UTC)  # 46d after filing
         expert = EPeadKrExpert(
             router=_FakeRouter(_FakeYFinance(series)),  # type: ignore[arg-type]
             calendar=_FakeCalendar(),  # type: ignore[arg-type]

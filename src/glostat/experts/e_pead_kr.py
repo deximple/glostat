@@ -30,19 +30,19 @@ from glostat.data.yfinance_types import OhlcvSeries
 
 log: Final = structlog.get_logger(__name__)
 
-_DRIFT_GAIN: Final[float] = 10.0       # +20% post-earnings move → +2.0 raw
+_DRIFT_GAIN: Final[float] = 10.0  # +20% post-earnings move → +2.0 raw
 _SCORE_CLIP: Final[float] = 2.0
 _DIRECTION_THRESHOLD: Final[float] = 0.4
 _SWING_HORIZON_DAYS: Final[int] = 30
-_EARNINGS_FILING_LAG_DAYS: Final[int] = 45     # KIFRS quarterly deadline
-_DRIFT_WINDOW_START: Final[int] = 5            # T+5 from filing
-_DRIFT_WINDOW_END: Final[int] = 30             # T+30 from filing
+_EARNINGS_FILING_LAG_DAYS: Final[int] = 45  # KIFRS quarterly deadline
+_DRIFT_WINDOW_START: Final[int] = 5  # T+5 from filing
+_DRIFT_WINDOW_END: Final[int] = 30  # T+30 from filing
 _OHLCV_LOOKBACK_DAYS: Final[int] = 120
 
 
 @dataclass(frozen=True, slots=True)
 class PeadKrScore:
-    last_earnings_date: str    # ISO date of expected last filing
+    last_earnings_date: str  # ISO date of expected last filing
     days_since_earnings: int
     drift_5_to_30: float
     raw_score: float
@@ -105,12 +105,19 @@ class EPeadKrExpert:
             )
         score = _score(last_earnings, days_since, drift)
         return _build_signal(
-            code=code, ts=ts, score=score, sources=sources,
-            t5_close=t5_close, t30_close=t30_close,
+            code=code,
+            ts=ts,
+            score=score,
+            sources=sources,
+            t5_close=t5_close,
+            t30_close=t30_close,
         )
 
     async def _fetch_ohlcv(
-        self, code: str, ts: datetime, sources: list[_Source],
+        self,
+        code: str,
+        ts: datetime,
+        sources: list[_Source],
     ) -> OhlcvSeries:
         client, method = self._router.route("E_PEAD_KR", "ohlcv")
         yf_ticker = to_yfinance_kr_ticker(code)
@@ -118,7 +125,9 @@ class EPeadKrExpert:
         start = end - timedelta(days=_OHLCV_LOOKBACK_DAYS)
         try:
             series: OhlcvSeries = await getattr(client, method)(
-                yf_ticker, start=start, end=end,
+                yf_ticker,
+                start=start,
+                end=end,
             )
         except Exception as exc:
             raise ExpertSkipError(
@@ -138,19 +147,19 @@ def _last_expected_earnings_date(today: date) -> date:
         date(today.year, 9, 30),
         date(today.year, 12, 31),
     ]
-    candidates: list[date] = [
-        q + timedelta(days=_EARNINGS_FILING_LAG_DAYS) for q in q_ends
-    ]
+    candidates: list[date] = [q + timedelta(days=_EARNINGS_FILING_LAG_DAYS) for q in q_ends]
     # Add prior year's Q4 as the boundary for early-Q1 today.
     candidates.insert(
-        0, date(today.year - 1, 12, 31) + timedelta(days=_EARNINGS_FILING_LAG_DAYS),
+        0,
+        date(today.year - 1, 12, 31) + timedelta(days=_EARNINGS_FILING_LAG_DAYS),
     )
     past = [d for d in candidates if d <= today]
     return max(past) if past else candidates[0]
 
 
 def _compute_drift(
-    series: OhlcvSeries, last_earnings: date,
+    series: OhlcvSeries,
+    last_earnings: date,
 ) -> tuple[float | None, float | None, float | None]:
     target_t5 = last_earnings + timedelta(days=_DRIFT_WINDOW_START)
     target_t30 = last_earnings + timedelta(days=_DRIFT_WINDOW_END)
@@ -196,26 +205,30 @@ def _build_signal(
         f"closes ${t5_close} → ${t30_close}; "
         f"net={score.net_score:+.2f}"
     )
-    metadata = tuple(sorted({
-        "last_earnings_date": score.last_earnings_date,
-        "days_since_earnings": str(score.days_since_earnings),
-        "drift_5_to_30": f"{score.drift_5_to_30:.6f}",
-        "t5_close": str(t5_close) if t5_close is not None else "n/a",
-        "t30_close": str(t30_close) if t30_close is not None else "n/a",
-        "raw_score": f"{score.raw_score:.4f}",
-        "net_score": f"{score.net_score:.4f}",
-        "code": code,
-    }.items()))
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_pead_kr.synthetic",)
+    metadata = tuple(
+        sorted(
+            {
+                "last_earnings_date": score.last_earnings_date,
+                "days_since_earnings": str(score.days_since_earnings),
+                "drift_5_to_30": f"{score.drift_5_to_30:.6f}",
+                "t5_close": str(t5_close) if t5_close is not None else "n/a",
+                "t30_close": str(t30_close) if t30_close is not None else "n/a",
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "code": code,
+            }.items()
+        )
+    )
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_pead_kr.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_PEAD_KR",  # type: ignore[arg-type]
         ticker=code,
         direction=score.direction,  # type: ignore[arg-type]
         net_score=score.net_score,
         confidence=score.confidence,
-        archetype="continuation",   # post-earnings drift = trend-follow
+        archetype="continuation",  # post-earnings drift = trend-follow
         basis=basis,
         sources=source_strings,
         expires_at=ts + timedelta(days=_SWING_HORIZON_DAYS),

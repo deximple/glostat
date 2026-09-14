@@ -60,11 +60,13 @@ class TestAlignedCrackSpreads:
 
     def test_aligned_dates(self) -> None:
         wti = OhlcvSeries(
-            ticker="CL=F", interval="1d",
+            ticker="CL=F",
+            interval="1d",
             bars=tuple(self._bar(d, 80.0) for d in (1, 2, 3)),
         )
         gas = OhlcvSeries(
-            ticker="RB=F", interval="1d",
+            ticker="RB=F",
+            interval="1d",
             bars=tuple(self._bar(d, 2.5) for d in (1, 2, 3)),
         )
         spreads = _aligned_crack_spreads(wti, gas)
@@ -73,11 +75,13 @@ class TestAlignedCrackSpreads:
 
     def test_misaligned_dates_intersect(self) -> None:
         wti = OhlcvSeries(
-            ticker="CL=F", interval="1d",
+            ticker="CL=F",
+            interval="1d",
             bars=tuple(self._bar(d, 80.0) for d in (1, 2, 3)),
         )
         gas = OhlcvSeries(
-            ticker="RB=F", interval="1d",
+            ticker="RB=F",
+            interval="1d",
             bars=tuple(self._bar(d, 2.5) for d in (2, 3, 4)),
         )
         spreads = _aligned_crack_spreads(wti, gas)
@@ -89,16 +93,21 @@ class TestAlignedCrackSpreads:
 
 
 class TestCycleCyclePosition:
-    @pytest.mark.parametrize("p,label", [
-        (0.10, "low"),
-        (0.30, "mid_low"),
-        (0.55, "mid_high"),
-        (0.85, "high"),
-    ])
+    @pytest.mark.parametrize(
+        "p,label",
+        [
+            (0.10, "low"),
+            (0.30, "mid_low"),
+            (0.55, "mid_high"),
+            (0.85, "high"),
+        ],
+    )
     def test_label_buckets(self, p: float, label: str) -> None:
         c = CommodityCycle(
-            key=CommodityKey.WTI, last_close=80.0,
-            cycle_percentile=p, momentum_30d=0.0,
+            key=CommodityKey.WTI,
+            last_close=80.0,
+            cycle_percentile=p,
+            momentum_30d=0.0,
             n_observations=100,
         )
         assert c.cycle_position == label
@@ -110,13 +119,19 @@ class TestCycleCyclePosition:
 class _FakeYFinance:
     last_snapshot_id = "fake-snapshot-id"
 
-    def __init__(self, *, bars_per_call: dict[str, list[OhlcvBar]] | None = None,
-                 fail: bool = False) -> None:
+    def __init__(
+        self, *, bars_per_call: dict[str, list[OhlcvBar]] | None = None, fail: bool = False
+    ) -> None:
         self._bars = bars_per_call or {}
         self._fail = fail
 
     async def get_ohlcv(
-        self, ticker: str, *, start: Any, end: Any, interval: str = "1d",
+        self,
+        ticker: str,
+        *,
+        start: Any,
+        end: Any,
+        interval: str = "1d",
     ) -> OhlcvSeries:
         if self._fail:
             raise RuntimeError("fake yfinance error")
@@ -143,7 +158,7 @@ class TestCommodityClientIntegration:
         )
         cycle = await client.get_cycle(CommodityKey.WTI)
         assert cycle.last_close == pytest.approx(90.0, abs=0.01)
-        assert cycle.cycle_percentile > 0.9   # uptrend → near top
+        assert cycle.cycle_percentile > 0.9  # uptrend → near top
         assert cycle.momentum_30d > 0.0
         assert cycle.n_observations == 60
 
@@ -168,9 +183,11 @@ class TestCommodityClientIntegration:
     async def test_get_crack_spread_aligns_legs(self) -> None:
         wti_bars = _bars_with_trend(80.0, 80.0, 30)
         gas_bars = _bars_with_trend(2.5, 2.5, 30)
-        client = CommodityClient(yfinance_client=_FakeYFinance(  # type: ignore[arg-type]
-            bars_per_call={"CL=F": wti_bars, "RB=F": gas_bars},
-        ))
+        client = CommodityClient(
+            yfinance_client=_FakeYFinance(  # type: ignore[arg-type]
+                bars_per_call={"CL=F": wti_bars, "RB=F": gas_bars},
+            )
+        )
         crack = await client.get_crack_spread()
         # 42 * 2.5 - 80 = 25
         assert crack.last_spread == pytest.approx(25.0, abs=0.5)
@@ -189,7 +206,7 @@ class TestCommodityClientIntegration:
         cycle = await client.get_cycle(CommodityKey.WTI, as_of=as_of)
         # Last bar in slice is day 29 (~80.0), and it's near top of slice.
         assert cycle.last_close < 85.0
-        assert cycle.cycle_percentile > 0.85   # near top of the 0..29 slice
+        assert cycle.cycle_percentile > 0.85  # near top of the 0..29 slice
         # Without as_of, would see full 60 bars and last_close = 90.
         cycle_full = await client.get_cycle(CommodityKey.WTI)
         assert cycle_full.last_close > 89.0
@@ -199,9 +216,11 @@ class TestCommodityClientIntegration:
         # Crack spread point-in-time: same slicing on both legs.
         wti_bars = _bars_with_trend(80.0, 80.0, 60)
         gas_bars = _bars_with_trend(2.5, 2.5, 60)
-        client = CommodityClient(yfinance_client=_FakeYFinance(  # type: ignore[arg-type]
-            bars_per_call={"CL=F": wti_bars, "RB=F": gas_bars},
-        ))
+        client = CommodityClient(
+            yfinance_client=_FakeYFinance(  # type: ignore[arg-type]
+                bars_per_call={"CL=F": wti_bars, "RB=F": gas_bars},
+            )
+        )
         as_of = datetime(2026, 1, 15, tzinfo=UTC).date()
         crack = await client.get_crack_spread(as_of=as_of)
         # Only first 15 bars considered → n_observations capped accordingly.

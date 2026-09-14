@@ -117,13 +117,15 @@ def test_screen_returns_top_n() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        top_n=3,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            top_n=3,
+        )
+    )
     assert isinstance(result, ScreenResult)
     assert len(result.rows) == 3
     # Sorted descending by edge × agreement
@@ -141,13 +143,15 @@ def test_screen_filters_cost_passed_when_requested() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        only_cost_passed=True,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            only_cost_passed=True,
+        )
+    )
     assert all(r.cost_passed for r in result.rows)
     assert result.total_filtered_out == 2
 
@@ -161,13 +165,15 @@ def test_screen_includes_cost_failed_when_disabled() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        only_cost_passed=False,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            only_cost_passed=False,
+        )
+    )
     assert len(result.rows) == 2
     assert result.total_filtered_out == 0
 
@@ -182,14 +188,16 @@ def test_screen_sort_by_edge_bps() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        sort_by="edge_bps",
-        top_n=3,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            sort_by="edge_bps",
+            top_n=3,
+        )
+    )
     assert [r.ticker for r in result.rows] == ["T01", "T02", "T00"]
 
 
@@ -204,12 +212,14 @@ def test_screen_handles_failures_gracefully() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+        )
+    )
     assert result.total_failed == 1
     assert len(result.rows) == 3
 
@@ -241,14 +251,16 @@ def test_screen_parallel_execution_semaphore() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        semaphore=10,
-        top_n=5,
-    ))
+    asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            semaphore=10,
+            top_n=5,
+        )
+    )
     assert max_concurrent <= 10
     assert max_concurrent > 1  # at least some parallelism happened
 
@@ -304,14 +316,16 @@ def test_screen_mock_full_universe(tmp_path: Path) -> None:
     async def sector_of(t: str) -> str:
         return synthetic_sector_for(t)
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-        top_n=10,
-        only_cost_passed=False,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+            top_n=10,
+            only_cost_passed=False,
+        )
+    )
     broker.close()
     assert result.total_processed == 50
     # Synthetic 13F fixture is empty so E_FUND_FLOW always skips — surviving
@@ -336,12 +350,14 @@ def test_screen_table_includes_disclaimer() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+        )
+    )
     rendered = render_screen_table(result, disclaimer="[DISCLAIMER] PERSONAL USE")
     assert "PERSONAL USE" in rendered
     assert "MICRO" in rendered or "T00" in rendered  # universe label or row
@@ -356,12 +372,14 @@ def test_screen_to_json_emits_machine_readable() -> None:
     async def sector_of(_t: str) -> str:
         return "Technology"
 
-    result = asyncio.run(screen_universe(
-        universe,
-        market_meta=_market_meta(),
-        build_verdict=builder,
-        sector_of=sector_of,
-    ))
+    result = asyncio.run(
+        screen_universe(
+            universe,
+            market_meta=_market_meta(),
+            build_verdict=builder,
+            sector_of=sector_of,
+        )
+    )
     payload = screen_to_json(result)
     assert payload["universe"] == "MICRO"
     assert "rows" in payload
@@ -374,15 +392,25 @@ def test_screen_to_json_emits_machine_readable() -> None:
 
 def test_screen_row_composite_rank() -> None:
     high_edge_high_agree = ScreenRow(
-        ticker="X", sector="Tech", action="BUY",
-        conviction_w=2.0, edge_bps=300.0, cost_passed=True,
-        disagreement_weight=1.0, contributing_basis=("",),
+        ticker="X",
+        sector="Tech",
+        action="BUY",
+        conviction_w=2.0,
+        edge_bps=300.0,
+        cost_passed=True,
+        disagreement_weight=1.0,
+        contributing_basis=("",),
         verdict_evidence_hash="0" * 64,
     )
     low_edge_low_agree = ScreenRow(
-        ticker="Y", sector="Tech", action="BUY",
-        conviction_w=2.0, edge_bps=100.0, cost_passed=True,
-        disagreement_weight=0.4, contributing_basis=("",),
+        ticker="Y",
+        sector="Tech",
+        action="BUY",
+        conviction_w=2.0,
+        edge_bps=100.0,
+        cost_passed=True,
+        disagreement_weight=0.4,
+        contributing_basis=("",),
         verdict_evidence_hash="1" * 64,
     )
     assert high_edge_high_agree.composite_rank > low_edge_low_agree.composite_rank

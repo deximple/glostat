@@ -106,7 +106,9 @@ class LiveHindcastVerdictBuilder:
             except (YFinanceUnavailableError, YFinanceDataError) as exc:
                 log.warning(
                     "live_hindcast.yfinance_skip",
-                    ticker=ticker_u, day=day.isoformat(), err=str(exc),
+                    ticker=ticker_u,
+                    day=day.isoformat(),
+                    err=str(exc),
                 )
                 self._failed_tickers.add(ticker_u)
                 self._failure_count += 1
@@ -114,7 +116,9 @@ class LiveHindcastVerdictBuilder:
             except Exception as exc:
                 log.warning(
                     "live_hindcast.unexpected",
-                    ticker=ticker_u, day=day.isoformat(), err=str(exc),
+                    ticker=ticker_u,
+                    day=day.isoformat(),
+                    err=str(exc),
                 )
                 self._failure_count += 1
                 return None
@@ -146,7 +150,9 @@ class LiveHindcastVerdictBuilder:
                 )
                 log.info(
                     "live_hindcast.expert_skipped",
-                    expert=expert.name, ticker=ticker, day=day.isoformat(),
+                    expert=expert.name,
+                    ticker=ticker,
+                    day=day.isoformat(),
                     reason=str(exc),
                 )
                 continue
@@ -159,7 +165,9 @@ class LiveHindcastVerdictBuilder:
                     ) from exc
                 log.warning(
                     "live_hindcast.expert_failed",
-                    expert=expert.name, ticker=ticker, day=day.isoformat(),
+                    expert=expert.name,
+                    ticker=ticker,
+                    day=day.isoformat(),
                     err=msg,
                 )
                 continue
@@ -170,7 +178,9 @@ class LiveHindcastVerdictBuilder:
             self._skipped_count += 1
             log.info(
                 "live_hindcast.verdict_skipped",
-                ticker=ticker, day=day.isoformat(), skipped_experts=skipped,
+                ticker=ticker,
+                day=day.isoformat(),
+                skipped_experts=skipped,
             )
             return None
         try:
@@ -185,7 +195,9 @@ class LiveHindcastVerdictBuilder:
         except ValueError as exc:
             log.warning(
                 "live_hindcast.build_verdict_failed",
-                ticker=ticker, day=day.isoformat(), err=str(exc),
+                ticker=ticker,
+                day=day.isoformat(),
+                err=str(exc),
             )
             return None
         self._build_count += 1
@@ -221,9 +233,7 @@ class LiveActualReturnFetcher:
     async def __call__(self, ticker: str, day: date, horizon_days: int = 30) -> float | None:
         return await self.fetch(ticker, day, horizon_days)
 
-    async def fetch(
-        self, ticker: str, day: date, horizon_days: int = 30
-    ) -> float | None:
+    async def fetch(self, ticker: str, day: date, horizon_days: int = 30) -> float | None:
         ticker_u = ticker.upper().strip()
         target_day = day + timedelta(days=horizon_days)
         if target_day > self._today:
@@ -242,14 +252,18 @@ class LiveActualReturnFetcher:
             except (YFinanceUnavailableError, YFinanceDataError) as exc:
                 log.warning(
                     "live_actual.skip",
-                    ticker=ticker_u, day=day.isoformat(), err=str(exc),
+                    ticker=ticker_u,
+                    day=day.isoformat(),
+                    err=str(exc),
                 )
                 self.dropped_count += 1
                 return None
             except Exception as exc:
                 log.warning(
                     "live_actual.unexpected",
-                    ticker=ticker_u, day=day.isoformat(), err=str(exc),
+                    ticker=ticker_u,
+                    day=day.isoformat(),
+                    err=str(exc),
                 )
                 self.dropped_count += 1
                 return None
@@ -257,9 +271,7 @@ class LiveActualReturnFetcher:
             self.fetch_count += 1
             return value
 
-    async def _fetch_once(
-        self, ticker: str, day: date, horizon_days: int
-    ) -> float:
+    async def _fetch_once(self, ticker: str, day: date, horizon_days: int) -> float:
         # WHY: pad the window so weekend/holiday padding yields a real bar at both
         # endpoints. Yahoo's history endpoint is end-exclusive, so add 1 to be safe.
         target_day = day + timedelta(days=horizon_days)
@@ -271,9 +283,7 @@ class LiveActualReturnFetcher:
         close_at_day = _close_on_or_before(series, day)
         close_at_target = _close_on_or_before(series, target_day)
         if close_at_day is None or close_at_target is None or close_at_day <= 0:
-            raise YFinanceDataError(
-                f"insufficient bars for {ticker} day={day} target={target_day}"
-            )
+            raise YFinanceDataError(f"insufficient bars for {ticker} day={day} target={target_day}")
         return (close_at_target - close_at_day) / close_at_day
 
     def persist(self) -> Path:
@@ -318,9 +328,7 @@ def _save_actual_cache(path: Path, cache: Mapping[str, float]) -> Path:
 
         path.parent.mkdir(parents=True, exist_ok=True)
         keys = sorted(cache)
-        table = pa.Table.from_pylist(
-            [{"key": k, "actual_return": float(cache[k])} for k in keys]
-        )
+        table = pa.Table.from_pylist([{"key": k, "actual_return": float(cache[k])} for k in keys])
         tmp = path.with_suffix(path.suffix + ".tmp")
         pq.write_table(table, tmp, compression="zstd")
         tmp.replace(path)

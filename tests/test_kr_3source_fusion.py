@@ -17,24 +17,32 @@ from glostat.data.toss_client import TossInvestorBar
 
 def _naver_bar(d: date, foreign: int) -> KrFlowBar:
     return KrFlowBar(
-        code="005930", bar_date=d, close_price=70000.0,
-        organ_net=10.0, foreign_net=float(foreign),
-        foreign_holdings=0.0, foreign_hold_pct=0.0,
+        code="005930",
+        bar_date=d,
+        close_price=70000.0,
+        organ_net=10.0,
+        foreign_net=float(foreign),
+        foreign_holdings=0.0,
+        foreign_hold_pct=0.0,
     )
 
 
 def _toss_bar(d: date, foreign_won: float) -> TossInvestorBar:
     return TossInvestorBar(
-        bar_date=d, ticker="005930",
-        foreign_net_won=foreign_won, institutional_net_won=200.0,
+        bar_date=d,
+        ticker="005930",
+        foreign_net_won=foreign_won,
+        institutional_net_won=200.0,
         retail_net_won=50.0,
     )
 
 
 def _kis_summary(d: date, foreign_won: float) -> KisDailySummary:
     return KisDailySummary(
-        code="005930", bar_date=d,
-        foreign_net_won=foreign_won, institutional_net_won=300.0,
+        code="005930",
+        bar_date=d,
+        foreign_net_won=foreign_won,
+        institutional_net_won=300.0,
         individual_net_won=100.0,
     )
 
@@ -102,10 +110,13 @@ def test_fuse_toss_and_kis_cross_validated_in_won() -> None:
 
 def test_fuse_three_sources_naver_dominant_units_shares() -> None:
     naver = [_naver_bar(date(2026, 4, 1), 100)]
-    toss = [_toss_bar(date(2026, 4, 1), 1.0e9)]   # different units, ignored
+    toss = [_toss_bar(date(2026, 4, 1), 1.0e9)]  # different units, ignored
     kis = [_kis_summary(date(2026, 4, 1), 1.0e9)]
     fused = fuse_three_source_flows(
-        code="005930", naver_bars=naver, toss_bars=toss, kis_daily=kis,
+        code="005930",
+        naver_bars=naver,
+        toss_bars=toss,
+        kis_daily=kis,
     )
     assert len(fused) == 1
     bar = fused[0]
@@ -118,9 +129,11 @@ def test_fuse_three_sources_naver_dominant_units_shares() -> None:
 
 def test_fuse_disagreement_uses_median(caplog) -> None:
     toss = [_toss_bar(date(2026, 4, 1), 1.0e9)]
-    kis = [_kis_summary(date(2026, 4, 1), 5.0e9)]   # 5x toss → > 50% disagreement
+    kis = [_kis_summary(date(2026, 4, 1), 5.0e9)]  # 5x toss → > 50% disagreement
     fused = fuse_three_source_flows(
-        code="005930", toss_bars=toss, kis_daily=kis,
+        code="005930",
+        toss_bars=toss,
+        kis_daily=kis,
     )
     assert len(fused) == 1
     # Median = 3.0e9
@@ -132,7 +145,9 @@ def test_fuse_disagreement_threshold_param_disable() -> None:
     toss = [_toss_bar(date(2026, 4, 1), 1.0e9)]
     kis = [_kis_summary(date(2026, 4, 1), 1.6e9)]
     fused = fuse_three_source_flows(
-        code="005930", toss_bars=toss, kis_daily=kis,
+        code="005930",
+        toss_bars=toss,
+        kis_daily=kis,
         disagreement_threshold=10.0,  # very high threshold = never trigger
     )
     assert len(fused) == 1
@@ -158,9 +173,13 @@ def test_fuse_empty_inputs_returns_empty() -> None:
 
 def test_fused_bar_dataclass_is_immutable() -> None:
     bar = FusedFlowBar(
-        bar_date=date(2026, 4, 1), code="005930",
-        foreign_net=100.0, organ_net=10.0, sources=("naver",),
-        units="shares", cross_validated=False,
+        bar_date=date(2026, 4, 1),
+        code="005930",
+        foreign_net=100.0,
+        organ_net=10.0,
+        sources=("naver",),
+        units="shares",
+        cross_validated=False,
     )
     with pytest.raises((AttributeError, TypeError)):
         bar.foreign_net = 999.0  # type: ignore[misc]
@@ -171,7 +190,9 @@ def test_fuse_kis_only_per_date_no_cross() -> None:
     naver = [_naver_bar(date(2026, 4, 1), 100), _naver_bar(date(2026, 4, 2), 200)]
     kis = [_kis_summary(date(2026, 4, 2), 5.0e9)]
     fused = fuse_three_source_flows(
-        code="005930", naver_bars=naver, kis_daily=kis,
+        code="005930",
+        naver_bars=naver,
+        kis_daily=kis,
     )
     assert len(fused) == 2
     # Apr 1: naver-only; Apr 2: naver dominant + kis present

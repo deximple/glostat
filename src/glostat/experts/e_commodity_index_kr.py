@@ -38,7 +38,7 @@ from glostat.data.sector_classifier_kr import is_refining
 
 log: Final = structlog.get_logger(__name__)
 
-_MOMENTUM_GAIN: Final[float] = 5.0       # +20% momentum → +1.0 sub-signal
+_MOMENTUM_GAIN: Final[float] = 5.0  # +20% momentum → +1.0 sub-signal
 _SUB_SIGNAL_CLIP: Final[float] = 1.5
 _SCORE_CLIP: Final[float] = 2.0
 # WHY: commodity-momentum is one of two signals fed to refining-only universe;
@@ -91,29 +91,32 @@ class ECommodityIndexKrExpert:
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         code = normalize_kr_ticker(ticker)
         if not is_refining(code):
-            raise ExpertSkipError(
-                f"E_COMMODITY_INDEX_KR: {code} not in KR refining universe"
-            )
+            raise ExpertSkipError(f"E_COMMODITY_INDEX_KR: {code} not in KR refining universe")
         sources: list[_Source] = []
         wti = await self._fetch_wti(sources)
         crack = await self._fetch_crack()
         score = _score(wti, crack)
         return _build_signal(
-            code=code, ts=ts, score=score,
-            wti=wti, crack=crack, sources=sources,
+            code=code,
+            ts=ts,
+            score=score,
+            wti=wti,
+            crack=crack,
+            sources=sources,
         )
 
     async def _fetch_wti(self, sources: list[_Source]) -> CommodityCycle:
         try:
             cycle = await self._commodity.get_cycle(CommodityKey.WTI)
         except CommodityDataError as exc:
-            raise ExpertSkipError(
-                f"E_COMMODITY_INDEX_KR: WTI fetch failed: {exc}"
-            ) from exc
+            raise ExpertSkipError(f"E_COMMODITY_INDEX_KR: WTI fetch failed: {exc}") from exc
         if cycle.snapshot_id is not None:
-            sources.append(_Source(
-                name="commodity.wti", snapshot_id=cycle.snapshot_id,
-            ))
+            sources.append(
+                _Source(
+                    name="commodity.wti",
+                    snapshot_id=cycle.snapshot_id,
+                )
+            )
         return cycle
 
     async def _fetch_crack(self) -> CrackSpread:
@@ -126,10 +129,10 @@ class ECommodityIndexKrExpert:
 
 
 def _score(wti: CommodityCycle, crack: CrackSpread) -> CommodityIndexScore:
-    wti_signal = max(-_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP,
-                                            wti.momentum_30d * _MOMENTUM_GAIN))
-    crack_signal = max(-_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP,
-                                              crack.momentum_30d * _MOMENTUM_GAIN))
+    wti_signal = max(-_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP, wti.momentum_30d * _MOMENTUM_GAIN))
+    crack_signal = max(
+        -_SUB_SIGNAL_CLIP, min(_SUB_SIGNAL_CLIP, crack.momentum_30d * _MOMENTUM_GAIN)
+    )
     raw = 0.5 * wti_signal + 0.5 * crack_signal
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     return CommodityIndexScore(
@@ -156,29 +159,33 @@ def _build_signal(
         f"crack ${crack.last_spread:.1f}/bbl 30d_mom={crack.momentum_30d:+.2%}, "
         f"net={score.net_score:+.2f}"
     )
-    metadata = tuple(sorted({
-        "wti_last_close": f"{wti.last_close:.4f}",
-        "wti_momentum_30d": f"{wti.momentum_30d:.6f}",
-        "wti_pctile": f"{wti.cycle_percentile:.4f}",
-        "crack_last_spread": f"{crack.last_spread:.4f}",
-        "crack_momentum_30d": f"{crack.momentum_30d:.6f}",
-        "crack_pctile": f"{crack.cycle_percentile:.4f}",
-        "wti_signal": f"{score.wti_signal:.4f}",
-        "crack_signal": f"{score.crack_signal:.4f}",
-        "raw_score": f"{score.raw_score:.4f}",
-        "net_score": f"{score.net_score:.4f}",
-        "code": code,
-    }.items()))
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_commodity_index_kr.synthetic",)
+    metadata = tuple(
+        sorted(
+            {
+                "wti_last_close": f"{wti.last_close:.4f}",
+                "wti_momentum_30d": f"{wti.momentum_30d:.6f}",
+                "wti_pctile": f"{wti.cycle_percentile:.4f}",
+                "crack_last_spread": f"{crack.last_spread:.4f}",
+                "crack_momentum_30d": f"{crack.momentum_30d:.6f}",
+                "crack_pctile": f"{crack.cycle_percentile:.4f}",
+                "wti_signal": f"{score.wti_signal:.4f}",
+                "crack_signal": f"{score.crack_signal:.4f}",
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "code": code,
+            }.items()
+        )
+    )
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_commodity_index_kr.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_COMMODITY_INDEX_KR",  # type: ignore[arg-type]
         ticker=code,
         direction=score.direction,  # type: ignore[arg-type]
         net_score=score.net_score,
         confidence=score.confidence,
-        archetype="continuation",   # momentum-following, not contrarian
+        archetype="continuation",  # momentum-following, not contrarian
         basis=basis,
         sources=source_strings,
         expires_at=ts + timedelta(days=_SWING_HORIZON_DAYS),

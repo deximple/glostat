@@ -70,7 +70,8 @@ async def test_live_macro_kr_signal_for_samsung() -> None:
     assert expert is not None
     try:
         signal = await expert.compute(
-            "005930", datetime.now(tz=UTC),
+            "005930",
+            datetime.now(tz=UTC),
         )
     finally:
         if expert._ecos is not None:  # type: ignore[attr-defined]

@@ -85,9 +85,7 @@ def list_active_universes(*, yaml_path: Path | None = None) -> list[str]:
     # WHY: separate from list_universes — useful for CLI to show only loadable names.
     data = _load_yaml(yaml_path or _UNIVERSES_YAML)
     table = data.get("universes", {}) or {}
-    return sorted(
-        str(k) for k, v in table.items() if not (v or {}).get("deferred_to")
-    )
+    return sorted(str(k) for k, v in table.items() if not (v or {}).get("deferred_to"))
 
 
 def _load_spec(name: str, *, yaml_path: Path | None) -> Mapping[str, object]:

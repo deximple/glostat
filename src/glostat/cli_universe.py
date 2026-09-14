@@ -140,9 +140,7 @@ def _persist_entity_map(
     em = EntityMap.load(cache)
     for ticker in universe.tickers:
         sector = sector_table.get(ticker, "UNKNOWN")
-        market_cap = (
-            float(synthetic_fundamentals_for(ticker)["market_cap"]) if args.mock else 0.0
-        )
+        market_cap = float(synthetic_fundamentals_for(ticker)["market_cap"]) if args.mock else 0.0
         rec = record_for_us_ticker(
             ticker=ticker,
             name=ticker,
@@ -177,6 +175,7 @@ async def _screen_async(
     bundle = mock_sector_stats_for(universe) if args.mock else _empty_bundle(universe)
     broker = SnapshotBroker(root=_DEFAULT_SNAPSHOT_ROOT)
     try:
+
         async def builder(ticker: str) -> tuple[Verdict, str]:
             sector = synthetic_sector_for(ticker) if args.mock else "UNKNOWN"
             fixture = synthetic_screen_fixture(ticker) if args.mock else None
@@ -264,9 +263,7 @@ def _empty_bundle(universe: Universe) -> SectorStatsBundle:
     return empty_bundle(universe.name)
 
 
-def _load_market_meta_from_yaml(
-    mic: str, _args: argparse.Namespace
-) -> MarketMeta:
+def _load_market_meta_from_yaml(mic: str, _args: argparse.Namespace) -> MarketMeta:
     # WHY: import the existing parser from cli to avoid duplicating yaml plumbing.
     from glostat.cli import _load_market_meta  # noqa: PLC0415 — local import
 
@@ -281,34 +278,41 @@ def add_universe_subparser(sub: Any) -> None:
     sub_u = p.add_subparsers(dest="universe_action")
     sub_u.add_parser("list", help="List configured universes.")
     build = sub_u.add_parser("build", help="Build universe → sector_stats cache.")
-    build.add_argument("--name", default=_DEFAULT_UNIVERSE,
-                       help=f"Universe name (default {_DEFAULT_UNIVERSE}).")
-    build.add_argument("--mock", action="store_true",
-                       help="Use synthetic fundamentals; no network calls.")
-    build.add_argument("--cache", default=None,
-                       help="Override sector_stats cache path.")
-    build.add_argument("--entity-map-cache", default=None,
-                       help="Override entity_map parquet path.")
+    build.add_argument(
+        "--name", default=_DEFAULT_UNIVERSE, help=f"Universe name (default {_DEFAULT_UNIVERSE})."
+    )
+    build.add_argument(
+        "--mock", action="store_true", help="Use synthetic fundamentals; no network calls."
+    )
+    build.add_argument("--cache", default=None, help="Override sector_stats cache path.")
+    build.add_argument("--entity-map-cache", default=None, help="Override entity_map parquet path.")
 
 
 def add_screen_subparser(sub: Any) -> None:
     p = sub.add_parser("screen", help="Screen a universe and rank top candidates.")
     p.add_argument("universe", help="Universe name (e.g., US_LARGE_SAMPLE).")
-    p.add_argument("--top", type=int, default=DEFAULT_TOP_N,
-                   help=f"Top N to return (default {DEFAULT_TOP_N}).")
-    p.add_argument("--mock", action="store_true",
-                   help="Use synthetic per-ticker data.")
-    p.add_argument("--expert", default="all",
-                   choices=["fundamental", "time", "fund_flow", "all"])
-    p.add_argument("--sort", default="edge_x_disagreement",
-                   choices=["edge_bps", "confidence", "edge_x_disagreement"])
+    p.add_argument(
+        "--top", type=int, default=DEFAULT_TOP_N, help=f"Top N to return (default {DEFAULT_TOP_N})."
+    )
+    p.add_argument("--mock", action="store_true", help="Use synthetic per-ticker data.")
+    p.add_argument("--expert", default="all", choices=["fundamental", "time", "fund_flow", "all"])
+    p.add_argument(
+        "--sort",
+        default="edge_x_disagreement",
+        choices=["edge_bps", "confidence", "edge_x_disagreement"],
+    )
     p.add_argument("--horizon", type=int, default=30, help="Horizon days [1, 30].")
-    p.add_argument("--include-cost-failed", action="store_true",
-                   help="Include verdicts that fail INV-GS-001 cost gate.")
-    p.add_argument("--jurisdiction", default="US",
-                   choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"])
-    p.add_argument("--json", action="store_true",
-                   help="Emit machine-readable JSON instead of table.")
+    p.add_argument(
+        "--include-cost-failed",
+        action="store_true",
+        help="Include verdicts that fail INV-GS-001 cost gate.",
+    )
+    p.add_argument(
+        "--jurisdiction", default="US", choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"]
+    )
+    p.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON instead of table."
+    )
 
 
 __all__ = [

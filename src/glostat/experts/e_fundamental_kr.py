@@ -40,11 +40,11 @@ _KR_ROE_MEDIAN: Final[float] = 0.085
 _KR_ROE_STDDEV: Final[float] = 0.045
 _KR_DIV_YIELD_MEDIAN: Final[float] = 0.018  # 1.8% — KR megacap median
 
-_WEIGHT_PER: Final[float] = 0.45     # value tilt — per is the dominant KR signal
-_WEIGHT_ROE: Final[float] = 0.40     # quality
-_WEIGHT_DIV: Final[float] = 0.15     # income / capital allocation discipline
+_WEIGHT_PER: Final[float] = 0.45  # value tilt — per is the dominant KR signal
+_WEIGHT_ROE: Final[float] = 0.40  # quality
+_WEIGHT_DIV: Final[float] = 0.15  # income / capital allocation discipline
 
-_DIRECTION_THRESHOLD: Final[float] = 1.0   # KR is noisier; relax 1.5 → 1.0
+_DIRECTION_THRESHOLD: Final[float] = 1.0  # KR is noisier; relax 1.5 → 1.0
 _SCORE_CLIP: Final[float] = 3.0
 _SWING_HORIZON_DAYS: Final[int] = 30
 
@@ -117,11 +117,15 @@ class EFundamentalKrExpert:
                 f"E_FUNDAMENTAL_KR: missing PER and ROE for {code}@{ts.date().isoformat()}"
             )
         score = _score_kr(fundamentals)
-        return _build_signal(code=code, ts=ts, score=score, fundamentals=fundamentals,
-                             sources=sources)
+        return _build_signal(
+            code=code, ts=ts, score=score, fundamentals=fundamentals, sources=sources
+        )
 
     async def _enrich_with_dart(
-        self, code: str, fundamentals: Fundamentals, sources: list[_Source],
+        self,
+        code: str,
+        fundamentals: Fundamentals,
+        sources: list[_Source],
     ) -> Fundamentals:
         client = self._dart or _maybe_dart_client()
         if client is None:
@@ -136,10 +140,13 @@ class EFundamentalKrExpert:
             return fundamentals
         snap_id = client.last_snapshot_id
         if snap_id is not None:
-            sources.append(_Source(
-                name="dart.fnlttSinglAcntAll",
-                snapshot_id=snap_id, ts=datetime.now(tz=UTC),
-            ))
+            sources.append(
+                _Source(
+                    name="dart.fnlttSinglAcntAll",
+                    snapshot_id=snap_id,
+                    ts=datetime.now(tz=UTC),
+                )
+            )
         return _merge_with_dart(fundamentals, statements)
 
     async def _fetch_fundamentals(self, code: str, sources: list[_Source]) -> Fundamentals:
@@ -170,15 +177,14 @@ def _score_kr(f: Fundamentals) -> FundamentalKrScore:
     div_z = _div_z(f.dividend_yield)
     # WHY: lower PER → positive value tilt → invert per_z so cheap = +.
     per_signal = -per_z
-    raw = (
-        _WEIGHT_PER * per_signal
-        + _WEIGHT_ROE * roe_z
-        + _WEIGHT_DIV * div_z
-    )
+    raw = _WEIGHT_PER * per_signal + _WEIGHT_ROE * roe_z + _WEIGHT_DIV * div_z
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     return FundamentalKrScore(
-        per_z=per_signal, roe_z=roe_z, div_z=div_z,
-        net_score=net, raw_score=raw,
+        per_z=per_signal,
+        roe_z=roe_z,
+        div_z=div_z,
+        net_score=net,
+        raw_score=raw,
     )
 
 
@@ -238,9 +244,9 @@ def _build_signal(
             }.items()
         )
     )
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_fundamental_kr.synthetic",)
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_fundamental_kr.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_FUNDAMENTAL_KR",  # type: ignore[arg-type]
         ticker=code,
@@ -269,7 +275,8 @@ def _maybe_dart_client() -> DartClient | None:
 
 
 async def _fetch_latest_annual(
-    client: DartClient, corp_code: str,
+    client: DartClient,
+    corp_code: str,
 ) -> DartFinancialStatements | None:
     # WHY: try the previous fiscal year's annual filing (11011) first; in early
     # Q1 the prior year may not have been released so fall back further.
@@ -277,12 +284,17 @@ async def _fetch_latest_annual(
     for year in (current_year - 1, current_year - 2):
         try:
             statements = await client.get_financial_statements(
-                corp_code, year=year, reprt_code="11011", fs_div="CFS",
+                corp_code,
+                year=year,
+                reprt_code="11011",
+                fs_div="CFS",
             )
         except DartApiError as exc:
             log.info(
                 "e_fundamental_kr.dart_annual_skip",
-                corp_code=corp_code, year=year, err=str(exc),
+                corp_code=corp_code,
+                year=year,
+                err=str(exc),
             )
             continue
         if statements.items:
@@ -291,7 +303,8 @@ async def _fetch_latest_annual(
 
 
 def _merge_with_dart(
-    yf_f: Fundamentals, statements: DartFinancialStatements,
+    yf_f: Fundamentals,
+    statements: DartFinancialStatements,
 ) -> Fundamentals:
     # WHY: DART exposes raw revenue / net-income / equity rather than ratios.
     # We compute ROE = NI / equity when both are present and override yfinance.
@@ -321,7 +334,8 @@ def _merge_with_dart(
 
 
 def _find_value(
-    statements: DartFinancialStatements, hints: tuple[str, ...],
+    statements: DartFinancialStatements,
+    hints: tuple[str, ...],
 ) -> float | None:
     for hint in hints:
         item = statements.find(hint) or statements.find_by_name(hint)

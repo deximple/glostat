@@ -16,13 +16,21 @@ from glostat.predictor.calibration import (
 
 
 def _make_thesis(
-    *, name: str = "X", auc: float = 0.55, sharpe: float = 0.5,
-    n: int = 200, oos_deg: float = 0.1,
+    *,
+    name: str = "X",
+    auc: float = 0.55,
+    sharpe: float = 0.5,
+    n: int = 200,
+    oos_deg: float = 0.1,
 ) -> ThesisCalibration:
     return ThesisCalibration(
-        name=name, auc=auc, sharpe=sharpe, n_samples=n,
+        name=name,
+        auc=auc,
+        sharpe=sharpe,
+        n_samples=n,
         oos_degradation=oos_deg,
-        period_start=date(2024, 1, 1), period_end=date(2026, 3, 31),
+        period_start=date(2024, 1, 1),
+        period_end=date(2026, 3, 31),
     )
 
 
@@ -128,8 +136,12 @@ def test_synthetic_calibration_has_twentytwo_theses() -> None:
 def test_synthetic_includes_phase1b_theses() -> None:
     table = synthetic_calibration_for_mock()
     for n in (
-        "E_FUNDAMENTAL", "E_TIME", "E_FUND_FLOW",
-        "E_SECTOR_ROTATION", "E_PEAD", "E_FOMC_DRIFT",
+        "E_FUNDAMENTAL",
+        "E_TIME",
+        "E_FUND_FLOW",
+        "E_SECTOR_ROTATION",
+        "E_PEAD",
+        "E_FOMC_DRIFT",
         "E_INSIDER_CLUSTER",
     ):
         assert n in table.entries
@@ -176,18 +188,22 @@ def test_load_calibration_empty_cache(tmp_path: Path) -> None:
 def test_load_calibration_reads_phase1b_report(tmp_path: Path) -> None:
     phase1b = tmp_path / "phase1b"
     phase1b.mkdir()
-    (phase1b / "e_pead_report.json").write_text(json.dumps({
-        "report": {
-            "expert": "E_PEAD",
-            "n_trades": 298,
-            "is_sharpe": 0.98,
-            "oos_sharpe": -0.15,
-            "overall_sharpe": 0.629,
-            "is_auc": 0.62,
-            "oos_auc": 0.54,
-            "overall_auc": 0.586,
-        }
-    }))
+    (phase1b / "e_pead_report.json").write_text(
+        json.dumps(
+            {
+                "report": {
+                    "expert": "E_PEAD",
+                    "n_trades": 298,
+                    "is_sharpe": 0.98,
+                    "oos_sharpe": -0.15,
+                    "overall_sharpe": 0.629,
+                    "is_auc": 0.62,
+                    "oos_auc": 0.54,
+                    "overall_auc": 0.586,
+                }
+            }
+        )
+    )
     table = load_calibration(cache_dir=tmp_path)
     assert "E_PEAD" in table.entries
     pead = table.entries["E_PEAD"]
@@ -198,16 +214,20 @@ def test_load_calibration_reads_phase1b_report(tmp_path: Path) -> None:
 def test_load_calibration_reads_phase1c_report(tmp_path: Path) -> None:
     hindcast = tmp_path / "hindcast"
     hindcast.mkdir()
-    (hindcast / "phase1c_fx_carry_report.json").write_text(json.dumps({
-        "expert": "E_FX_CARRY",
-        "n_trades": 135,
-        "is_sharpe": -1.16,
-        "oos_sharpe": -2.79,
-        "overall_sharpe": -1.533,
-        "is_auc": 0.40,
-        "oos_auc": 0.38,
-        "overall_auc": 0.400,
-    }))
+    (hindcast / "phase1c_fx_carry_report.json").write_text(
+        json.dumps(
+            {
+                "expert": "E_FX_CARRY",
+                "n_trades": 135,
+                "is_sharpe": -1.16,
+                "oos_sharpe": -2.79,
+                "overall_sharpe": -1.533,
+                "is_auc": 0.40,
+                "oos_auc": 0.38,
+                "overall_auc": 0.400,
+            }
+        )
+    )
     table = load_calibration(cache_dir=tmp_path)
     assert "E_FX_CARRY" in table.entries
     fxc = table.entries["E_FX_CARRY"]

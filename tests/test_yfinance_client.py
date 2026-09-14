@@ -128,9 +128,7 @@ def test_get_ohlcv_with_mocked_yfinance(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
 
     c = YFinanceClient()
-    s: OhlcvSeries = asyncio.run(
-        c.get_ohlcv("aapl", start=date(2026, 1, 2), end=date(2026, 1, 4))
-    )
+    s: OhlcvSeries = asyncio.run(c.get_ohlcv("aapl", start=date(2026, 1, 2), end=date(2026, 1, 4)))
     assert s.ticker == "AAPL"
     assert len(s) == 2
     assert s.bars[0].close == 185.0
@@ -201,16 +199,21 @@ def test_retry_on_429_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
         if counter["calls"] == 1:
             _raise_429()
         return Fundamentals(
-            ticker="AAPL", pe_ratio=20.0, forward_pe=18.0,
-            eps=5.0, forward_eps=5.5, roe=0.4, market_cap=3e12,
-            dividend_yield=0.0, beta=1.0,
-            fifty_two_week_high=200.0, fifty_two_week_low=150.0,
+            ticker="AAPL",
+            pe_ratio=20.0,
+            forward_pe=18.0,
+            eps=5.0,
+            forward_eps=5.5,
+            roe=0.4,
+            market_cap=3e12,
+            dividend_yield=0.0,
+            beta=1.0,
+            fifty_two_week_high=200.0,
+            fifty_two_week_low=150.0,
         )
 
     monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda s: None))
-    monkeypatch.setattr(
-        "glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals
-    )
+    monkeypatch.setattr("glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals)
 
     async def _no_sleep(_d: float) -> None:
         return None
@@ -239,9 +242,7 @@ def test_retry_max_3_then_raises(monkeypatch: pytest.MonkeyPatch) -> None:
         raise httpx.HTTPStatusError("rate limited", request=MagicMock(), response=resp)
 
     monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda s: None))
-    monkeypatch.setattr(
-        "glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals
-    )
+    monkeypatch.setattr("glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals)
 
     async def _no_sleep(_d: float) -> None:
         return None
@@ -275,16 +276,21 @@ def test_retry_exponential_backoff_timing(monkeypatch: pytest.MonkeyPatch) -> No
             resp = _Resp(429)
             raise httpx.HTTPStatusError("rate", request=MagicMock(), response=resp)
         return Fundamentals(
-            ticker="AAPL", pe_ratio=20.0, forward_pe=18.0,
-            eps=5.0, forward_eps=5.5, roe=0.4, market_cap=3e12,
-            dividend_yield=0.0, beta=1.0,
-            fifty_two_week_high=200.0, fifty_two_week_low=150.0,
+            ticker="AAPL",
+            pe_ratio=20.0,
+            forward_pe=18.0,
+            eps=5.0,
+            forward_eps=5.5,
+            roe=0.4,
+            market_cap=3e12,
+            dividend_yield=0.0,
+            beta=1.0,
+            fifty_two_week_high=200.0,
+            fifty_two_week_low=150.0,
         )
 
     monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda s: None))
-    monkeypatch.setattr(
-        "glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals
-    )
+    monkeypatch.setattr("glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals)
     monkeypatch.setattr("glostat.data.retry._default_sleep", fake_sleep)
 
     c = YFinanceClient()
@@ -308,9 +314,7 @@ def test_no_retry_on_404(monkeypatch: pytest.MonkeyPatch) -> None:
         raise httpx.HTTPStatusError("not found", request=MagicMock(), response=resp)
 
     monkeypatch.setitem(sys.modules, "yfinance", SimpleNamespace(Ticker=lambda s: None))
-    monkeypatch.setattr(
-        "glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals
-    )
+    monkeypatch.setattr("glostat.data.yfinance_client.parse_fundamentals", fake_parse_fundamentals)
 
     async def _no_sleep(_d: float) -> None:
         return None

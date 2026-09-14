@@ -29,8 +29,11 @@ def _make_signal(
     sources: tuple[str, ...] = ("snap1", "snap2"),
 ) -> SignalContribution:
     return SignalContribution(
-        name=name, value=value, direction=direction,  # type: ignore[arg-type]
-        calibration_auc=auc, calibration_sharpe=sharpe,
+        name=name,
+        value=value,
+        direction=direction,  # type: ignore[arg-type]
+        calibration_auc=auc,
+        calibration_sharpe=sharpe,
         n_samples=n,
         skip_reason=skip_reason,
         source_snapshot_ids=sources,
@@ -70,7 +73,9 @@ def test_prediction_constructs_when_probs_sum_to_one() -> None:
 def test_prediction_rejects_probability_drift() -> None:
     with pytest.raises(ValueError, match="probabilities sum to"):
         _make_prediction(
-            up_probability=0.5, down_probability=0.4, sideways_probability=0.2,
+            up_probability=0.5,
+            down_probability=0.4,
+            sideways_probability=0.2,
         )
 
 
@@ -117,16 +122,24 @@ def test_prediction_active_signal_count_excludes_skipped() -> None:
 def test_signal_contribution_skip_requires_value_none() -> None:
     with pytest.raises(ValueError, match="skip direction requires value=None"):
         SignalContribution(
-            name="X", value=0.5, direction="skip",
-            calibration_auc=0.5, calibration_sharpe=0.0, n_samples=0,
+            name="X",
+            value=0.5,
+            direction="skip",
+            calibration_auc=0.5,
+            calibration_sharpe=0.0,
+            n_samples=0,
         )
 
 
 def test_signal_contribution_non_skip_disallows_skip_reason() -> None:
     with pytest.raises(ValueError, match="non-skip direction with skip_reason"):
         SignalContribution(
-            name="X", value=0.5, direction="up",
-            calibration_auc=0.5, calibration_sharpe=0.0, n_samples=10,
+            name="X",
+            value=0.5,
+            direction="up",
+            calibration_auc=0.5,
+            calibration_sharpe=0.0,
+            n_samples=10,
             skip_reason="should not have a reason",
         )
 
@@ -134,16 +147,24 @@ def test_signal_contribution_non_skip_disallows_skip_reason() -> None:
 def test_signal_contribution_rejects_auc_out_of_range() -> None:
     with pytest.raises(ValueError, match="calibration_auc"):
         SignalContribution(
-            name="X", value=0.5, direction="up",
-            calibration_auc=1.5, calibration_sharpe=0.0, n_samples=10,
+            name="X",
+            value=0.5,
+            direction="up",
+            calibration_auc=1.5,
+            calibration_sharpe=0.0,
+            n_samples=10,
         )
 
 
 def test_signal_contribution_rejects_negative_n_samples() -> None:
     with pytest.raises(ValueError, match="n_samples"):
         SignalContribution(
-            name="X", value=0.5, direction="up",
-            calibration_auc=0.5, calibration_sharpe=0.0, n_samples=-1,
+            name="X",
+            value=0.5,
+            direction="up",
+            calibration_auc=0.5,
+            calibration_sharpe=0.0,
+            n_samples=-1,
         )
 
 
@@ -163,16 +184,18 @@ def test_prediction_sha256_is_deterministic() -> None:
 
 def test_prediction_sha256_changes_on_probability_change() -> None:
     p1 = _make_prediction()
-    p2 = _make_prediction(
-        up_probability=0.40, down_probability=0.40, sideways_probability=0.20
-    )
+    p2 = _make_prediction(up_probability=0.40, down_probability=0.40, sideways_probability=0.20)
     assert prediction_sha256(p1) != prediction_sha256(p2)
 
 
 def test_pydantic_signal_contribution_in_to_dataclass() -> None:
     s_in = SignalContributionIn(
-        name="PEAD", value=0.5, direction="up",
-        calibration_auc=0.586, calibration_sharpe=0.629, n_samples=298,
+        name="PEAD",
+        value=0.5,
+        direction="up",
+        calibration_auc=0.586,
+        calibration_sharpe=0.629,
+        n_samples=298,
     )
     sc = s_in.to_dataclass()
     assert sc.name == "PEAD"
@@ -194,8 +217,12 @@ def test_pydantic_prediction_in_to_dataclass() -> None:
         edge_over_baseline_pp=3.2,
         contributing_signals=[
             SignalContributionIn(
-                name="PEAD", value=0.5, direction="up",
-                calibration_auc=0.586, calibration_sharpe=0.629, n_samples=298,
+                name="PEAD",
+                value=0.5,
+                direction="up",
+                calibration_auc=0.586,
+                calibration_sharpe=0.629,
+                n_samples=298,
             ),
         ],
         next_triggers=["Next earnings"],

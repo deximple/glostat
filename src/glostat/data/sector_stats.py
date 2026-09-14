@@ -110,12 +110,8 @@ def _aggregate_samples(
             continue
         per_median = statistics.median(per_values)
         roe_median = statistics.median(roe_values)
-        per_stddev = (
-            statistics.stdev(per_values) if len(per_values) >= 2 else _FALLBACK_PER_STDDEV
-        )
-        roe_stddev = (
-            statistics.stdev(roe_values) if len(roe_values) >= 2 else _FALLBACK_ROE_STDDEV
-        )
+        per_stddev = statistics.stdev(per_values) if len(per_values) >= 2 else _FALLBACK_PER_STDDEV
+        roe_stddev = statistics.stdev(roe_values) if len(roe_values) >= 2 else _FALLBACK_ROE_STDDEV
         out[sector] = SectorStats(
             sector=sector,
             sample_size=len(rows),
@@ -157,9 +153,7 @@ _SCHEMA: Final = pa.schema(
 )
 
 
-def save_sector_stats(
-    bundle: SectorStatsBundle, *, cache_path: Path | None = None
-) -> Path:
+def save_sector_stats(bundle: SectorStatsBundle, *, cache_path: Path | None = None) -> Path:
     path = cache_path or _DEFAULT_CACHE
     path.parent.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, object]] = [

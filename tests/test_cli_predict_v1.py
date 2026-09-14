@@ -17,7 +17,11 @@ _CLI_MODULE: Final = "glostat.cli"
 def _run(*args: str, cwd: Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", _CLI_MODULE, *args],
-        cwd=cwd, capture_output=True, text=True, check=False, timeout=timeout,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout,
     )
 
 
@@ -79,10 +83,17 @@ def test_predict_v1_includes_all_eleven_theses(workdir: Path) -> None:
     r = _run("predict", "AAPL", "--mock", cwd=workdir)
     assert r.returncode == 0
     for thesis in (
-        "E_FUNDAMENTAL", "E_TIME", "E_FUND_FLOW",
-        "E_SECTOR_ROTATION", "E_PEAD", "E_FOMC_DRIFT",
-        "E_INSIDER_CLUSTER", "E_COMMODITY_TS", "E_FX_CARRY",
-        "E_FUNDING_CARRY", "E_FOREIGN_REVERSAL",
+        "E_FUNDAMENTAL",
+        "E_TIME",
+        "E_FUND_FLOW",
+        "E_SECTOR_ROTATION",
+        "E_PEAD",
+        "E_FOMC_DRIFT",
+        "E_INSIDER_CLUSTER",
+        "E_COMMODITY_TS",
+        "E_FX_CARRY",
+        "E_FUNDING_CARRY",
+        "E_FOREIGN_REVERSAL",
     ):
         assert thesis in r.stdout, f"{thesis} missing from predict output"
 
@@ -139,9 +150,7 @@ def test_predict_v1_json_probabilities_sum_to_one(workdir: Path) -> None:
     assert r.returncode == 0
     payload = json.loads(r.stdout.strip().splitlines()[-1])
     total = (
-        payload["up_probability"]
-        + payload["down_probability"]
-        + payload["sideways_probability"]
+        payload["up_probability"] + payload["down_probability"] + payload["sideways_probability"]
     )
     assert abs(total - 1.0) < 1e-6
 

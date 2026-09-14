@@ -48,8 +48,8 @@ FOMC_DATES: Final[tuple[date, ...]] = (
     date(2026, 4, 29),
 )
 
-_REACTION_THRESHOLD: Final[float] = 0.0035   # 0.35% absolute move
-_SCORE_SCALE: Final[float] = 200.0           # 1% reaction → score 2.0
+_REACTION_THRESHOLD: Final[float] = 0.0035  # 0.35% absolute move
+_SCORE_SCALE: Final[float] = 200.0  # 1% reaction → score 2.0
 _SCORE_CLIP: Final[float] = 3.0
 _CONFIDENCE: Final[float] = 0.55
 
@@ -81,9 +81,7 @@ class EFomcDriftExpert:
     def event_dates_in_window(self, start: date, end: date) -> list[date]:
         return [d for d in self._dates if start <= d <= end]
 
-    async def compute_event(
-        self, ticker: str, fomc_day: date
-    ) -> FomcEvent | None:
+    async def compute_event(self, ticker: str, fomc_day: date) -> FomcEvent | None:
         await self._cache.get(ticker)
         # Reaction: close at FOMC_day vs close at FOMC_day - 1 trading day.
         # Use calendar-day lookback that handles weekends — the cache picks the

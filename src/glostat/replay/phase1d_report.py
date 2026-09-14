@@ -34,18 +34,11 @@ def render_report_md(report) -> str:
         f"| sharpe | {report.is_sharpe:.4f} | {report.oos_sharpe:.4f} | "
         f"{report.overall_sharpe:.4f} |"
     )
-    lines.append(
-        f"| auc | {report.is_auc:.4f} | {report.oos_auc:.4f} | "
-        f"{report.overall_auc:.4f} |"
-    )
+    lines.append(f"| auc | {report.is_auc:.4f} | {report.oos_auc:.4f} | {report.overall_auc:.4f} |")
     lines.append(f"| maxdd | – | – | {report.overall_maxdd:.4f} |")
     lines.append(f"| oos_degradation | – | {report.oos_degradation:.2%} | – |")
-    lines.append(
-        f"| hit_rate_actionable | – | – | {report.hit_rate_actionable:.2%} |"
-    )
-    lines.append(
-        f"| avg_actionable_return | – | – | {report.avg_actionable_return:+.4%} |"
-    )
+    lines.append(f"| hit_rate_actionable | – | – | {report.hit_rate_actionable:.2%} |")
+    lines.append(f"| avg_actionable_return | – | – | {report.avg_actionable_return:+.4%} |")
     lines.append("")
     if report.pattern_breakdown:
         lines.append("## Pattern breakdown")

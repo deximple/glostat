@@ -8,6 +8,7 @@ Runs:
 Writes per-thesis reports + a side-by-side comparison to
 cache/hindcast/phase1d/.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -112,18 +113,11 @@ def _comparison_md(e7, e9) -> str:
     lines.append("|---|---:|---:|")
     lines.append(f"| universe size | {len(e7.universe)} | {len(e9.universe)} |")
     lines.append(f"| bars evaluated | {e7.n_bars_evaluated:,} | {e9.n_bars_evaluated:,} |")
-    lines.append(
-        f"| INSUFFICIENT skip | {e7.n_skip_insufficient:,} | "
-        f"{e9.n_skip_insufficient:,} |"
-    )
+    lines.append(f"| INSUFFICIENT skip | {e7.n_skip_insufficient:,} | {e9.n_skip_insufficient:,} |")
     lines.append(f"| actionable (pre-cost) | {e7.n_actionable:,} | {e9.n_actionable:,} |")
     lines.append(f"| traded (post-cost) | {e7.n_traded:,} | {e9.n_traded:,} |")
-    lines.append(
-        f"| cost_passed_pct | {e7.cost_passed_pct:.1%} | {e9.cost_passed_pct:.1%} |"
-    )
-    lines.append(
-        f"| **Sharpe (overall)** | {e7.overall_sharpe:.4f} | {e9.overall_sharpe:.4f} |"
-    )
+    lines.append(f"| cost_passed_pct | {e7.cost_passed_pct:.1%} | {e9.cost_passed_pct:.1%} |")
+    lines.append(f"| **Sharpe (overall)** | {e7.overall_sharpe:.4f} | {e9.overall_sharpe:.4f} |")
     lines.append(f"| Sharpe IS | {e7.is_sharpe:.4f} | {e9.is_sharpe:.4f} |")
     lines.append(f"| Sharpe OOS | {e7.oos_sharpe:.4f} | {e9.oos_sharpe:.4f} |")
     lines.append(f"| OOS degradation | {e7.oos_degradation:.2%} | {e9.oos_degradation:.2%} |")
@@ -131,7 +125,9 @@ def _comparison_md(e7, e9) -> str:
     lines.append(f"| AUC IS | {e7.is_auc:.4f} | {e9.is_auc:.4f} |")
     lines.append(f"| AUC OOS | {e7.oos_auc:.4f} | {e9.oos_auc:.4f} |")
     lines.append(f"| MaxDD | {e7.overall_maxdd:.2%} | {e9.overall_maxdd:.2%} |")
-    lines.append(f"| hit_rate_actionable | {e7.hit_rate_actionable:.2%} | {e9.hit_rate_actionable:.2%} |")
+    lines.append(
+        f"| hit_rate_actionable | {e7.hit_rate_actionable:.2%} | {e9.hit_rate_actionable:.2%} |"
+    )
     lines.append(
         f"| avg_actionable_return | {e7.avg_actionable_return:+.4%} | "
         f"{e9.avg_actionable_return:+.4%} |"

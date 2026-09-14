@@ -189,7 +189,11 @@ def workdir(tmp_path: Path) -> Path:
 def _run(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", _CLI_MODULE, *args],
-        cwd=cwd, capture_output=True, text=True, check=False, timeout=30,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
     )
 
 
@@ -205,9 +209,7 @@ class TestCliHonestyOutput:
         assert r.returncode == 0
         assert "KR megacap" not in r.stdout
 
-    def test_signal_line_carries_p_value_or_no_data(
-        self, workdir: Path
-    ) -> None:
+    def test_signal_line_carries_p_value_or_no_data(self, workdir: Path) -> None:
         r = _run("predict", "AAPL", "--mock", cwd=workdir)
         assert r.returncode == 0
         # At least one of: explicit p-value tag OR explicit "no data" line.

@@ -146,7 +146,9 @@ class EcosClient:
         observations = tuple(_row_to_observation(r, stat_code, item_code) for r in rows)
         observations = tuple(o for o in observations if o is not None)
         series = EcosSeries(
-            stat_code=stat_code, item_code=item_code, cycle=cycle.upper(),
+            stat_code=stat_code,
+            item_code=item_code,
+            cycle=cycle.upper(),
             observations=observations,
         )
         self._record_snapshot(
@@ -155,11 +157,15 @@ class EcosClient:
             edge_type="macro_series",
             ts=datetime.now(tz=UTC),
             params={
-                "stat_code": stat_code, "item_code": item_code, "cycle": cycle.upper(),
-                "period_start": ps, "period_end": pe,
+                "stat_code": stat_code,
+                "item_code": item_code,
+                "cycle": cycle.upper(),
+                "period_start": ps,
+                "period_end": pe,
             },
             payload={
-                "stat_code": stat_code, "item_code": item_code,
+                "stat_code": stat_code,
+                "item_code": item_code,
                 "n_obs": len(observations),
                 "first_period": observations[0].period if observations else "",
                 "last_period": observations[-1].period if observations else "",
@@ -200,19 +206,13 @@ class EcosClient:
             resp = await self._client.get(url)
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            raise EcosApiError(
-                f"ECOS GET failed status={exc.response.status_code}"
-            ) from None
+            raise EcosApiError(f"ECOS GET failed status={exc.response.status_code}") from None
         except httpx.HTTPError as exc:
-            raise EcosApiError(
-                f"ECOS GET transport error: {type(exc).__name__}"
-            ) from None
+            raise EcosApiError(f"ECOS GET transport error: {type(exc).__name__}") from None
         try:
             data = resp.json()
         except ValueError:
-            raise EcosApiError(
-                f"ECOS non-JSON response from {endpoint}"
-            ) from None
+            raise EcosApiError(f"ECOS non-JSON response from {endpoint}") from None
         # Two response shapes:
         #   {"StatisticSearch": {"list_total_count": N, "row": [...]}}
         # or error:
@@ -234,14 +234,23 @@ class EcosClient:
         return rows
 
     def _record_snapshot(
-        self, *, tool: str, uaid: str, edge_type: str, ts: datetime,
-        params: dict[str, Any], payload: dict[str, Any],
+        self,
+        *,
+        tool: str,
+        uaid: str,
+        edge_type: str,
+        ts: datetime,
+        params: dict[str, Any],
+        payload: dict[str, Any],
     ) -> None:
         if self._broker is None:
             return
         try:
             key = SnapshotKey(
-                uaid=uaid, edge_type=edge_type, ts_utc=ts, tool=tool,
+                uaid=uaid,
+                edge_type=edge_type,
+                ts_utc=ts,
+                tool=tool,
                 params_canon=json.dumps(params, sort_keys=True, separators=(",", ":")),
             )
             record = self._broker.save_snapshot(key, payload)
@@ -251,7 +260,9 @@ class EcosClient:
 
 
 def _row_to_observation(
-    row: Mapping[str, Any], stat_code: str, item_code: str,
+    row: Mapping[str, Any],
+    stat_code: str,
+    item_code: str,
 ) -> EcosObservation | None:
     if not isinstance(row, Mapping):
         return None
@@ -263,7 +274,9 @@ def _row_to_observation(
     return EcosObservation(
         stat_code=str(row.get("STAT_CODE", stat_code)),
         item_code=str(row.get("ITEM_CODE1", item_code)),
-        period=period, value=value, unit=unit,
+        period=period,
+        value=value,
+        unit=unit,
         ts_fetched=datetime.now(tz=UTC),
     )
 

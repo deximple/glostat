@@ -49,26 +49,26 @@ log: Final = structlog.get_logger(__name__)
 # average; using sector-specific medians keeps the z-score honest.
 _SECTOR_EV_EBITDA: Final[dict[KrSector, tuple[float, float]]] = {
     # (median, stddev)
-    KrSector.REFINING:      (5.5, 2.5),
-    KrSector.STEEL:         (6.0, 2.5),
-    KrSector.CHEMICALS:     (7.5, 3.0),
-    KrSector.SHIPPING:      (4.5, 3.0),
-    KrSector.CONSTRUCTION:  (5.0, 2.0),
+    KrSector.REFINING: (5.5, 2.5),
+    KrSector.STEEL: (6.0, 2.5),
+    KrSector.CHEMICALS: (7.5, 3.0),
+    KrSector.SHIPPING: (4.5, 3.0),
+    KrSector.CONSTRUCTION: (5.0, 2.0),
     KrSector.CONSUMER_CYCL: (8.0, 3.0),
 }
 
 # Map sector → primary commodity cycle indicator. Refining gets crack spread
 # (CrackSpread, not CommodityCycle); the rest use a single CommodityKey.
 _SECTOR_CYCLE_KEY: Final[dict[KrSector, CommodityKey]] = {
-    KrSector.STEEL:         CommodityKey.IRON_ORE,
-    KrSector.CHEMICALS:     CommodityKey.BRENT,       # naphtha proxy
-    KrSector.SHIPPING:      CommodityKey.DRY_BULK,
-    KrSector.CONSTRUCTION:  CommodityKey.COPPER,
-    KrSector.CONSUMER_CYCL: CommodityKey.COPPER,      # broad cycle proxy
+    KrSector.STEEL: CommodityKey.IRON_ORE,
+    KrSector.CHEMICALS: CommodityKey.BRENT,  # naphtha proxy
+    KrSector.SHIPPING: CommodityKey.DRY_BULK,
+    KrSector.CONSTRUCTION: CommodityKey.COPPER,
+    KrSector.CONSUMER_CYCL: CommodityKey.COPPER,  # broad cycle proxy
 }
 
-_W_VALUE: Final[float] = 0.6     # ev_ebitda contribution weight
-_W_CYCLE: Final[float] = 0.4     # commodity-cycle contribution weight
+_W_VALUE: Final[float] = 0.6  # ev_ebitda contribution weight
+_W_CYCLE: Final[float] = 0.4  # commodity-cycle contribution weight
 _SCORE_CLIP: Final[float] = 3.0
 # WHY: cyclicals reward early entry near mean-reversion turn — keep threshold
 # moderately sensitive so a +0.50 net (e.g. EV/EBITDA cheap + cycle trough)
@@ -138,12 +138,18 @@ class EFundamentalKrCyclicalExpert:
         cycle_pctile, cycle_basis = await self._fetch_cycle(sector, sources)
         score = _score(sector, fundamentals, cycle_pctile)
         return _build_signal(
-            code=code, ts=ts, score=score,
-            fundamentals=fundamentals, cycle_basis=cycle_basis, sources=sources,
+            code=code,
+            ts=ts,
+            score=score,
+            fundamentals=fundamentals,
+            cycle_basis=cycle_basis,
+            sources=sources,
         )
 
     async def _fetch_fundamentals(
-        self, code: str, sources: list[_Source],
+        self,
+        code: str,
+        sources: list[_Source],
     ) -> Fundamentals:
         client, method = self._router.route("E_FUNDAMENTAL_KR_CYCLICAL", "fundamentals")
         yf_ticker = to_yfinance_kr_ticker(code)
@@ -155,13 +161,18 @@ class EFundamentalKrCyclicalExpert:
             ) from exc
         snap_id = getattr(client, "last_snapshot_id", None)
         if snap_id is not None:
-            sources.append(_Source(
-                name="yfinance.info.kr_cyclical", snapshot_id=snap_id,
-            ))
+            sources.append(
+                _Source(
+                    name="yfinance.info.kr_cyclical",
+                    snapshot_id=snap_id,
+                )
+            )
         return result
 
     async def _fetch_cycle(
-        self, sector: KrSector, sources: list[_Source],
+        self,
+        sector: KrSector,
+        sources: list[_Source],
     ) -> tuple[float, str]:
         # Refining gets the crack spread (gasoline - WTI); other sectors get
         # a single commodity. Either way returns (percentile, basis_string).
@@ -181,8 +192,7 @@ class EFundamentalKrCyclicalExpert:
         key = _SECTOR_CYCLE_KEY.get(sector)
         if key is None:
             raise ExpertSkipError(
-                f"E_FUNDAMENTAL_KR_CYCLICAL: no cycle indicator wired for "
-                f"sector={sector.value}"
+                f"E_FUNDAMENTAL_KR_CYCLICAL: no cycle indicator wired for sector={sector.value}"
             )
         try:
             cycle = await self._commodity.get_cycle(key)
@@ -191,10 +201,12 @@ class EFundamentalKrCyclicalExpert:
                 f"E_FUNDAMENTAL_KR_CYCLICAL: {key.value} cycle unavailable: {exc}"
             ) from exc
         if cycle.snapshot_id is not None:
-            sources.append(_Source(
-                name=f"commodity.{key.value.lower()}",
-                snapshot_id=cycle.snapshot_id,
-            ))
+            sources.append(
+                _Source(
+                    name=f"commodity.{key.value.lower()}",
+                    snapshot_id=cycle.snapshot_id,
+                )
+            )
         basis = (
             f"{key.value} ${cycle.last_close:.2f}, "
             f"pctile={cycle.cycle_percentile:.2f} ({cycle.cycle_position}), "
@@ -204,17 +216,16 @@ class EFundamentalKrCyclicalExpert:
 
 
 def _score(
-    sector: KrSector, fundamentals: Fundamentals, cycle_percentile: float,
+    sector: KrSector,
+    fundamentals: Fundamentals,
+    cycle_percentile: float,
 ) -> CyclicalScore:
     median, stddev = _SECTOR_EV_EBITDA.get(sector, (7.0, 3.0))
     # WHY: yfinance Fundamentals doesn't expose EV/EBITDA directly; we derive
     # a proxy from PER × dividend yield × market cap presence. When EV/EBITDA
     # is missing we fall back to PER as a degraded value indicator.
     ev_ebitda = _derive_ev_ebitda(fundamentals)
-    ev_ebitda_z = (
-        0.0 if ev_ebitda is None
-        else (ev_ebitda - median) / max(stddev, 1e-3)
-    )
+    ev_ebitda_z = 0.0 if ev_ebitda is None else (ev_ebitda - median) / max(stddev, 1e-3)
     # Cycle term: percentile in [0, 1]. Center at 0.5 so trough → negative.
     # Then NEGATE so trough produces positive raw_score (reversal expected).
     cycle_term = cycle_percentile - 0.5
@@ -245,7 +256,7 @@ def _derive_ev_ebitda(f: Fundamentals) -> float | None:
             v = float(value)
         except (TypeError, ValueError):
             return None
-        if v <= 0 or v > 200:   # filter obvious garbage values
+        if v <= 0 or v > 200:  # filter obvious garbage values
             return None
         return v
     return None
@@ -267,29 +278,33 @@ def _build_signal(
         f"net={score.net_score:+.2f} "
         f"(W_value={_W_VALUE}, W_cycle={_W_CYCLE})"
     )
-    metadata = tuple(sorted({
-        "sector": score.sector.value,
-        "ev_ebitda": _fmt(score.ev_ebitda),
-        "ev_ebitda_z": f"{score.ev_ebitda_z:.4f}",
-        "cycle_percentile": f"{score.cycle_percentile:.4f}",
-        "cycle_term": f"{score.cycle_term:.4f}",
-        "raw_score": f"{score.raw_score:.4f}",
-        "net_score": f"{score.net_score:.4f}",
-        "weight_value": f"{_W_VALUE}",
-        "weight_cycle": f"{_W_CYCLE}",
-        "code": code,
-        "per_raw": _fmt(fundamentals.pe_ratio),
-    }.items()))
-    source_strings: tuple[str, ...] = tuple(
-        f"{s.name}#{s.snapshot_id[:12]}" for s in sources
-    ) or ("e_fundamental_kr_cyclical.synthetic",)
+    metadata = tuple(
+        sorted(
+            {
+                "sector": score.sector.value,
+                "ev_ebitda": _fmt(score.ev_ebitda),
+                "ev_ebitda_z": f"{score.ev_ebitda_z:.4f}",
+                "cycle_percentile": f"{score.cycle_percentile:.4f}",
+                "cycle_term": f"{score.cycle_term:.4f}",
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "weight_value": f"{_W_VALUE}",
+                "weight_cycle": f"{_W_CYCLE}",
+                "code": code,
+                "per_raw": _fmt(fundamentals.pe_ratio),
+            }.items()
+        )
+    )
+    source_strings: tuple[str, ...] = tuple(f"{s.name}#{s.snapshot_id[:12]}" for s in sources) or (
+        "e_fundamental_kr_cyclical.synthetic",
+    )
     return ExpertSignal(
         expert_name="E_FUNDAMENTAL_KR_CYCLICAL",  # type: ignore[arg-type]
         ticker=code,
         direction=score.direction,  # type: ignore[arg-type]
         net_score=score.net_score,
         confidence=score.confidence,
-        archetype="contrarian",     # cyclicals reward mean-reversion
+        archetype="contrarian",  # cyclicals reward mean-reversion
         basis=basis,
         sources=source_strings,
         expires_at=ts + timedelta(days=_SWING_HORIZON_DAYS),

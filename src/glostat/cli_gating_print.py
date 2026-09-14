@@ -29,9 +29,7 @@ def render_gating_breakdown(v: Verdict) -> list[str]:
     top_dir, top_n = max(direction_counts.items(), key=lambda kv: kv[1])
     ah = "ON" if composed.applied_anti_herd else "OFF"
     mp = composed.applied_minority_premium
-    minority_line = f"  minority_premium : {len(mp)}" + (
-        f" ({', '.join(mp)})" if mp else ""
-    )
+    minority_line = f"  minority_premium : {len(mp)}" + (f" ({', '.join(mp)})" if mp else "")
     return [
         "Gating: " + " × ".join(parts),
         f"  anti_herd        : {ah} ({top_n} {top_dir})",

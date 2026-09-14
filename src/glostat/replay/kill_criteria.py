@@ -111,9 +111,7 @@ class KillCriteriaMonitor:
         cfg = _load_yaml(self.config_path)
         profiles = cfg.get("profiles", {}) or {}
         if self.profile not in profiles:
-            raise ConfigError(
-                f"kill_criteria: profile {self.profile!r} not in {sorted(profiles)}"
-            )
+            raise ConfigError(f"kill_criteria: profile {self.profile!r} not in {sorted(profiles)}")
         self.thresholds = KillThresholds.from_mapping(profiles[self.profile])
         pivot_raw = cfg.get("v031_pivot", {}) or {}
         # v031 pivot reuses the same dataclass shape; supply maxdd default so it parses.
@@ -150,9 +148,7 @@ class KillCriteriaMonitor:
 
         # 1. Sharpe — sustained violation requires consecutive_violation_days ≥ grace.
         if metrics.sharpe < t.sharpe_min:
-            sustained = (
-                metrics.consecutive_violation_days >= t.grace_period_consecutive_days
-            )
+            sustained = metrics.consecutive_violation_days >= t.grace_period_consecutive_days
             if sustained:
                 violated.append("sharpe_below_threshold_sustained")
                 recs.append(
@@ -240,9 +236,7 @@ class KillCriteriaMonitor:
             return KillDecision.SUSPEND_7D
         return KillDecision.CONTINUE
 
-    def _pivot_eligibility(
-        self, metrics: HindcastMetricsView, violated: list[str]
-    ) -> bool:
+    def _pivot_eligibility(self, metrics: HindcastMetricsView, violated: list[str]) -> bool:
         if violated:
             return False
         p = self.pivot_thresholds
@@ -258,9 +252,7 @@ class KillCriteriaMonitor:
         )
 
 
-def _reason(
-    decision: KillDecision, violated: list[str], borderline: list[str]
-) -> str:
+def _reason(decision: KillDecision, violated: list[str], borderline: list[str]) -> str:
     if decision is KillDecision.SHUTDOWN:
         return f"INV-GS-033: SHUTDOWN — violated={violated}"
     if decision is KillDecision.SUSPEND_7D:

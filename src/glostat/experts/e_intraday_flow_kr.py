@@ -29,7 +29,7 @@ log: Final = structlog.get_logger(__name__)
 
 _LOOKBACK_DAYS: Final[int] = 5
 _ACCEL_THRESHOLD: Final[float] = 0.30  # 30% Δ in flow rate
-_LEAD_THRESHOLD: Final[float] = 0.50   # foreign flow >= 50% of organ in same direction
+_LEAD_THRESHOLD: Final[float] = 0.50  # foreign flow >= 50% of organ in same direction
 _SCORE_PER_COMPONENT: Final[float] = 0.5
 _SCORE_CLIP: Final[float] = 3.0
 _DIRECTION_THRESHOLD: Final[float] = 0.5
@@ -40,13 +40,13 @@ _HORIZON_DAYS: Final[int] = 5
 class IntradayFlowScore:
     code: str
     foreign_recent_avg: float
-    foreign_acceleration: float        # rate-of-change in flow rate
+    foreign_acceleration: float  # rate-of-change in flow rate
     organ_recent_avg: float
     foreign_leads_organ: bool
     raw_score: float
     net_score: float
-    direction: str                     # LONG / SHORT / NEUTRAL
-    signal: str                        # FLOW_IMPROVING / FLOW_DETERIORATING / NEUTRAL
+    direction: str  # LONG / SHORT / NEUTRAL
+    signal: str  # FLOW_IMPROVING / FLOW_DETERIORATING / NEUTRAL
     sources: tuple[str, ...]
 
     @property
@@ -78,13 +78,12 @@ def score_intraday_flow(
         sources.append("kis")
         foreign_today = kis_intraday.foreign_net
     accel = _flow_acceleration(
-        [b.foreign_net for b in recent], today=foreign_today,
+        [b.foreign_net for b in recent],
+        today=foreign_today,
     )
-    leads_organ = (
-        organ_avg != 0.0 and (
-            (foreign_avg > 0 and foreign_avg / max(abs(organ_avg), 1.0) > _LEAD_THRESHOLD)
-            or (foreign_avg < 0 and abs(foreign_avg) / max(abs(organ_avg), 1.0) > _LEAD_THRESHOLD)
-        )
+    leads_organ = organ_avg != 0.0 and (
+        (foreign_avg > 0 and foreign_avg / max(abs(organ_avg), 1.0) > _LEAD_THRESHOLD)
+        or (foreign_avg < 0 and abs(foreign_avg) / max(abs(organ_avg), 1.0) > _LEAD_THRESHOLD)
     )
     raw = 0.0
     signal = "NEUTRAL"
@@ -103,15 +102,23 @@ def score_intraday_flow(
         raw += _SCORE_PER_COMPONENT * (1.0 if foreign_avg > 0 else -1.0)
     net = max(-_SCORE_CLIP, min(_SCORE_CLIP, raw))
     direction = (
-        "LONG" if net > _DIRECTION_THRESHOLD
-        else "SHORT" if net < -_DIRECTION_THRESHOLD
+        "LONG"
+        if net > _DIRECTION_THRESHOLD
+        else "SHORT"
+        if net < -_DIRECTION_THRESHOLD
         else "NEUTRAL"
     )
     return IntradayFlowScore(
-        code=code, foreign_recent_avg=foreign_avg,
-        foreign_acceleration=accel, organ_recent_avg=organ_avg,
-        foreign_leads_organ=leads_organ, raw_score=raw, net_score=net,
-        direction=direction, signal=signal, sources=tuple(sources),
+        code=code,
+        foreign_recent_avg=foreign_avg,
+        foreign_acceleration=accel,
+        organ_recent_avg=organ_avg,
+        foreign_leads_organ=leads_organ,
+        raw_score=raw,
+        net_score=net,
+        direction=direction,
+        signal=signal,
+        sources=tuple(sources),
     )
 
 
@@ -132,9 +139,15 @@ def _flow_acceleration(values: list[float], *, today: float | None = None) -> fl
 
 def _neutral(code: str, *, sources: tuple[str, ...]) -> IntradayFlowScore:
     return IntradayFlowScore(
-        code=code, foreign_recent_avg=0.0, foreign_acceleration=0.0,
-        organ_recent_avg=0.0, foreign_leads_organ=False,
-        raw_score=0.0, net_score=0.0, direction="NEUTRAL", signal="NEUTRAL",
+        code=code,
+        foreign_recent_avg=0.0,
+        foreign_acceleration=0.0,
+        organ_recent_avg=0.0,
+        foreign_leads_organ=False,
+        raw_score=0.0,
+        net_score=0.0,
+        direction="NEUTRAL",
+        signal="NEUTRAL",
         sources=sources,
     )
 
@@ -154,7 +167,7 @@ class EIntradayFlowKrExpert:
         naver_client: NaverKrClient | None = None,
         kis_client: KisClient | None = None,
         kospi200: frozenset[str] | None = None,
-        max_pages: int = 2,    # ~40 trading days; only need recent activity
+        max_pages: int = 2,  # ~40 trading days; only need recent activity
     ) -> None:
         self._naver = naver_client
         self._kis = kis_client
@@ -163,7 +176,9 @@ class EIntradayFlowKrExpert:
 
     @classmethod
     def from_env(
-        cls, *, kospi200: frozenset[str] | None = None,
+        cls,
+        *,
+        kospi200: frozenset[str] | None = None,
     ) -> EIntradayFlowKrExpert | None:
         # Naver is always available; KIS is best-effort.
         naver = NaverKrClient()
@@ -180,18 +195,12 @@ class EIntradayFlowKrExpert:
 
     async def compute(self, ticker: str, ts: datetime) -> ExpertSignal:
         if self._naver is None:
-            raise ExpertSkipError(
-                "E_INTRADAY_FLOW_KR: Naver client not configured"
-            )
+            raise ExpertSkipError("E_INTRADAY_FLOW_KR: Naver client not configured")
         if not is_kr_ticker(ticker):
-            raise ExpertSkipError(
-                f"E_INTRADAY_FLOW_KR: ticker {ticker!r} not KR equity"
-            )
+            raise ExpertSkipError(f"E_INTRADAY_FLOW_KR: ticker {ticker!r} not KR equity")
         code = normalize_kr_ticker(ticker)
         if self._kospi200 and code not in self._kospi200:
-            raise ExpertSkipError(
-                f"E_INTRADAY_FLOW_KR: {code} not in KOSPI 200 universe"
-            )
+            raise ExpertSkipError(f"E_INTRADAY_FLOW_KR: {code} not in KOSPI 200 universe")
         bars = await self._fetch_naver(code)
         if len(bars) < 2:
             raise ExpertSkipError(
@@ -205,10 +214,13 @@ class EIntradayFlowKrExpert:
                 log.info("e_intraday_flow_kr.kis_skip", code=code, err=str(exc))
                 kis_snap = None
         score = score_intraday_flow(
-            code=code, naver_bars=bars, kis_intraday=kis_snap,
+            code=code,
+            naver_bars=bars,
+            kis_intraday=kis_snap,
         )
         snap_id = (
-            self._kis.last_snapshot_id if (self._kis and kis_snap is not None)
+            self._kis.last_snapshot_id
+            if (self._kis and kis_snap is not None)
             else f"naver_kr.{code}"
         )
         return _build_signal(code=code, ts=ts, score=score, snap_id=snap_id)
@@ -226,13 +238,16 @@ class EIntradayFlowKrExpert:
             try:
                 self._naver.save_cache(code, bars)
             except Exception as exc:
-                log.warning("e_intraday_flow_kr.cache_save_failed",
-                            code=code, err=str(exc))
+                log.warning("e_intraday_flow_kr.cache_save_failed", code=code, err=str(exc))
         return bars
 
 
 def _build_signal(
-    *, code: str, ts: datetime, score: IntradayFlowScore, snap_id: str,
+    *,
+    code: str,
+    ts: datetime,
+    score: IntradayFlowScore,
+    snap_id: str,
 ) -> ExpertSignal:
     basis = (
         f"Intraday flow — signal={score.signal} foreign_avg={int(score.foreign_recent_avg):+,} "
@@ -240,17 +255,19 @@ def _build_signal(
         f"sources={'+'.join(score.sources)}"
     )
     metadata: tuple[tuple[str, str], ...] = tuple(
-        sorted({
-            "signal": score.signal,
-            "foreign_recent_avg": f"{score.foreign_recent_avg:.0f}",
-            "foreign_acceleration": f"{score.foreign_acceleration:.4f}",
-            "organ_recent_avg": f"{score.organ_recent_avg:.0f}",
-            "foreign_leads_organ": str(score.foreign_leads_organ),
-            "raw_score": f"{score.raw_score:.4f}",
-            "net_score": f"{score.net_score:.4f}",
-            "data_sources": "+".join(score.sources),
-            "code": code,
-        }.items())
+        sorted(
+            {
+                "signal": score.signal,
+                "foreign_recent_avg": f"{score.foreign_recent_avg:.0f}",
+                "foreign_acceleration": f"{score.foreign_acceleration:.4f}",
+                "organ_recent_avg": f"{score.organ_recent_avg:.0f}",
+                "foreign_leads_organ": str(score.foreign_leads_organ),
+                "raw_score": f"{score.raw_score:.4f}",
+                "net_score": f"{score.net_score:.4f}",
+                "data_sources": "+".join(score.sources),
+                "code": code,
+            }.items()
+        )
     )
     return ExpertSignal(
         expert_name="E_INTRADAY_FLOW_KR",  # type: ignore[arg-type]

@@ -10,9 +10,7 @@ import yaml
 # Gating Network — IC-softmax + entropy regularization + per-expert caps.
 # Sprint 1 PR #5: pure function, deterministic, no I/O after construction.
 
-_DEFAULT_CONFIG: Final[Path] = (
-    Path(__file__).resolve().parents[3] / "configs" / "gating.yaml"
-)
+_DEFAULT_CONFIG: Final[Path] = Path(__file__).resolve().parents[3] / "configs" / "gating.yaml"
 _EPS: Final[float] = 1e-9
 
 
@@ -57,8 +55,9 @@ class GatingNetwork:
 
     def derive_weights(self, experts: list[str]) -> dict[str, float]:
         # Filter out unknown or deferred experts — they cannot vote in MVP.
-        active = [e for e in experts if e in self._cfg.initial_ic
-                  and e not in self._cfg.deferred_experts]
+        active = [
+            e for e in experts if e in self._cfg.initial_ic and e not in self._cfg.deferred_experts
+        ]
         if not active:
             return {}
 
@@ -127,9 +126,7 @@ def _entropy_regularize(weights: list[float], lam: float) -> list[float]:
     return [(1.0 - lam) * w + lam * uniform for w in weights]
 
 
-def _apply_caps_and_renormalize(
-    weights: list[float], caps: list[float]
-) -> list[float]:
+def _apply_caps_and_renormalize(weights: list[float], caps: list[float]) -> list[float]:
     # WHY: when a weight exceeds its cap, hold it at the cap and redistribute the
     # excess proportionally across uncapped slots. Iterate because each pass may
     # push a previously-uncapped slot over its own cap.

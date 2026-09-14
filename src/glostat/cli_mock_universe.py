@@ -19,32 +19,62 @@ _FIXED_TS: Final[datetime] = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 # Distribution roughly matches actual S&P 500 sector weights as of April 2026.
 _SYNTHETIC_SECTOR_BY_TICKER: Final[Mapping[str, str]] = {
     # Technology (28%)
-    "AAPL": "Technology", "MSFT": "Technology", "NVDA": "Technology",
-    "GOOGL": "Technology", "AVGO": "Technology", "ORCL": "Technology",
-    "CRM": "Technology", "AMD": "Technology", "ADBE": "Technology",
-    "CSCO": "Technology", "ACN": "Technology", "IBM": "Technology",
-    "NOW": "Technology", "INTU": "Technology",
+    "AAPL": "Technology",
+    "MSFT": "Technology",
+    "NVDA": "Technology",
+    "GOOGL": "Technology",
+    "AVGO": "Technology",
+    "ORCL": "Technology",
+    "CRM": "Technology",
+    "AMD": "Technology",
+    "ADBE": "Technology",
+    "CSCO": "Technology",
+    "ACN": "Technology",
+    "IBM": "Technology",
+    "NOW": "Technology",
+    "INTU": "Technology",
     # Communications (9%)
-    "META": "Communications", "NFLX": "Communications",
-    "DIS": "Communications", "T": "Communications",
+    "META": "Communications",
+    "NFLX": "Communications",
+    "DIS": "Communications",
+    "T": "Communications",
     # Consumer Discretionary (11%)
-    "AMZN": "ConsumerDiscretionary", "TSLA": "ConsumerDiscretionary",
-    "HD": "ConsumerDiscretionary", "MCD": "ConsumerDiscretionary",
+    "AMZN": "ConsumerDiscretionary",
+    "TSLA": "ConsumerDiscretionary",
+    "HD": "ConsumerDiscretionary",
+    "MCD": "ConsumerDiscretionary",
     # Consumer Staples (6%)
-    "WMT": "ConsumerStaples", "PG": "ConsumerStaples",
-    "COST": "ConsumerStaples", "KO": "ConsumerStaples", "PEP": "ConsumerStaples",
+    "WMT": "ConsumerStaples",
+    "PG": "ConsumerStaples",
+    "COST": "ConsumerStaples",
+    "KO": "ConsumerStaples",
+    "PEP": "ConsumerStaples",
     # Healthcare (13%)
-    "LLY": "Healthcare", "UNH": "Healthcare", "JNJ": "Healthcare",
-    "ABBV": "Healthcare", "MRK": "Healthcare", "TMO": "Healthcare",
-    "ABT": "Healthcare", "ISRG": "Healthcare",
+    "LLY": "Healthcare",
+    "UNH": "Healthcare",
+    "JNJ": "Healthcare",
+    "ABBV": "Healthcare",
+    "MRK": "Healthcare",
+    "TMO": "Healthcare",
+    "ABT": "Healthcare",
+    "ISRG": "Healthcare",
     # Financials (13%)
-    "BRK.B": "Financials", "JPM": "Financials", "V": "Financials",
-    "MA": "Financials", "BAC": "Financials", "WFC": "Financials",
-    "AXP": "Financials", "MS": "Financials", "GS": "Financials",
+    "BRK.B": "Financials",
+    "JPM": "Financials",
+    "V": "Financials",
+    "MA": "Financials",
+    "BAC": "Financials",
+    "WFC": "Financials",
+    "AXP": "Financials",
+    "MS": "Financials",
+    "GS": "Financials",
     # Energy (4%)
-    "XOM": "Energy", "CVX": "Energy",
+    "XOM": "Energy",
+    "CVX": "Energy",
     # Industrials (8%)
-    "GE": "Industrials", "CAT": "Industrials", "RTX": "Industrials",
+    "GE": "Industrials",
+    "CAT": "Industrials",
+    "RTX": "Industrials",
     # Materials (LIN classified Materials by GICS)
     "LIN": "Materials",
 }
@@ -97,9 +127,7 @@ def synthetic_fundamentals_for(ticker: str) -> dict[str, Any]:
     roe = round(base_roe * (1.0 + roe_offset), 4)
     eps = round(2.0 + (h[3] / 255) * 6.0, 2)
     forward_eps = round(eps * (1.0 + sur_offset), 2)
-    market_cap = (
-        float(int.from_bytes(h[4:8], "big") % 3_000_000_000_000) + 50_000_000_000
-    )
+    market_cap = float(int.from_bytes(h[4:8], "big") % 3_000_000_000_000) + 50_000_000_000
     return {
         "ticker": ticker.upper(),
         "pe_ratio": pe_ratio,
@@ -269,18 +297,18 @@ def synthetic_actual_30d_return(ticker: str, day: date, horizon_days: int = 30) 
     sh = hashlib.sha256(signal_seed.encode()).digest()
     score_byte = sh[0]
     if score_byte < 51:
-        signal_dir = 1.0      # ~20% LONG
+        signal_dir = 1.0  # ~20% LONG
     elif score_byte < 76:
-        signal_dir = -1.0     # ~10% SHORT
+        signal_dir = -1.0  # ~10% SHORT
     else:
-        signal_dir = 0.0      # ~70% NEUTRAL
+        signal_dir = 0.0  # ~70% NEUTRAL
     # 30-day cumulative actual return correlated with signal direction.
     seed = derive_actual_return_seed(ticker, day, horizon_days)
     h = hashlib.sha256(seed.encode()).digest()
     # Hit rate ~ 72% for directional signals → AUC lands around 0.66.
     flip_byte = h[0]
     direction_realized = signal_dir if (flip_byte % 100) < 72 else -signal_dir
-    edge_mag = 0.020 + (h[1] / 255.0) * 0.025   # 2.0 .. 4.5% magnitude when directional
+    edge_mag = 0.020 + (h[1] / 255.0) * 0.025  # 2.0 .. 4.5% magnitude when directional
     base = direction_realized * edge_mag
     # Smaller noise envelope so Sharpe stays in the 0.9..1.3 band.
     noise = sum((h[2 + k] / 255.0) - 0.5 for k in range(3)) * 0.006

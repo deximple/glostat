@@ -37,15 +37,9 @@ from glostat.verdict_builder import build_verdict
 # evidence Predictions; this module is kept for backward compatibility only.
 
 _DEFAULT_SNAPSHOT_ROOT: Final[Path] = Path("cache") / "snapshots"
-_MARKETS_YAML: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "configs" / "markets.yaml"
-)
-_BUDGET_YAML: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
-)
-_FIXTURES_DIR: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "tests" / "fixtures"
-)
+_MARKETS_YAML: Final[Path] = Path(__file__).resolve().parents[2] / "configs" / "markets.yaml"
+_BUDGET_YAML: Final[Path] = Path(__file__).resolve().parents[2] / "configs" / "budget.yaml"
+_FIXTURES_DIR: Final[Path] = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
 
 
 def add_verdict_subparser(sub: Any) -> None:
@@ -54,18 +48,27 @@ def add_verdict_subparser(sub: Any) -> None:
         help="[deprecated] Issue a Verdict (BUY/HOLD/SELL). Use `predict` for v1.0 Prediction.",
     )
     verdict.add_argument("ticker")
-    verdict.add_argument("--mock", action="store_true",
-                         help="Use bundled fixtures instead of network calls.")
-    verdict.add_argument("--horizon", type=int, default=30,
-                         help="Horizon days (1-30 swing window). Default 30.")
-    verdict.add_argument("--jurisdiction", default="US",
-                         choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
-                         help="Compliance disclaimer jurisdiction. Default US.")
-    verdict.add_argument("--json", action="store_true",
-                         help="Emit verdict as canonical JSON (machine-readable).")
-    verdict.add_argument("--expert", default="all",
-                         choices=["fundamental", "time", "fund_flow", "all"],
-                         help="Expert(s) to run. 'all' runs every wired Expert.")
+    verdict.add_argument(
+        "--mock", action="store_true", help="Use bundled fixtures instead of network calls."
+    )
+    verdict.add_argument(
+        "--horizon", type=int, default=30, help="Horizon days (1-30 swing window). Default 30."
+    )
+    verdict.add_argument(
+        "--jurisdiction",
+        default="US",
+        choices=["KR", "US", "EU", "JP", "TW", "HK", "DEFAULT"],
+        help="Compliance disclaimer jurisdiction. Default US.",
+    )
+    verdict.add_argument(
+        "--json", action="store_true", help="Emit verdict as canonical JSON (machine-readable)."
+    )
+    verdict.add_argument(
+        "--expert",
+        default="all",
+        choices=["fundamental", "time", "fund_flow", "all"],
+        help="Expert(s) to run. 'all' runs every wired Expert.",
+    )
 
 
 def cmd_verdict(args: argparse.Namespace) -> int:
@@ -87,15 +90,11 @@ def cmd_verdict(args: argparse.Namespace) -> int:
     try:
         if args.mock:
             verdict = asyncio.run(
-                _verdict_mock(
-                    args.ticker, ts, market_meta, broker, args.horizon, args.expert
-                )
+                _verdict_mock(args.ticker, ts, market_meta, broker, args.horizon, args.expert)
             )
         else:
             verdict = asyncio.run(
-                _verdict_live(
-                    args.ticker, ts, market_meta, broker, args.horizon, args.expert
-                )
+                _verdict_live(args.ticker, ts, market_meta, broker, args.horizon, args.expert)
             )
         broker.record_verdict(
             verdict_hash=verdict.evidence_hash,
@@ -140,8 +139,12 @@ async def _verdict_live(
     finally:
         await sec_client.aclose()
     return build_verdict(
-        ticker=ticker, signals=signals, market_meta=market_meta, ts=ts,
-        prompt_versions={}, horizon_days=horizon,
+        ticker=ticker,
+        signals=signals,
+        market_meta=market_meta,
+        ts=ts,
+        prompt_versions={},
+        horizon_days=horizon,
     )
 
 
@@ -162,11 +165,12 @@ async def _verdict_mock(
     experts = _select_experts(expert_choice, router)
     signals = await _gather_signals(experts, ticker, ts)
     next_earnings = fixture.get("next_earnings_date")
-    next_trigger = (
-        f"Next earnings: {next_earnings}" if next_earnings else None
-    )
+    next_trigger = f"Next earnings: {next_earnings}" if next_earnings else None
     return build_verdict(
-        ticker=ticker, signals=signals, market_meta=market_meta, ts=ts,
+        ticker=ticker,
+        signals=signals,
+        market_meta=market_meta,
+        ts=ts,
         prompt_versions={},
         current_price=fixture.get("current_price"),
         next_trigger=next_trigger,
@@ -235,9 +239,7 @@ def _load_market_meta(mic: str) -> MarketMeta:
 def _load_fixture(ticker: str) -> dict[str, Any]:
     path = _FIXTURES_DIR / f"{ticker.lower()}_mock.json"
     if not path.exists():
-        raise FileNotFoundError(
-            f"no mock fixture for {ticker} at {path}"
-        )
+        raise FileNotFoundError(f"no mock fixture for {ticker} at {path}")
     return json.loads(path.read_text("utf-8"))
 
 

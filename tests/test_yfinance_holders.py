@@ -67,9 +67,7 @@ def test_get_holders_institutional(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_get_holders_major(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = _fake_yf_with_holders(
-        major=[("Insiders", 0.0007, 0), ("Institutions", 0.6020, 0)]
-    )
+    fake = _fake_yf_with_holders(major=[("Insiders", 0.0007, 0), ("Institutions", 0.6020, 0)])
     monkeypatch.setitem(sys.modules, "yfinance", fake)
     c = YFinanceClient()
     snap = asyncio.run(c.get_holders("AAPL", kind="major"))
@@ -81,9 +79,7 @@ def test_get_holders_major(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_get_holders_mutualfund(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = _fake_yf_with_holders(
-        mutualfund=[("Vanguard Total Stock Mkt Idx", 0.034, 510_000_000)]
-    )
+    fake = _fake_yf_with_holders(mutualfund=[("Vanguard Total Stock Mkt Idx", 0.034, 510_000_000)])
     monkeypatch.setitem(sys.modules, "yfinance", fake)
     c = YFinanceClient()
     snap = asyncio.run(c.get_holders("AAPL", kind="mutualfund"))
@@ -115,9 +111,7 @@ def test_get_holders_none_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_snapshot_integration(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    fake = _fake_yf_with_holders(
-        institutional=[("Vanguard", 0.085, 1280_000_000)]
-    )
+    fake = _fake_yf_with_holders(institutional=[("Vanguard", 0.085, 1280_000_000)])
     monkeypatch.setitem(sys.modules, "yfinance", fake)
     broker = SnapshotBroker(root=tmp_path / "snap")
     c = YFinanceClient(snapshot_broker=broker)

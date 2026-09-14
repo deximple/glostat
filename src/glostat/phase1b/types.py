@@ -9,9 +9,9 @@ class PhaseSignal:
     expert: str
     ticker: str
     day: date
-    score: float                       # signed [-3, +3] convention
-    direction: str                     # LONG / SHORT / NEUTRAL
-    confidence: float                  # [0, 1]
+    score: float  # signed [-3, +3] convention
+    direction: str  # LONG / SHORT / NEUTRAL
+    confidence: float  # [0, 1]
     metadata: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
 
@@ -20,11 +20,11 @@ class PhaseTradeRow:
     day: date
     ticker: str
     score: float
-    direction: str                     # LONG / SHORT / NEUTRAL
+    direction: str  # LONG / SHORT / NEUTRAL
     edge_bps: float
     cost_bps: float
     cost_passed: bool
-    actual_fwd_return: float           # 30-day forward total return, fraction
+    actual_fwd_return: float  # 30-day forward total return, fraction
 
 
 @dataclass(frozen=True, slots=True)

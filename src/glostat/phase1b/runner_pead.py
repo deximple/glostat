@@ -19,7 +19,7 @@ from glostat.phase1b.types import PhaseHindcastReport, PhaseTradeRow
 log: Final = structlog.get_logger(__name__)
 
 _HORIZON_DAYS: Final[int] = 30
-_PARALLEL_LIMIT: Final[int] = 4    # be polite to yfinance.calendar endpoint
+_PARALLEL_LIMIT: Final[int] = 4  # be polite to yfinance.calendar endpoint
 
 
 async def run_pead_hindcast(

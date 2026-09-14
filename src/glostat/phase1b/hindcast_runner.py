@@ -106,9 +106,7 @@ def build_report(
     cost_passed_pct = (cost_passed / len(rows_t)) if rows_t else 0.0
 
     n_attempted = max(config.n_signals_attempted, len(rows_t))
-    skip_pct = (
-        config.n_signals_skipped / n_attempted if n_attempted > 0 else 0.0
-    )
+    skip_pct = config.n_signals_skipped / n_attempted if n_attempted > 0 else 0.0
 
     return PhaseHindcastReport(
         expert=config.expert,

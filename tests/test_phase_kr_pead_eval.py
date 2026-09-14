@@ -27,14 +27,21 @@ class _FakeYFinance:
     last_snapshot_id = "fake-pead-snap"
 
     def __init__(
-        self, *, by_window: dict[tuple[date, date], OhlcvSeries] | None = None,
+        self,
+        *,
+        by_window: dict[tuple[date, date], OhlcvSeries] | None = None,
         fail: bool = False,
     ) -> None:
         self._by_window = by_window or {}
         self._fail = fail
 
     async def get_ohlcv(
-        self, ticker: str, *, start: Any, end: Any, interval: str = "1d",
+        self,
+        ticker: str,
+        *,
+        start: Any,
+        end: Any,
+        interval: str = "1d",
     ) -> OhlcvSeries:
         if self._fail:
             raise RuntimeError("fake yf fail")
@@ -53,9 +60,11 @@ class TestEvaluatePeadKr:
         # day = 2026-05-25; last_e = Q1+45 = 2026-05-15 → days_since = 10 < 30.
         acc = _ThesisAccumulator(thesis="E_PEAD_KR", horizon_days=30)
         await evaluate_pead_kr(
-            code="096770", day=date(2026, 5, 25),
+            code="096770",
+            day=date(2026, 5, 25),
             yf=_FakeYFinance(),  # type: ignore[arg-type]
-            horizon_days=30, accumulator=acc,
+            horizon_days=30,
+            accumulator=acc,
         )
         assert acc.n_evaluated == 1
         assert acc.n_skipped == 1
@@ -68,9 +77,11 @@ class TestEvaluatePeadKr:
         # day far enough from earnings, but yf returns empty.
         acc = _ThesisAccumulator(thesis="E_PEAD_KR", horizon_days=30)
         await evaluate_pead_kr(
-            code="096770", day=date(2026, 6, 30),
+            code="096770",
+            day=date(2026, 6, 30),
             yf=_FakeYFinance(),  # type: ignore[arg-type]
-            horizon_days=30, accumulator=acc,
+            horizon_days=30,
+            accumulator=acc,
         )
         assert acc.n_skipped == 1
         assert acc.n_actionable == 0
@@ -84,11 +95,13 @@ class TestEvaluatePeadKr:
         series = OhlcvSeries(ticker="096770.KS", interval="1d", bars=bars)
         acc = _ThesisAccumulator(thesis="E_PEAD_KR", horizon_days=30)
         await evaluate_pead_kr(
-            code="096770", day=date(2026, 6, 30),
+            code="096770",
+            day=date(2026, 6, 30),
             yf=_FakeYFinance(  # type: ignore[arg-type]
                 by_window={(last_e, date(2026, 6, 30)): series},
             ),
-            horizon_days=30, accumulator=acc,
+            horizon_days=30,
+            accumulator=acc,
         )
         # Should have recorded a signal: positive drift → LONG.
         assert acc.n_actionable >= 1
@@ -100,8 +113,10 @@ class TestEvaluatePeadKr:
     async def test_yf_fail_skips_cleanly(self) -> None:
         acc = _ThesisAccumulator(thesis="E_PEAD_KR", horizon_days=30)
         await evaluate_pead_kr(
-            code="096770", day=date(2026, 6, 30),
+            code="096770",
+            day=date(2026, 6, 30),
             yf=_FakeYFinance(fail=True),  # type: ignore[arg-type]
-            horizon_days=30, accumulator=acc,
+            horizon_days=30,
+            accumulator=acc,
         )
         assert acc.n_skipped == 1

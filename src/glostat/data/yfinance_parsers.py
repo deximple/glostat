@@ -134,6 +134,7 @@ def parse_recommendations(yf: Any, ticker: str) -> list[Any]:
     from glostat.data.yfinance_types import (  # noqa: PLC0415
         AnalystRecommendationEvent,
     )
+
     ticker_obj = yf.Ticker(ticker.upper())
     try:
         df = ticker_obj.upgrades_downgrades
@@ -163,11 +164,15 @@ def parse_recommendations(yf: Any, ticker: str) -> list[Any]:
         from_grade = str(row.get("FromGrade") or "").strip()
         to_grade = str(row.get("ToGrade") or "").strip()
         action = str(row.get("Action") or "").strip().lower()
-        out.append(AnalystRecommendationEvent(
-            ts=ts, firm=firm,
-            from_grade=from_grade, to_grade=to_grade,
-            action=action,
-        ))
+        out.append(
+            AnalystRecommendationEvent(
+                ts=ts,
+                firm=firm,
+                from_grade=from_grade,
+                to_grade=to_grade,
+                action=action,
+            )
+        )
     return out
 
 
@@ -373,12 +378,16 @@ def holders_to_payload(s: HoldersSnapshot) -> dict[str, Any]:
     # rehydrated from the broker drive the E_FUND_FLOW delta classifier.
     by_name = {name: (shares, ts) for (name, _pct, shares, ts) in s.rows}
     return {
-        "ticker": s.ticker, "kind": s.kind,
+        "ticker": s.ticker,
+        "kind": s.kind,
         "fetched_at": s.fetched_at.isoformat(),
         "holders": [
-            {"name": name, "pct_held": pct,
-             "shares": int(by_name.get(name, (0, ""))[0] or 0),
-             "date_reported": str(by_name.get(name, (0, ""))[1] or "")}
+            {
+                "name": name,
+                "pct_held": pct,
+                "shares": int(by_name.get(name, (0, ""))[0] or 0),
+                "date_reported": str(by_name.get(name, (0, ""))[1] or ""),
+            }
             for (name, pct) in s.holders
         ],
     }
@@ -422,10 +431,7 @@ def fundamentals_to_payload(f: Fundamentals) -> dict[str, Any]:
 def dividends_to_payload(h: DividendHistory) -> dict[str, Any]:
     return {
         "ticker": h.ticker,
-        "events": [
-            {"ex_date": e.ex_date.isoformat(), "amount": e.amount}
-            for e in h.events
-        ],
+        "events": [{"ex_date": e.ex_date.isoformat(), "amount": e.amount} for e in h.events],
     }
 
 

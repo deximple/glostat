@@ -94,9 +94,7 @@ async def screen_universe(
                 resolved_sector = sector or "UNKNOWN"
             return _row_from_verdict(verdict, resolved_sector)
 
-    results = await asyncio.gather(
-        *(_one(t) for t in universe.tickers), return_exceptions=False
-    )
+    results = await asyncio.gather(*(_one(t) for t in universe.tickers), return_exceptions=False)
     for r in results:
         if r is None:
             failed += 1

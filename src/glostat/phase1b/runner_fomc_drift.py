@@ -17,7 +17,7 @@ from glostat.phase1b.types import PhaseHindcastReport, PhaseTradeRow
 
 log: Final = structlog.get_logger(__name__)
 
-_HORIZON_DAYS: Final[int] = 5    # short window — drift is intra-week
+_HORIZON_DAYS: Final[int] = 5  # short window — drift is intra-week
 
 
 async def run_fomc_drift_hindcast(

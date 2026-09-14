@@ -43,10 +43,10 @@ _OPEC_CACHE_FILE: Final[Path] = _CACHE_DIR / "opec_2026.html"
 
 
 class EventKind(StrEnum):
-    EARNINGS_KR     = "earnings_kr"
-    BOK_RATE        = "bok_rate"
-    OPEC_MINISTER   = "opec_minister"
-    OPEC_JMMC       = "opec_jmmc"
+    EARNINGS_KR = "earnings_kr"
+    BOK_RATE = "bok_rate"
+    OPEC_MINISTER = "opec_minister"
+    OPEC_JMMC = "opec_jmmc"
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +83,8 @@ _BOK_2026: Final[tuple[date, ...]] = (
 # ── OPEC heuristic fallback ───────────────────────────────────────────────
 # OPEC ministerial: typically 2/year (June + December). JMMC: monthly.
 _OPEC_MINISTER_2026_FALLBACK: Final[tuple[date, ...]] = (
-    date(2026, 6, 2), date(2026, 12, 5),
+    date(2026, 6, 2),
+    date(2026, 12, 5),
 )
 
 
@@ -117,7 +118,7 @@ def _next_opec_jmmc(today: date) -> date:
     while True:
         # Find first Wednesday of `candidate`'s month.
         first_wed = candidate
-        while first_wed.weekday() != 2:    # 0=Mon..2=Wed
+        while first_wed.weekday() != 2:  # 0=Mon..2=Wed
             first_wed += timedelta(days=1)
         if first_wed >= today:
             return first_wed
@@ -151,7 +152,10 @@ class KrCalendarClient:
         self._opec_minister_cache: tuple[date, ...] | None = None
 
     async def next_events(
-        self, *, today: date | None = None, lookahead_days: int = 60,
+        self,
+        *,
+        today: date | None = None,
+        lookahead_days: int = 60,
     ) -> tuple[CalendarEvent, ...]:
         ref = today or datetime.now(tz=UTC).date()
         events: list[CalendarEvent] = []
@@ -159,27 +163,35 @@ class KrCalendarClient:
         # KR earnings (heuristic).
         kr_e = _next_kr_earnings(ref)
         if (kr_e - ref).days <= lookahead_days:
-            events.append(_event(EventKind.EARNINGS_KR, kr_e, ref,
-                                 label=f"KR 분기보고서 due ~{kr_e.isoformat()}"))
+            events.append(
+                _event(
+                    EventKind.EARNINGS_KR, kr_e, ref, label=f"KR 분기보고서 due ~{kr_e.isoformat()}"
+                )
+            )
 
         # BoK 금통위.
         bok = _next_bok_rate(ref)
         if bok is not None and (bok - ref).days <= lookahead_days:
-            events.append(_event(EventKind.BOK_RATE, bok, ref,
-                                 label=f"BoK 금통위 {bok.isoformat()}"))
+            events.append(
+                _event(EventKind.BOK_RATE, bok, ref, label=f"BoK 금통위 {bok.isoformat()}")
+            )
 
         # OPEC Minister (auto scrape with fallback).
         minister_dates = await self._opec_minister_dates()
         for d in minister_dates:
             if ref <= d <= ref + timedelta(days=lookahead_days):
-                events.append(_event(EventKind.OPEC_MINISTER, d, ref,
-                                     label=f"OPEC 장관급 회의 {d.isoformat()}"))
+                events.append(
+                    _event(
+                        EventKind.OPEC_MINISTER, d, ref, label=f"OPEC 장관급 회의 {d.isoformat()}"
+                    )
+                )
 
         # OPEC JMMC (monthly heuristic).
         jmmc = _next_opec_jmmc(ref)
         if (jmmc - ref).days <= lookahead_days:
-            events.append(_event(EventKind.OPEC_JMMC, jmmc, ref,
-                                 label=f"OPEC JMMC ~{jmmc.isoformat()}"))
+            events.append(
+                _event(EventKind.OPEC_JMMC, jmmc, ref, label=f"OPEC JMMC ~{jmmc.isoformat()}")
+            )
 
         events.sort(key=lambda e: e.date_utc)
         return tuple(events)
@@ -246,20 +258,24 @@ class KrCalendarClient:
 
 
 def _event(
-    kind: EventKind, d: date, ref: date, *, label: str,
+    kind: EventKind,
+    d: date,
+    ref: date,
+    *,
+    label: str,
 ) -> CalendarEvent:
     return CalendarEvent(
-        kind=kind, date_utc=d, label=label, days_to=(d - ref).days,
+        kind=kind,
+        date_utc=d,
+        label=label,
+        days_to=(d - ref).days,
     )
 
 
 def _read_opec_cache() -> str | None:
     if not _OPEC_CACHE_FILE.exists():
         return None
-    age_days = (
-        datetime.now(tz=UTC).timestamp()
-        - _OPEC_CACHE_FILE.stat().st_mtime
-    ) / 86400.0
+    age_days = (datetime.now(tz=UTC).timestamp() - _OPEC_CACHE_FILE.stat().st_mtime) / 86400.0
     if age_days > _OPEC_CACHE_DAYS:
         return None
     try:
@@ -279,27 +295,44 @@ def _write_opec_cache(payload: str) -> None:
 # Parse dates of the form "5 December 2026" / "5 Dec 2026" / "December 5, 2026"
 # from the OPEC HTML body. Imperfect — fall back to heuristic when nothing matches.
 _MONTH_NAMES: Final[dict[str, int]] = {
-    "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3,
-    "april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7,
-    "august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
-    "october": 10, "oct": 10, "november": 11, "nov": 11,
-    "december": 12, "dec": 12,
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "sept": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
 }
 
 # Patterns: "5 December 2026", "5 Dec 2026", "December 5, 2026"
-_PATTERN_DAY_MONTH_YEAR = re.compile(
-    r"\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\b"
-)
-_PATTERN_MONTH_DAY_YEAR = re.compile(
-    r"\b([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})\b"
-)
+_PATTERN_DAY_MONTH_YEAR = re.compile(r"\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\b")
+_PATTERN_MONTH_DAY_YEAR = re.compile(r"\b([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})\b")
 
 
 def _parse_opec_minister_dates(html: str) -> tuple[date, ...]:
     found: set[date] = set()
     # Look only inside the same paragraph as "Ministerial" or "Conference".
     for chunk in re.findall(
-        r"[^.\n]*(?:Ministerial|Conference)[^.\n]*", html, flags=re.IGNORECASE,
+        r"[^.\n]*(?:Ministerial|Conference)[^.\n]*",
+        html,
+        flags=re.IGNORECASE,
     ):
         found.update(_extract_dates(chunk))
     # If no contextual matches, fall back to scanning the whole document

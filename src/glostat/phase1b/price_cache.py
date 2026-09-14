@@ -46,7 +46,9 @@ class PriceCache:
         self.miss_count: int = 0
 
     def _path(self, ticker: str) -> Path:
-        return self._dir / f"{ticker.upper()}_{self._start.isoformat()}_{self._end.isoformat()}.json"
+        return (
+            self._dir / f"{ticker.upper()}_{self._start.isoformat()}_{self._end.isoformat()}.json"
+        )
 
     def _lock(self, ticker: str) -> asyncio.Lock:
         key = ticker.upper()
@@ -71,20 +73,20 @@ class PriceCache:
                 self.cache_hit_count += 1
                 return disk
             try:
-                series = await self._client.get_ohlcv(
-                    ticker_u, start=self._start, end=self._end
-                )
+                series = await self._client.get_ohlcv(ticker_u, start=self._start, end=self._end)
             except (YFinanceUnavailableError, YFinanceDataError) as exc:
                 log.warning(
                     "price_cache.fetch_failed",
-                    ticker=ticker_u, err=str(exc),
+                    ticker=ticker_u,
+                    err=str(exc),
                 )
                 self.miss_count += 1
                 return None
             except Exception as exc:
                 log.warning(
                     "price_cache.unexpected",
-                    ticker=ticker_u, err=str(exc),
+                    ticker=ticker_u,
+                    err=str(exc),
                 )
                 self.miss_count += 1
                 return None
@@ -111,9 +113,7 @@ class PriceCache:
                 best = float(bar.close)
         return best
 
-    def forward_return(
-        self, ticker: str, day: date, horizon_days: int = 30
-    ) -> float | None:
+    def forward_return(self, ticker: str, day: date, horizon_days: int = 30) -> float | None:
         c0 = self.close_at_or_before(ticker, day)
         c1 = self.close_at_or_before(ticker, day + timedelta(days=horizon_days))
         if c0 is None or c1 is None or c0 <= 0:
@@ -137,9 +137,9 @@ def _load_from_disk(path: Path) -> OhlcvSeries | None:
     if not path.exists():
         return None
     try:
-        from datetime import datetime as _dt  # noqa: PLC0415
+        from datetime import datetime as _dt
 
-        from glostat.data.yfinance_types import OhlcvBar  # noqa: PLC0415
+        from glostat.data.yfinance_types import OhlcvBar
 
         raw = json.loads(path.read_text())
         bars = tuple(

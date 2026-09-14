@@ -14,13 +14,13 @@ from glostat.replay.sprint4_gate import (
 
 def _kwargs(**overrides: float | int | str) -> dict[str, float | int | str]:
     base: dict[str, float | int | str] = {
-        "sharpe":          1.0,
+        "sharpe": 1.0,
         "oos_degradation": 0.10,
-        "auc":             0.66,
+        "auc": 0.66,
         "cost_passed_pct": 0.55,
-        "maxdd":           0.10,
+        "maxdd": 0.10,
         "reproducibility": 1.0,
-        "n_verdicts":      100,
+        "n_verdicts": 100,
     }
     base.update(overrides)
     return base

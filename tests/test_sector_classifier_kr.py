@@ -70,25 +70,31 @@ class TestCycleClassOf:
 
 
 class TestIsCyclical:
-    @pytest.mark.parametrize("ticker", [
-        "096770",  # SK이노베이션 (refining)
-        "010950",  # S-Oil
-        "005490",  # POSCO홀딩스
-        "051910",  # LG화학
-        "011200",  # HMM (shipping)
-        "000720",  # 현대건설
-        "005380",  # 현대차
-    ])
+    @pytest.mark.parametrize(
+        "ticker",
+        [
+            "096770",  # SK이노베이션 (refining)
+            "010950",  # S-Oil
+            "005490",  # POSCO홀딩스
+            "051910",  # LG화학
+            "011200",  # HMM (shipping)
+            "000720",  # 현대건설
+            "005380",  # 현대차
+        ],
+    )
     def test_known_cyclicals(self, ticker: str) -> None:
         assert is_cyclical(ticker) is True
 
-    @pytest.mark.parametrize("ticker", [
-        "005930",  # 삼성전자 (semiconductor — growth, not cyclical)
-        "035420",  # NAVER
-        "105560",  # KB금융
-        "017670",  # SK텔레콤
-        "999999",  # unknown
-    ])
+    @pytest.mark.parametrize(
+        "ticker",
+        [
+            "005930",  # 삼성전자 (semiconductor — growth, not cyclical)
+            "035420",  # NAVER
+            "105560",  # KB금융
+            "017670",  # SK텔레콤
+            "999999",  # unknown
+        ],
+    )
     def test_known_non_cyclicals(self, ticker: str) -> None:
         assert is_cyclical(ticker) is False
 
@@ -120,14 +126,14 @@ class TestInfoFor:
 class TestCyclicalUniverse:
     def test_includes_known_refiners(self) -> None:
         universe = cyclical_universe()
-        assert "096770" in universe   # SK이노베이션
-        assert "010950" in universe   # S-Oil
-        assert "005490" in universe   # POSCO
+        assert "096770" in universe  # SK이노베이션
+        assert "010950" in universe  # S-Oil
+        assert "005490" in universe  # POSCO
 
     def test_excludes_growth(self) -> None:
         universe = cyclical_universe()
-        assert "005930" not in universe   # 삼성전자
-        assert "035420" not in universe   # NAVER
+        assert "005930" not in universe  # 삼성전자
+        assert "035420" not in universe  # NAVER
 
     def test_sorted(self) -> None:
         universe = cyclical_universe()
